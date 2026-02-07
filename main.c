@@ -31,6 +31,9 @@ static void init_stuff();
 static void update_pixels(uint32_t *pixels);
 static uint32_t get_colour(int a, int r, int g, int b);
 static int set_pixel(int x, int y, int r, int g, int b);
+static void clear_screen(int r, int g, int b);
+
+static int paused = 0;
 
 HWND hwnd;
 
@@ -69,11 +72,8 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         }
 		case WM_PIXELS_BOUNDS_ERROR:
 		{
-			char szFileName[MAX_PATH];
-			HINSTANCE hInstance = GetModuleHandle(NULL);
-
-			GetModuleFileName(hInstance, szFileName, MAX_PATH);
-			MessageBox(hwnd, szFileName, "Accessed pixels out of bounds", MB_OK | MB_ICONINFORMATION);
+			MessageBox(hwnd, "Accessed pixel out of bounds", "ERROR", MB_ICONERROR);
+            PostQuitMessage(0);
 			return 0;
 		}
         case WM_DESTROY:
@@ -177,17 +177,15 @@ void init_stuff() {
 }
 
 void update_pixels(uint32_t *pixels) {
-	if (set_pixel(100, 1000000, 255, 0, 0) < 0) {
+	if (paused) {
+		clear_screen(255, 0, 0);
 		return;
 	}
-    for (int y = 0; y < HEIGHT; y++)
-    {
-        for (int x = 0; x < WIDTH; x++)
-        {
-            pixels[y * WIDTH + x] = get_colour(1, 0, 255, 0);
-        }
-    }
+	//if (set_pixel(100, 1000000, 255, 0, 0) < 0) {
+		//paused = 1;
+	//}
 
+    clear_screen(0, 255, 0);
 
 	//for (int i = 0; i < square_array.count; i++) {
 		//for (int j = 0; j < CUBE_WIDTH; j++) {
@@ -202,10 +200,10 @@ void update_pixels(uint32_t *pixels) {
 	//}
 
 	int x1 = 100;
-	int y1 = 100;
+	int y1 = 600;
 
-	int x2 = 300;
-	int y2 = 400;
+	int x2 = 200;
+	int y2 = 100;
 
 	int change_in_y = y2 - y1;
 	int change_in_x = x2 - x1;
@@ -213,114 +211,17 @@ void update_pixels(uint32_t *pixels) {
 	float m = (float)change_in_y / (float)change_in_x;
 	int c = y1 - (m * x1);
 
-	// TODO: what if change in x or y is negative :o
-	if (change_in_y > change_in_x) {
-		for (int y = y1; y < y2; y++) {
-			int x = (y - c) / m;
-			pixels[y * WIDTH + x] = get_colour(1, 255, 0, 0);
-		}
-	}
-	else {
-		for (int x = x1; x < x2; x++) {
-			int y = (m * x) + c;
-			pixels[y * WIDTH + x] = get_colour(1, 255, 0, 0);
-		}
-	}
-
-	x1 = 100;
-	y1 = 100;
-
-	x2 = 700;
-	y2 = 300;
-
-	change_in_y = y2 - y1;
-	change_in_x = x2 - x1;
-
-	m = (float)change_in_y / (float)change_in_x;
-	c = y1 - (m * x1);
-
-	// TODO: what if change in x or y is negative :o
-	if (change_in_y > change_in_x) {
-		for (int y = y1; y < y2; y++) {
-			int x = (y - c) / m;
-			pixels[y * WIDTH + x] = get_colour(1, 255, 0, 0);
-		}
-	}
-	else {
-		for (int x = x1; x < x2; x++) {
-			int y = (m * x) + c;
-			pixels[y * WIDTH + x] = get_colour(1, 255, 0, 0);
-		}
-	}
-
-	x1 = 700;
-	y1 = 100;
-
-	x2 = 100;
-	y2 = 300;
-
-	change_in_y = y2 - y1;
-	change_in_x = x2 - x1;
-
-	m = (float)change_in_y / (float)change_in_x;
-	c = y1 - (m * x1);
-
-	// TODO: make it so we cant set a pixel out off array
-	if (abs(change_in_y) > abs(change_in_x)) {
-		if (change_in_y > 0) {
-			for (int y = y1; y < y2; y++) {
-				int x = (y - c) / m;
-				pixels[y * WIDTH + x] = get_colour(1, 255, 0, 0);
-			}
-		}
-		else {
-			for (int y = y1; y > y2; y--) {
-				int x = (y - c) / m;
-				pixels[y * WIDTH + x] = get_colour(1, 255, 0, 0);
-			}
-		}
-	}
-	else {
-		if (change_in_x > 0) {
-			for (int x = x1; x < x2; x++) {
-				int y = (m * x) + c;
-				pixels[y * WIDTH + x] = get_colour(1, 255, 0, 0);
-			}
-		}
-		else {
-			for (int x = x1; x > x2; x--) {
-				int y = (m * x) + c;
-				pixels[y * WIDTH + x] = get_colour(1, 255, 0, 0);
-			}
-		}
-	}
-
-	x1 = 100;
-	y1 = 600;
-
-	x2 = 200;
-	y2 = 100;
-
-	change_in_y = y2 - y1;
-	change_in_x = x2 - x1;
-
-	m = (float)change_in_y / (float)change_in_x;
-	c = y1 - (m * x1);
-
-	// TODO: make it so we cant set a pixel out off array
 	if (abs(change_in_y) > abs(change_in_x)) {
 		if (change_in_y > 0) {
 			for (int y = y1; y <= y2; y++) {
 				int x = (y - c) / m;
-				pixels[y * WIDTH + x] = get_colour(1, 255, 0, 0);
+				set_pixel(x, y, 255, 0, 0);
 			}
 		}
 		else {
 			for (int y = y1; y >= y2; y--) {
 				int x = (y - c) / m;
-				if ((y * WIDTH + x) < (WIDTH * HEIGHT)) {
-					pixels[y * WIDTH + x] = get_colour(1, 255, 0, 0);
-				}
+				set_pixel(x, y, 255, 0, 0);
 			}
 		}
 	}
@@ -328,19 +229,26 @@ void update_pixels(uint32_t *pixels) {
 		if (change_in_x > 0) {
 			for (int x = x1; x <= x2; x++) {
 				int y = (m * x) + c;
-				pixels[y * WIDTH + x] = get_colour(1, 255, 0, 0);
+				set_pixel(x, y, 255, 0, 0);
 			}
 		}
 		else {
 			for (int x = x1; x >= x2; x--) {
 				int y = (m * x) + c;
-				pixels[y * WIDTH + x] = get_colour(1, 255, 0, 0);
+				set_pixel(x, y, 255, 0, 0);
 			}
 		}
 	}
+}
 
-	// access an x, y by [y * WIDTH + x]
-	// set pixel like pixels[i] = get_colour(a, r, g, b)
+void clear_screen(int r, int g, int b) {
+    for (int y = 0; y < HEIGHT; y++)
+    {
+        for (int x = 0; x < WIDTH; x++)
+        {
+            pixels[y * WIDTH + x] = get_colour(1, r, g, b);
+        }
+    }
 }
 
 uint32_t get_colour(int a, int r, int g, int b) {
@@ -354,6 +262,7 @@ int set_pixel(int x, int y, int r, int g, int b) {
 	}
 	else {
 		PostMessage(hwnd, WM_PIXELS_BOUNDS_ERROR, 0, 0);
+		KillTimer(hwnd, 1);
 		return -1;
 	}
 }
