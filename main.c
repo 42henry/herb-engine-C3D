@@ -231,6 +231,8 @@ void update_pixels(uint32_t *pixels) {
 
     clear_screen((Colour_t){100, 100, 100});
 
+	// TODO: make it easy to set pixel density of textures
+	//then make the below loop correctly for all coords of all squares
 	Vec3 one = squares.items[0].coords[0];
 	Vec3 two = squares.items[0].coords[1];
 	Vec3 three = squares.items[0].coords[5];
@@ -312,11 +314,6 @@ void update_pixels(uint32_t *pixels) {
 	}
 
 	fill_square(one, two, three, four, red);
-
-	draw_line(one, two, green);
-	draw_line(two, three, green);
-	draw_line(three, four, green);
-	draw_line(four, one, green);
 
 	return;
 }
