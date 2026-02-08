@@ -70,6 +70,9 @@ static int paused = 0;
 static int frame = 0;
 static int toggle = 0;
 
+static POINT mouse = {0};
+static float rotation;
+
 static Colour_t debug_colour = {0, 0, 255};
 static Colour_t red = {255, 0, 0};
 static Colour_t green = {0, 255, 0};
@@ -111,7 +114,10 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         }
 		case WM_LBUTTONDOWN:
 		{
-			paused = (paused) ? 0 : 1;
+			char str[100];
+			sprintf(str, "rotation: %f", rotation);
+			MessageBox(hwnd, str, "mouse", MB_ICONWARNING);
+			//paused = (paused) ? 0 : 1;
 			return 0;
 		}
         case WM_DESTROY:
@@ -219,6 +225,9 @@ void update_pixels(uint32_t *pixels) {
 		return;
 	}
 	frame++;
+	GetCursorPos(&mouse);
+	ScreenToClient(hwnd, &mouse);
+	rotation = ((mouse.x / (float)WIDTH) - 0.5) * 2 * 3.141;
 
     clear_screen((Colour_t){100, 100, 100});
 
