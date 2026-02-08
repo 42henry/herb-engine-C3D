@@ -11,7 +11,7 @@
 
 #define CM_TO_PIXELS 10
 
-#define CUBE_WIDTH (10 * CM_TO_PIXELS)
+#define CUBE_WIDTH (10 * CM_TO_PIXELS) // cube is 10cm big
 #define MAX_SQUARES 100
 
 #define TEXTURE_WIDTH 3
@@ -218,7 +218,7 @@ void init_stuff() {
 	blue.b = 255;
 
 	squares.items = malloc(MAX_SQUARES * sizeof(Square_t));
-	add_square((Vec3){0, 10, 50});
+	add_square((Vec3){0, 10, 10});
 
 	return;
 }
@@ -249,6 +249,12 @@ void update_pixels(uint32_t *pixels) {
 						rotate_and_project(squares.items[i].coords[j + TEXTURE_WIDTH + 1]),
 						(Colour_t){200, 160, 20});
 		}
+	}
+
+	if (debug > 0) {
+		Vec3 one = {100, debug, 10};
+		Vec3 two = {500, debug, 10};
+		draw_line(one, two, green);
 	}
 
 	return;
@@ -339,9 +345,6 @@ void draw_line(Vec3 start, Vec3 end, Colour_t colour) {
 }
 
 void fill_square(Vec3 one, Vec3 two, Vec3 three, Vec3 four, Colour_t colour) {
-	if (one.x < 0) {
-		return;
-	}
 	Vec3 coords[4] = {one, two, three, four};
 
 	// find the smallest y:
@@ -349,6 +352,10 @@ void fill_square(Vec3 one, Vec3 two, Vec3 three, Vec3 four, Colour_t colour) {
 	int smallest_y_index = 0;
 	int largest_y = -1;
 	for (int i = 0; i < 4; i++) {
+		// dont draw if z is neg
+		if (coords[i].x == 0) {
+			return;
+		}
 		if (coords[i].y < smallest_y) {
 			smallest_y = coords[i].y;
 			smallest_y_index = i;
@@ -517,9 +524,6 @@ void add_square(Vec3 top_left) {
 	int y = top_left.y * CM_TO_PIXELS;
 	int z = top_left.z * CM_TO_PIXELS;
 
-	// convert from standard grid to screen grid
-	x = x + WIDTH / 2;
-	y = -y + HEIGHT / 2;
 
 	Square_t square = {0};
 	int count = 0;
@@ -535,9 +539,21 @@ void add_square(Vec3 top_left) {
 }
 
 Vec3 rotate_and_project(Vec3 coord) {
+	// rotate
 	int x = (coord.z * sin(rotation) + coord.x * cos(rotation));
 	int z = (coord.z * cos(rotation) - coord.x * sin(rotation));
 	int y = coord.y;
+	// project
+	if (z > 0) {
+		//x /= z;
+		//y /= z;
+	}
+	else {
+		return (Vec3){0, 0, 0};
+	}
+	// convert from standard grid to screen grid
+	x = x + WIDTH / 2;
+	y = -y + HEIGHT / 2;
 	debug = z;
 	return (Vec3){x, y, z};
 }
