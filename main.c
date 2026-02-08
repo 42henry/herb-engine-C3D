@@ -2,14 +2,12 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 
 #define WIDTH  800
 #define HEIGHT 500
 #define CUBE_WIDTH 50
 #define MAX_SQUARES 100
-
-#define WM_PIXELS_BOUNDS_ERROR (WM_USER + 0)
-#define WM_DEBUG_PRINT (WM_USER + 1)
 
 typedef struct {
 	int x;
@@ -46,6 +44,7 @@ static HBITMAP bitmap = NULL;
 static HDC memDC = NULL;
 
 static void init_stuff();
+static void debug_log(char *str);
 
 static void update_pixels(uint32_t *pixels);
 static uint32_t pack_colour_to_uint32(int a, Colour_t colour);
@@ -98,22 +97,6 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             EndPaint(hwnd, &ps);
             return 0;
         }
-		case WM_PIXELS_BOUNDS_ERROR:
-		{
-			paused = 1;
-			MessageBox(hwnd, "Accessed pixel out of bounds", "ERROR", MB_ICONERROR);
-            PostQuitMessage(0);
-			return 0;
-		}
-		case WM_DEBUG_PRINT:
-		{
-			paused = 1;
-			char str[256];
-			sprintf(str, "\ndebug info: %d", 69);
-			MessageBox(hwnd, str, "Debug Log", MB_ICONWARNING);
-            PostQuitMessage(0);
-			return 0;
-		}
         case WM_DESTROY:
 		    // --- Close window ---
             PostQuitMessage(0);
@@ -216,15 +199,45 @@ void init_stuff() {
 
 void update_pixels(uint32_t *pixels) {
 	if (paused) {
+		clear_screen((Colour_t){255, 255, 0});
 		return;
 	}
 
-    clear_screen((Colour_t){0, 255, 0});
+    clear_screen((Colour_t){100, 100, 100});
 
-	Vec3 one = squares.items[0].coords[0];
-	Vec3 two = squares.items[0].coords[1];
-	Vec3 three = squares.items[0].coords[5];
-	Vec3 four = squares.items[0].coords[4];
+	//Vec3 one = squares.items[0].coords[0];
+	//Vec3 two = squares.items[0].coords[1];
+	//Vec3 three = squares.items[0].coords[5];
+	//Vec3 four = squares.items[0].coords[4];
+
+	Vec3 one = {100, 90, 10};
+	Vec3 two = {200, 200, 10};
+	Vec3 three = {150, 210, 10};
+	Vec3 four = {120, 150, 10};
+
+	draw_line(one, two, green);
+	draw_line(two, three, green);
+	draw_line(three, four, green);
+	draw_line(four, one, green);
+
+	fill_square(one, two, three, four, red);
+
+	one.x = 400;
+	one.y = 100;
+
+	two.x = 300;
+	two.y = 300;
+
+	three.x = 280;
+	three.y = 200;
+
+	four.x = 300;
+	four.y = 150;
+
+	draw_line(one, two, green);
+	draw_line(two, three, green);
+	draw_line(three, four, green);
+	draw_line(four, one, green);
 
 	fill_square(one, two, three, four, red);
 
@@ -255,14 +268,27 @@ Colour_t unpack_colour_from_uint32(uint32_t packed_colour) {
 }
 
 void set_pixel(Vec2 coord, Colour_t colour) {
-	if ((coord.y * WIDTH + coord.x) < (WIDTH * HEIGHT)) {
-		pixels[coord.y * WIDTH + coord.x] = pack_colour_to_uint32(1, colour);
+	// TODO: remove these checks when not debugging as they slow us down
+	if ((coord.y < HEIGHT) && (coord.x < WIDTH)) {
+		if ((coord.y * WIDTH + coord.x) < (WIDTH * HEIGHT)) {
+			pixels[coord.y * WIDTH + coord.x] = pack_colour_to_uint32(1, colour);
+			return;
+		}
 	}
-	else {
-		// TODO: remove this???
-		PostMessage(hwnd, WM_PIXELS_BOUNDS_ERROR, 0, 0);
-	}
+	debug_log("set_pixel out of bounds");
 	return;
+}
+
+Colour_t get_pixel_colour(Vec2 coord) {
+	uint32_t packed_colour = 0;
+	if ((coord.y < HEIGHT) && (coord.x < WIDTH)) {
+		if ((coord.y * WIDTH + coord.x) < (WIDTH * HEIGHT)) {
+			packed_colour = pixels[coord.y * WIDTH + coord.x];
+			return unpack_colour_from_uint32(packed_colour);
+		}
+	}
+	debug_log("get_pixel out of bounds");
+	return unpack_colour_from_uint32(packed_colour);
 }
 
 void draw_line(Vec3 start, Vec3 end, Colour_t colour) {
@@ -307,70 +333,132 @@ void draw_line(Vec3 start, Vec3 end, Colour_t colour) {
 	return;
 }
 
-void fill_square(Vec3 one, Vec3 two, Vec3 three, Vec3 four, Colour_t new_colour) {
+void fill_square(Vec3 one, Vec3 two, Vec3 three, Vec3 four, Colour_t colour) {
 	Vec3 coords[4] = {one, two, three, four};
-	draw_line(one, two, red);
-	draw_line(two, three, red);
-	draw_line(three, four, red);
-	draw_line(four, one, red);
-	return;
-	//int smallest_x = WIDTH + 1;
-	//int smallest_y = HEIGHT + 1;
-	//int largest_x = -1;
-	//int largest_y = -1;
-	//for (int i = 0; i < 4; i++) {
-		//if (coords[i].x < smallest_x) {
-			//smallest_x = coords[i].x;
+
+	// find the smallest y:
+	int smallest_y = HEIGHT + 1;
+	int smallest_y_index = 0;
+	for (int i = 0; i < 4; i++) {
+		if (coords[i].y < smallest_y) {
+			smallest_y = coords[i].y;
+			smallest_y_index = i;
+		}
+	}
+
+	// define two lines
+	Vec3 top = coords[smallest_y_index];
+	int left_index = smallest_y_index - 1;
+	if (left_index == -1) {
+		left_index = 3;
+	}
+	int right_index = (smallest_y_index + 1) % 4;
+	Vec3 left = coords[left_index];
+	Vec3 right = coords[right_index];
+
+	int change_in_y_left = left.y - top.y;
+	int change_in_x_left = left.x - top.x;
+
+	float m_left = (float)change_in_y_left / (float)change_in_x_left;
+	if (change_in_x_left == 0){
+		m_left = 9999999;	
+	}
+	int c_left = top.y - (m_left * top.x);
+
+	int change_in_y_right = right.y - top.y;
+	int change_in_x_right = right.x - top.x;
+
+	float m_right = (float)change_in_y_right / (float)change_in_x_right;
+	if (change_in_x_right == 0){
+		m_right = 9999999;	
+	}
+	int c_right = top.y - (m_right * top.x);
+
+	// draw both lines, waiting until both are on the same y:
+	int y_left = top.y;
+	int y_right = top.y;
+
+	// find which point has larger y:
+	int y_lim = HEIGHT + 1;
+	if (left.y < y_lim) {
+		y_lim = left.y;
+	}
+	if (right.y < y_lim) {
+		y_lim = right.y;
+	}
+
+	int x_left = top.x;
+	int x_right = top.x;
+	for (int y_end = top.y + 1; y_end < y_lim; y_end++) {
+		//  draw lines to y_end
+		if (abs(change_in_y_left) > abs(change_in_x_left)) {
+			x_left = (y_left - c_left) / m_left;
+			set_pixel((Vec2){x_left, y_left}, colour);
+			y_left++;
+		}
+		else {
+			if (change_in_x_left > 0) {
+				while (y_left != y_end) {
+					y_left = (m_left * x_left) + c_left;
+					set_pixel((Vec2){x_left, y_left}, colour);
+					x_left++;
+				}
+			}
+			else {
+				while (y_left != y_end) {
+					y_left = (m_left * x_left) + c_left;
+					set_pixel((Vec2){x_left, y_left}, colour);
+					x_left--;
+				}
+			}
+		}
+
+		if (abs(change_in_y_right) > abs(change_in_x_right)) {
+			x_right = (y_right - c_right) / m_right;
+			set_pixel((Vec2){x_right, y_right}, colour);
+			y_right++;
+		}
+		else {
+			if (change_in_x_right > 0) {
+				while (y_right != y_end) {
+					y_right = (m_right * x_right) + c_right;
+					set_pixel((Vec2){x_right, y_right}, colour);
+					x_right++;
+				}
+			}
+			else {
+				while (y_right != y_end) {
+					y_right = (m_right * x_right) + c_right;
+					set_pixel((Vec2){x_right, y_right}, colour);
+					x_right--;
+				}
+			}
+		}
+		//  connect lines across x
+		//if (y_end > 120) {
+			//char str[100];
+			//sprintf(str, "x_left: %d, x_right: %d, y: %d", x_left, x_right, y_end);
+			//debug_log(str);
 		//}
-		//else if (coords[i].x > largest_x) {
-			//largest_x = coords[i].x;
-		//}
-		//if (coords[i].y < smallest_y) {
-			//smallest_y = coords[i].y;
-		//}
-		//else if (coords[i].y > largest_y) {
-			//largest_y = coords[i].y;
-		//}
-	//}
-	//int count = 0;
-	//for (int x = smallest_x; x < largest_x; x++) {
-		//if (get_pixel_colour((Vec2){x, smallest_y}) == debug_colour) {
-			//set_pixel((Vec2){x, smallest_y}, colour);
-			//if (count == 0) {
-				//count++;
-			//}
-		//}
-		//if (count == 1) {
-			//if (get_pixel_colour((Vec2){x, smallest_y}) != debug_colour) {
-				//break;
-			//}
-		//}
-	//}
-	//count = 0;
-	//for (int x = smallest_x; x < largest_x; x++) {
-		//if (get_pixel_colour((Vec2){x, largest_y}) == debug_colour) {
-			//set_pixel((Vec2){x, largest_y}, colour);
-			//if (count == 0) {
-				//count++;
-			//}
-		//}
-		//if (count == 1) {
-			//if (get_pixel_colour((Vec2){x, largest_y}) != debug_colour) {
-				//break;
-			//}
-		//}
-	//}
-	//count = 0;
+		if (x_left < x_right) {
+			for (int x = x_left; x < x_right; x++) {
+				set_pixel((Vec2){x, y_end}, colour);
+			}
+		}
+		else {
+			for (int x = x_right; x < x_left; x++) {
+				set_pixel((Vec2){x, y_end}, colour);
+			}
+		}
+	}
+
 	return;
 }
 
-Colour_t get_pixel_colour(Vec2 coord) {
-	uint32_t packed_colour = 0;
-	if ((coord.y * WIDTH + coord.x) < (WIDTH * HEIGHT)) {
-		packed_colour = pixels[coord.y * WIDTH + coord.x];
-	}
-	else {
-		PostMessage(hwnd, WM_PIXELS_BOUNDS_ERROR, 0, 0);
-	}
-	return unpack_colour_from_uint32(packed_colour);
+void debug_log(char *str) {
+	paused = 1;
+	char log[100];
+	strcpy(log, str);
+	MessageBox(hwnd, log, "Debug Log", MB_ICONWARNING);
+	PostQuitMessage(0);
 }
