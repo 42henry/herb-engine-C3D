@@ -67,6 +67,8 @@ static void fill_square(Vec3 one, Vec3 two, Vec3 three, Vec3 four, Colour_t new_
 
 static Squares_t squares = {0};
 static int paused = 0;
+static int frame = 0;
+static int toggle = 0;
 
 static Colour_t debug_colour = {0, 0, 255};
 static Colour_t red = {255, 0, 0};
@@ -217,18 +219,33 @@ void update_pixels(uint32_t *pixels) {
 		clear_screen((Colour_t){255, 255, 0});
 		return;
 	}
+	frame++;
 
     clear_screen((Colour_t){100, 100, 100});
 
-	//Vec3 one = squares.items[0].coords[0];
-	//Vec3 two = squares.items[0].coords[1];
-	//Vec3 three = squares.items[0].coords[5];
-	//Vec3 four = squares.items[0].coords[4];
+	Vec3 one = squares.items[0].coords[0];
+	Vec3 two = squares.items[0].coords[1];
+	Vec3 three = squares.items[0].coords[5];
+	Vec3 four = squares.items[0].coords[4];
 
-	Vec3 one = {100, 90, 10};
-	Vec3 two = {200, 200, 10};
-	Vec3 three = {150, 210, 10};
-	Vec3 four = {120, 150, 10};
+	draw_line(one, two, green);
+	draw_line(two, three, green);
+	draw_line(three, four, green);
+	draw_line(four, one, green);
+
+	fill_square(one, two, three, four, (Colour_t){200, 160, 20});
+
+	one.x = 100;
+	one.y = 190;
+
+	two.x = 200;
+	two.y = 300;
+
+	three.x = 150;
+	three.y = 310;
+
+	four.x = 120;
+	four.y = 250;
 
 	fill_square(one, two, three, four, (Colour_t){20, 80, 200});
 
@@ -248,6 +265,43 @@ void update_pixels(uint32_t *pixels) {
 
 	four.x = 300;
 	four.y = 150;
+
+	fill_square(one, two, three, four, red);
+
+	draw_line(one, two, green);
+	draw_line(two, three, green);
+	draw_line(three, four, green);
+	draw_line(four, one, green);
+
+	if (frame % 60 == 0) {
+		toggle = (toggle) ? 0 : 1;
+	}
+	if (toggle) {
+		one.x = 600;
+		one.y = 100;
+
+		two.x = 700;
+		two.y = 100;
+
+		three.x = 700;
+		three.y = 200;
+
+		four.x = 600;
+		four.y = 200;
+	}
+	else {
+		one.x = 650;
+		one.y = 90;
+
+		two.x = 710;
+		two.y = 150;
+
+		three.x = 650;
+		three.y = 210;
+
+		four.x = 590;
+		four.y = 150;
+	}
 
 	fill_square(one, two, three, four, red);
 
@@ -382,6 +436,8 @@ void fill_square(Vec3 one, Vec3 two, Vec3 three, Vec3 four, Colour_t colour) {
 	int right_x = right_line.start.x;
 	int right_y = right_line.start.y;
 	for (int y = top.y + 1; y < largest_y; y++) {
+		int right_line_complete = 0;
+		int left_line_complete = 0;
 
 		// draw left line to y
 		if (abs(get_line_gradient(left_line)) >= 1) {
@@ -392,12 +448,20 @@ void fill_square(Vec3 one, Vec3 two, Vec3 three, Vec3 four, Colour_t colour) {
 				while (left_y != y) {
 					left_y = (get_line_gradient(left_line) * left_x) + get_line_intercept(left_line);
 					left_x++;
+					if (left_x >= left_line.end.x) {
+						left_line_complete = 1;
+						break;
+					}
 				}
 			}
 			else {
 				while (left_y != y) {
 					left_y = (get_line_gradient(left_line) * left_x) + get_line_intercept(left_line);
 					left_x--;
+					if (left_x <= left_line.end.x) {
+						left_line_complete = 1;
+						break;
+					}
 				}
 			}
 		}
@@ -411,12 +475,20 @@ void fill_square(Vec3 one, Vec3 two, Vec3 three, Vec3 four, Colour_t colour) {
 				while (right_y != y) {
 					right_y = (get_line_gradient(right_line) * right_x) + get_line_intercept(right_line);
 					right_x++;
+					if (right_x >= right_line.end.x) {
+						right_line_complete = 1;
+						break;
+					}
 				}
 			}
 			else {
 				while (right_y != y) {
 					right_y = (get_line_gradient(right_line) * right_x) + get_line_intercept(right_line);
 					right_x--;
+					if (right_x <= right_line.end.x) {
+						right_line_complete = 1;
+						break;
+					}
 				}
 			}
 		}
@@ -432,7 +504,7 @@ void fill_square(Vec3 one, Vec3 two, Vec3 three, Vec3 four, Colour_t colour) {
 			}
 		}
 
-		if (y >= left_line.end.y) {
+		if ((y >= left_line.end.y) || left_line_complete) {
 			lines_drawn++;
 
 			left_index = left_index - 1;
@@ -443,7 +515,7 @@ void fill_square(Vec3 one, Vec3 two, Vec3 three, Vec3 four, Colour_t colour) {
 			left_line.start = left_line.end;
 			left_line.end = coords[left_index];
 		}
-		if (y >= right_line.end.y) {
+		if (y >= right_line.end.y || right_line_complete) {
 			lines_drawn++;
 
 			right_index = (right_index + 1) % 4;
@@ -470,7 +542,7 @@ float get_line_gradient(Line_t line) {
 
 	float m = (float)change_in_y / (float)change_in_x;
 	if (change_in_x == 0){
-		m = 9999999;	
+		m = WIDTH * 10;	
 	}
 	return m;
 }
