@@ -1,15 +1,17 @@
 #include <windows.h>
-#include <stdint.h>
-#include <stdlib.h>
+
 #include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
+#include <math.h>
 
 #define WIDTH  800
 #define HEIGHT 500
 
-#define CM_TO_PIXELS 100
+#define CM_TO_PIXELS 10
 
-#define CUBE_WIDTH 50
+#define CUBE_WIDTH (10 * CM_TO_PIXELS)
 #define MAX_SQUARES 100
 
 #define TEXTURE_WIDTH 3
@@ -70,6 +72,9 @@ static Colour_t get_pixel_colour(Vec2 coord);
 static void clear_screen(Colour_t colour);
 static void draw_line(Vec3 start, Vec3 end, Colour_t colour);
 static void fill_square(Vec3 one, Vec3 two, Vec3 three, Vec3 four, Colour_t new_colour);
+static void add_square(Vec3 top_left);
+
+static Vec3 rotate_and_project(Vec3 coord);
 
 static Squares_t squares = {0};
 static int paused = 0;
@@ -77,11 +82,15 @@ static int frame = 0;
 static int toggle = 0;
 
 static POINT mouse = {0};
-static float rotation;
+static float rotation = 0;
 
 static Colour_t red = {255, 0, 0};
 static Colour_t green = {0, 255, 0};
 static Colour_t blue = {0, 0, 255};
+
+static int debug = 0;
+static int debug2 = 0;
+static int debug3 = 0;
 
 HWND hwnd;
 
@@ -121,7 +130,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		case WM_LBUTTONDOWN:
 		{
 			char str[100];
-			sprintf(str, "rotation: %f", rotation);
+			sprintf(str, "z: %d", debug);
 			MessageBox(hwnd, str, "mouse", MB_ICONWARNING);
 			//paused = (paused) ? 0 : 1;
 			return 0;
@@ -209,20 +218,7 @@ void init_stuff() {
 	blue.b = 255;
 
 	squares.items = malloc(MAX_SQUARES * sizeof(Square_t));
-
-	// TODO: convert from x y z in cm in the world where camera is at 0, 0, 0
-	int x = WIDTH / 2;
-	int y = HEIGHT / 2;
-	Square_t square = {0};
-	int count = 0;
-	for (int j = 0; j < TEXTURE_WIDTH + 1; j++) {
-		for (int k = 0; k < TEXTURE_WIDTH + 1; k++) {
-			square.coords[count] = (Vec3){x + (k * (CUBE_WIDTH / TEXTURE_WIDTH)), y + (j * (CUBE_WIDTH / TEXTURE_WIDTH)), 10};
-			count++;
-		}
-	}
-	squares.items[squares.count] = square;
-	squares.count++;
+	add_square((Vec3){0, 10, 50});
 
 	return;
 }
@@ -236,7 +232,7 @@ void update_pixels(uint32_t *pixels) {
 	GetCursorPos(&mouse);
 	ScreenToClient(hwnd, &mouse);
 
-	rotation = ((mouse.x / (float)WIDTH) - 0.5) * 2 * 3.141;
+	rotation = -((mouse.x / (float)WIDTH) - 0.5) * 2 * 3.141;
 
     clear_screen((Colour_t){100, 100, 100});
 
@@ -247,10 +243,10 @@ void update_pixels(uint32_t *pixels) {
 			if (j && ((j + 1) % (TEXTURE_WIDTH + 1)) == 0) {
 				continue;
 			}
-			fill_square(squares.items[i].coords[j],
-						squares.items[i].coords[j + 1],
-						squares.items[i].coords[j + TEXTURE_WIDTH + 2],
-						squares.items[i].coords[j + TEXTURE_WIDTH + 1],
+			fill_square(rotate_and_project(squares.items[i].coords[j]),
+						rotate_and_project(squares.items[i].coords[j + 1]),
+						rotate_and_project(squares.items[i].coords[j + TEXTURE_WIDTH + 2]),
+						rotate_and_project(squares.items[i].coords[j + TEXTURE_WIDTH + 1]),
 						(Colour_t){200, 160, 20});
 		}
 	}
@@ -289,7 +285,6 @@ void set_pixel(Vec2 coord, Colour_t colour) {
 			return;
 		}
 	}
-	debug_log("set_pixel out of bounds");
 	return;
 }
 
@@ -344,6 +339,9 @@ void draw_line(Vec3 start, Vec3 end, Colour_t colour) {
 }
 
 void fill_square(Vec3 one, Vec3 two, Vec3 three, Vec3 four, Colour_t colour) {
+	if (one.x < 0) {
+		return;
+	}
 	Vec3 coords[4] = {one, two, three, four};
 
 	// find the smallest y:
@@ -510,4 +508,36 @@ int line_goes_down(Line_t line) {
 int line_goes_right(Line_t line) {
 	int change_in_x = line.end.x - line.start.x;
 	return (change_in_x > 0);
+}
+
+void add_square(Vec3 top_left) {
+
+	// convert from cm to pixels
+	int x = top_left.x * CM_TO_PIXELS;
+	int y = top_left.y * CM_TO_PIXELS;
+	int z = top_left.z * CM_TO_PIXELS;
+
+	// convert from standard grid to screen grid
+	x = x + WIDTH / 2;
+	y = -y + HEIGHT / 2;
+
+	Square_t square = {0};
+	int count = 0;
+	for (int j = 0; j < TEXTURE_WIDTH + 1; j++) {
+		for (int k = 0; k < TEXTURE_WIDTH + 1; k++) {
+			square.coords[count] = (Vec3){x + (k * (CUBE_WIDTH / TEXTURE_WIDTH)), y + (j * (CUBE_WIDTH / TEXTURE_WIDTH)), z};
+			count++;
+		}
+	}
+	squares.items[squares.count] = square;
+	squares.count++;
+
+}
+
+Vec3 rotate_and_project(Vec3 coord) {
+	int x = (coord.z * sin(rotation) + coord.x * cos(rotation));
+	int z = (coord.z * cos(rotation) - coord.x * sin(rotation));
+	int y = coord.y;
+	debug = z;
+	return (Vec3){x, y, z};
 }
