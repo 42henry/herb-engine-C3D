@@ -21,6 +21,11 @@ typedef struct {
 } Vec2;
 
 typedef struct {
+	Vec3 start;
+	Vec3 end;
+} Line_t;
+
+typedef struct {
 	int r;
 	int g;
 	int b;
@@ -45,6 +50,11 @@ static HDC memDC = NULL;
 
 static void init_stuff();
 static void debug_log(char *str);
+
+static int get_line_intercept(Line_t line);
+static float get_line_gradient(Line_t line);
+static int line_goes_right(Line_t line);
+static int line_goes_down(Line_t line);
 
 static void update_pixels(uint32_t *pixels);
 static uint32_t pack_colour_to_uint32(int a, Colour_t colour);
@@ -97,6 +107,11 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             EndPaint(hwnd, &ps);
             return 0;
         }
+		case WM_LBUTTONDOWN:
+		{
+			paused = 0;
+			return 0;
+		}
         case WM_DESTROY:
 		    // --- Close window ---
             PostQuitMessage(0);
@@ -215,12 +230,12 @@ void update_pixels(uint32_t *pixels) {
 	Vec3 three = {150, 210, 10};
 	Vec3 four = {120, 150, 10};
 
+	fill_square(one, two, three, four, (Colour_t){20, 80, 200});
+
 	draw_line(one, two, green);
 	draw_line(two, three, green);
 	draw_line(three, four, green);
 	draw_line(four, one, green);
-
-	fill_square(one, two, three, four, red);
 
 	one.x = 400;
 	one.y = 100;
@@ -234,12 +249,12 @@ void update_pixels(uint32_t *pixels) {
 	four.x = 300;
 	four.y = 150;
 
+	fill_square(one, two, three, four, red);
+
 	draw_line(one, two, green);
 	draw_line(two, three, green);
 	draw_line(three, four, green);
 	draw_line(four, one, green);
-
-	fill_square(one, two, three, four, red);
 
 	return;
 }
@@ -292,39 +307,35 @@ Colour_t get_pixel_colour(Vec2 coord) {
 }
 
 void draw_line(Vec3 start, Vec3 end, Colour_t colour) {
+	Line_t line = {start, end};
 
-	int change_in_y = end.y - start.y;
-	int change_in_x = end.x - start.x;
+	float m = get_line_gradient(line);
+	int c = get_line_intercept(line);
 
-	float m = (float)change_in_y / (float)change_in_x;
-	if (change_in_x == 0){
-		m = 9999999;	
-	}
-	int c = start.y - (m * start.x);
-
-	if (abs(change_in_y) > abs(change_in_x)) {
-		if (change_in_y > 0) {
-			for (int y = start.y; y <= end.y; y++) {
+	//if (abs(change_in_y) > abs(change_in_x)) {
+	if (abs(m) >= 1) {
+		if (line_goes_down(line)) {
+			for (int y = line.start.y; y <= line.end.y; y++) {
 				int x = (y - c) / m;
 				set_pixel((Vec2){x, y}, colour);
 			}
 		}
 		else {
-			for (int y = start.y; y >= end.y; y--) {
+			for (int y = line.start.y; y >= line.end.y; y--) {
 				int x = (y - c) / m;
 				set_pixel((Vec2){x, y}, colour);
 			}
 		}
 	}
 	else {
-		if (change_in_x > 0) {
-			for (int x = start.x; x <= end.x; x++) {
+		if (line_goes_right(line)) {
+			for (int x = line.start.x; x <= line.end.x; x++) {
 				int y = (m * x) + c;
 				set_pixel((Vec2){x, y}, colour);
 			}
 		}
 		else {
-			for (int x = start.x; x >= end.x; x--) {
+			for (int x = line.start.x; x >= line.end.x; x--) {
 				int y = (m * x) + c;
 				set_pixel((Vec2){x, y}, colour);
 			}
@@ -339,10 +350,14 @@ void fill_square(Vec3 one, Vec3 two, Vec3 three, Vec3 four, Colour_t colour) {
 	// find the smallest y:
 	int smallest_y = HEIGHT + 1;
 	int smallest_y_index = 0;
+	int largest_y = -1;
 	for (int i = 0; i < 4; i++) {
 		if (coords[i].y < smallest_y) {
 			smallest_y = coords[i].y;
 			smallest_y_index = i;
+		}
+		if (coords[i].y > largest_y) {
+			largest_y = coords[i].y;
 		}
 	}
 
@@ -356,99 +371,85 @@ void fill_square(Vec3 one, Vec3 two, Vec3 three, Vec3 four, Colour_t colour) {
 	Vec3 left = coords[left_index];
 	Vec3 right = coords[right_index];
 
-	int change_in_y_left = left.y - top.y;
-	int change_in_x_left = left.x - top.x;
+	Line_t left_line = {top, left};
+	Line_t right_line = {top, right};
 
-	float m_left = (float)change_in_y_left / (float)change_in_x_left;
-	if (change_in_x_left == 0){
-		m_left = 9999999;	
-	}
-	int c_left = top.y - (m_left * top.x);
+	int lines_drawn = 0;
 
-	int change_in_y_right = right.y - top.y;
-	int change_in_x_right = right.x - top.x;
+	int left_x = left_line.start.x;
+	int left_y = left_line.start.y;
 
-	float m_right = (float)change_in_y_right / (float)change_in_x_right;
-	if (change_in_x_right == 0){
-		m_right = 9999999;	
-	}
-	int c_right = top.y - (m_right * top.x);
+	int right_x = right_line.start.x;
+	int right_y = right_line.start.y;
+	for (int y = top.y + 1; y < largest_y; y++) {
 
-	// draw both lines, waiting until both are on the same y:
-	int y_left = top.y;
-	int y_right = top.y;
-
-	// find which point has larger y:
-	int y_lim = HEIGHT + 1;
-	if (left.y < y_lim) {
-		y_lim = left.y;
-	}
-	if (right.y < y_lim) {
-		y_lim = right.y;
-	}
-
-	int x_left = top.x;
-	int x_right = top.x;
-	for (int y_end = top.y + 1; y_end < y_lim; y_end++) {
-		//  draw lines to y_end
-		if (abs(change_in_y_left) > abs(change_in_x_left)) {
-			x_left = (y_left - c_left) / m_left;
-			set_pixel((Vec2){x_left, y_left}, colour);
-			y_left++;
+		// draw left line to y
+		if (abs(get_line_gradient(left_line)) >= 1) {
+			left_x = (y - get_line_intercept(left_line)) / get_line_gradient(left_line);
 		}
 		else {
-			if (change_in_x_left > 0) {
-				while (y_left != y_end) {
-					y_left = (m_left * x_left) + c_left;
-					set_pixel((Vec2){x_left, y_left}, colour);
-					x_left++;
+			if (line_goes_right(left_line)) {
+				while (left_y != y) {
+					left_y = (get_line_gradient(left_line) * left_x) + get_line_intercept(left_line);
+					left_x++;
 				}
 			}
 			else {
-				while (y_left != y_end) {
-					y_left = (m_left * x_left) + c_left;
-					set_pixel((Vec2){x_left, y_left}, colour);
-					x_left--;
+				while (left_y != y) {
+					left_y = (get_line_gradient(left_line) * left_x) + get_line_intercept(left_line);
+					left_x--;
+				}
+			}
+		}
+			
+		// draw right line to y
+		if (abs(get_line_gradient(right_line)) >= 1) {
+			right_x = (y - get_line_intercept(right_line)) / get_line_gradient(right_line);
+		}
+		else {
+			if (line_goes_right(right_line)) {
+				while (right_y != y) {
+					right_y = (get_line_gradient(right_line) * right_x) + get_line_intercept(right_line);
+					right_x++;
+				}
+			}
+			else {
+				while (right_y != y) {
+					right_y = (get_line_gradient(right_line) * right_x) + get_line_intercept(right_line);
+					right_x--;
 				}
 			}
 		}
 
-		if (abs(change_in_y_right) > abs(change_in_x_right)) {
-			x_right = (y_right - c_right) / m_right;
-			set_pixel((Vec2){x_right, y_right}, colour);
-			y_right++;
-		}
-		else {
-			if (change_in_x_right > 0) {
-				while (y_right != y_end) {
-					y_right = (m_right * x_right) + c_right;
-					set_pixel((Vec2){x_right, y_right}, colour);
-					x_right++;
-				}
-			}
-			else {
-				while (y_right != y_end) {
-					y_right = (m_right * x_right) + c_right;
-					set_pixel((Vec2){x_right, y_right}, colour);
-					x_right--;
-				}
-			}
-		}
-		//  connect lines across x
-		//if (y_end > 120) {
-			//char str[100];
-			//sprintf(str, "x_left: %d, x_right: %d, y: %d", x_left, x_right, y_end);
-			//debug_log(str);
-		//}
-		if (x_left < x_right) {
-			for (int x = x_left; x < x_right; x++) {
-				set_pixel((Vec2){x, y_end}, colour);
+		if (right_x > left_x) {
+			for (int x = left_x; x < right_x; x++) {
+				set_pixel((Vec2){x, y}, colour);
 			}
 		}
 		else {
-			for (int x = x_right; x < x_left; x++) {
-				set_pixel((Vec2){x, y_end}, colour);
+			for (int x = right_x; x < left_x; x++) {
+				set_pixel((Vec2){x, y}, colour);
 			}
+		}
+
+		if (y >= left_line.end.y) {
+			lines_drawn++;
+
+			left_index = left_index - 1;
+			if (left_index == -1) {
+				left_index = 3;
+			}
+
+			left_line.start = left_line.end;
+			left_line.end = coords[left_index];
+		}
+		if (y >= right_line.end.y) {
+			lines_drawn++;
+
+			right_index = (right_index + 1) % 4;
+
+			right_line.start = right_line.end;
+			right_line.end = coords[right_index];
 		}
 	}
 
@@ -461,4 +462,30 @@ void debug_log(char *str) {
 	strcpy(log, str);
 	MessageBox(hwnd, log, "Debug Log", MB_ICONWARNING);
 	PostQuitMessage(0);
+}
+
+float get_line_gradient(Line_t line) {
+	int change_in_y = line.end.y - line.start.y;
+	int change_in_x = line.end.x - line.start.x;
+
+	float m = (float)change_in_y / (float)change_in_x;
+	if (change_in_x == 0){
+		m = 9999999;	
+	}
+	return m;
+}
+
+int get_line_intercept(Line_t line) {
+	int c = line.start.y - (get_line_gradient(line) * line.start.x);
+	return c;
+}
+
+int line_goes_down(Line_t line) {
+	int change_in_y = line.end.y - line.start.y;
+	return (change_in_y > 0);
+}
+
+int line_goes_right(Line_t line) {
+	int change_in_x = line.end.x - line.start.x;
+	return (change_in_x > 0);
 }
