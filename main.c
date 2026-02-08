@@ -111,7 +111,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         }
 		case WM_LBUTTONDOWN:
 		{
-			paused = 0;
+			paused = (paused) ? 0 : 1;
 			return 0;
 		}
         case WM_DESTROY:
@@ -216,7 +216,6 @@ void init_stuff() {
 
 void update_pixels(uint32_t *pixels) {
 	if (paused) {
-		clear_screen((Colour_t){255, 255, 0});
 		return;
 	}
 	frame++;
