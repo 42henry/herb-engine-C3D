@@ -130,7 +130,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		case WM_LBUTTONDOWN:
 		{
 			char str[100];
-			sprintf(str, "percent_size: %f x: %d, y: %d", debug2, debug, debug3);
+			sprintf(str, "1/z: %d", debug);
 			MessageBox(hwnd, str, "mouse", MB_ICONWARNING);
 			//paused = (paused) ? 0 : 1;
 			return 0;
@@ -551,6 +551,7 @@ Vec3 rotate_and_project(Vec3 coord) {
 	if (z > 0) {
 		x /= z;
 		y /= z;
+		debug = 1 / z;
 		z = 1;
 	}
 	else {
@@ -559,6 +560,5 @@ Vec3 rotate_and_project(Vec3 coord) {
 	// convert from standard grid to screen grid
 	x = x + WIDTH / 2;
 	y = -y + HEIGHT / 2;
-	debug = z;
 	return (Vec3){x, y, z};
 }
