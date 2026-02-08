@@ -6,8 +6,14 @@
 
 #define WIDTH  800
 #define HEIGHT 500
+
+#define CM_TO_PIXELS 100
+
 #define CUBE_WIDTH 50
 #define MAX_SQUARES 100
+
+#define TEXTURE_WIDTH 3
+#define COORDS_PER_SQUARE ((TEXTURE_WIDTH + 1) * (TEXTURE_WIDTH + 1))
 
 typedef struct {
 	int x;
@@ -32,7 +38,7 @@ typedef struct {
 } Colour_t;
 
 typedef struct {
-	Vec3 coords[16];	
+	Vec3 coords[COORDS_PER_SQUARE];	
 } Square_t;
 
 typedef struct {
@@ -72,8 +78,6 @@ static int toggle = 0;
 
 static POINT mouse = {0};
 static float rotation;
-
-static int texture_width = 3;
 
 static Colour_t red = {255, 0, 0};
 static Colour_t green = {0, 255, 0};
@@ -200,24 +204,25 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 }
 
 void init_stuff() {
-	texture_width = 3;
 	red.r = 255;
 	green.g = 255;
 	blue.b = 255;
 
 	squares.items = malloc(MAX_SQUARES * sizeof(Square_t));
-	for (int i = 100; i < 400; i += 80) {
-		Square_t square = {0};
-		int count = 0;
-		for (int j = 0; j < texture_width + 1; j++) {
-			for (int k = 0; k < texture_width + 1; k++) {
-				square.coords[count] = (Vec3){i + (k * (CUBE_WIDTH / texture_width)), i + (j * (CUBE_WIDTH / texture_width)), 10};
-				count++;
-			}
+
+	// TODO: convert from x y z in cm in the world where camera is at 0, 0, 0
+	int x = WIDTH / 2;
+	int y = HEIGHT / 2;
+	Square_t square = {0};
+	int count = 0;
+	for (int j = 0; j < TEXTURE_WIDTH + 1; j++) {
+		for (int k = 0; k < TEXTURE_WIDTH + 1; k++) {
+			square.coords[count] = (Vec3){x + (k * (CUBE_WIDTH / TEXTURE_WIDTH)), y + (j * (CUBE_WIDTH / TEXTURE_WIDTH)), 10};
+			count++;
 		}
-		squares.items[squares.count] = square;
-		squares.count++;
 	}
+	squares.items[squares.count] = square;
+	squares.count++;
 
 	return;
 }
@@ -227,23 +232,25 @@ void update_pixels(uint32_t *pixels) {
 		return;
 	}
 	frame++;
+
 	GetCursorPos(&mouse);
 	ScreenToClient(hwnd, &mouse);
+
 	rotation = ((mouse.x / (float)WIDTH) - 0.5) * 2 * 3.141;
 
     clear_screen((Colour_t){100, 100, 100});
 
-	//then make the below loop correctly for all coords of all squares
+	// TODO: convert from m to pixels
 	for (int i = 0; i < squares.count; i++) {
-		for (int j = 0; j < ((texture_width + 1) * (texture_width + 1)); j++) {
-			if ((j % (texture_width + 1)) == 0) {
-				j++;
+		for (int j = 0; j < (TEXTURE_WIDTH * (TEXTURE_WIDTH + 1)); j++) {
+			// squares share corners...
+			if (j && ((j + 1) % (TEXTURE_WIDTH + 1)) == 0) {
 				continue;
 			}
 			fill_square(squares.items[i].coords[j],
 						squares.items[i].coords[j + 1],
-						squares.items[i].coords[j + texture_width + 1],
-						squares.items[i].coords[j + texture_width + 1],
+						squares.items[i].coords[j + TEXTURE_WIDTH + 2],
+						squares.items[i].coords[j + TEXTURE_WIDTH + 1],
 						(Colour_t){200, 160, 20});
 		}
 	}
@@ -462,6 +469,11 @@ void fill_square(Vec3 one, Vec3 two, Vec3 three, Vec3 four, Colour_t colour) {
 			right_line.end = coords[right_index];
 		}
 	}
+
+	draw_line(one, two, green);
+	draw_line(two, three, green);
+	draw_line(three, four, green);
+	draw_line(four, one, green);
 
 	return;
 }
