@@ -73,9 +73,11 @@ static int toggle = 0;
 static POINT mouse = {0};
 static float rotation;
 
-static Colour_t debug_colour = {0, 0, 255};
+static int texture_width = 3;
+
 static Colour_t red = {255, 0, 0};
 static Colour_t green = {0, 255, 0};
+static Colour_t blue = {0, 0, 255};
 
 HWND hwnd;
 
@@ -198,18 +200,18 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 }
 
 void init_stuff() {
-	debug_colour.r = 69;
-	debug_colour.g = 69;
-	debug_colour.b = 69;
+	texture_width = 3;
 	red.r = 255;
+	green.g = 255;
+	blue.b = 255;
 
 	squares.items = malloc(MAX_SQUARES * sizeof(Square_t));
 	for (int i = 100; i < 400; i += 80) {
 		Square_t square = {0};
 		int count = 0;
-		for (int j = 0; j < 4; j++) {
-			for (int k = 0; k < 4; k++) {
-				square.coords[count] = (Vec3){i + (k * (CUBE_WIDTH / 3)), i + (j * (CUBE_WIDTH / 3)), 10};
+		for (int j = 0; j < texture_width + 1; j++) {
+			for (int k = 0; k < texture_width + 1; k++) {
+				square.coords[count] = (Vec3){i + (k * (CUBE_WIDTH / texture_width)), i + (j * (CUBE_WIDTH / texture_width)), 10};
 				count++;
 			}
 		}
@@ -231,89 +233,20 @@ void update_pixels(uint32_t *pixels) {
 
     clear_screen((Colour_t){100, 100, 100});
 
-	// TODO: make it easy to set pixel density of textures
 	//then make the below loop correctly for all coords of all squares
-	Vec3 one = squares.items[0].coords[0];
-	Vec3 two = squares.items[0].coords[1];
-	Vec3 three = squares.items[0].coords[5];
-	Vec3 four = squares.items[0].coords[4];
-
-	draw_line(one, two, green);
-	draw_line(two, three, green);
-	draw_line(three, four, green);
-	draw_line(four, one, green);
-
-	fill_square(one, two, three, four, (Colour_t){200, 160, 20});
-
-	one.x = 100;
-	one.y = 190;
-
-	two.x = 200;
-	two.y = 300;
-
-	three.x = 150;
-	three.y = 310;
-
-	four.x = 120;
-	four.y = 250;
-
-	fill_square(one, two, three, four, (Colour_t){20, 80, 200});
-
-	draw_line(one, two, green);
-	draw_line(two, three, green);
-	draw_line(three, four, green);
-	draw_line(four, one, green);
-
-	one.x = 400;
-	one.y = 100;
-
-	two.x = 300;
-	two.y = 300;
-
-	three.x = 280;
-	three.y = 200;
-
-	four.x = 300;
-	four.y = 150;
-
-	fill_square(one, two, three, four, red);
-
-	draw_line(one, two, green);
-	draw_line(two, three, green);
-	draw_line(three, four, green);
-	draw_line(four, one, green);
-
-	if (frame % 60 == 0) {
-		toggle = (toggle) ? 0 : 1;
+	for (int i = 0; i < squares.count; i++) {
+		for (int j = 0; j < ((texture_width + 1) * (texture_width + 1)); j++) {
+			if ((j % (texture_width + 1)) == 0) {
+				j++;
+				continue;
+			}
+			fill_square(squares.items[i].coords[j],
+						squares.items[i].coords[j + 1],
+						squares.items[i].coords[j + texture_width + 1],
+						squares.items[i].coords[j + texture_width + 1],
+						(Colour_t){200, 160, 20});
+		}
 	}
-	if (toggle) {
-		one.x = 600;
-		one.y = 100;
-
-		two.x = 700;
-		two.y = 100;
-
-		three.x = 700;
-		three.y = 200;
-
-		four.x = 600;
-		four.y = 200;
-	}
-	else {
-		one.x = 650;
-		one.y = 90;
-
-		two.x = 710;
-		two.y = 150;
-
-		three.x = 650;
-		three.y = 210;
-
-		four.x = 590;
-		four.y = 150;
-	}
-
-	fill_square(one, two, three, four, red);
 
 	return;
 }
