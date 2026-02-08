@@ -88,9 +88,7 @@ static Colour_t red = {255, 0, 0};
 static Colour_t green = {0, 255, 0};
 static Colour_t blue = {0, 0, 255};
 
-static int debug = 0;
-static float debug2 = 0;
-static int debug3 = 0;
+static float debug = 0;
 
 HWND hwnd;
 
@@ -130,7 +128,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		case WM_LBUTTONDOWN:
 		{
 			char str[100];
-			sprintf(str, "1/z: %d", debug);
+			sprintf(str, "1/z: %f", debug);
 			MessageBox(hwnd, str, "mouse", MB_ICONWARNING);
 			//paused = (paused) ? 0 : 1;
 			return 0;
@@ -251,11 +249,6 @@ void update_pixels(uint32_t *pixels) {
 		}
 	}
 
-	if (debug > 0) {
-		Vec3 one = {100, debug};
-		Vec3 two = {500, debug};
-		draw_line(one, two, green);
-	}
 	Vec3 oe = {0, HEIGHT / 2};
 	Vec3 to = {WIDTH, HEIGHT / 2};
 	draw_line(oe, to, red);
@@ -551,7 +544,7 @@ Vec3 rotate_and_project(Vec3 coord) {
 	if (z > 0) {
 		x /= z;
 		y /= z;
-		debug = 1 / z;
+		debug = 1 / (float)z;
 		z = 1;
 	}
 	else {
