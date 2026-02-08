@@ -89,7 +89,7 @@ static Colour_t green = {0, 255, 0};
 static Colour_t blue = {0, 0, 255};
 
 static int debug = 0;
-static int debug2 = 0;
+static float debug2 = 0;
 static int debug3 = 0;
 
 HWND hwnd;
@@ -130,7 +130,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		case WM_LBUTTONDOWN:
 		{
 			char str[100];
-			sprintf(str, "z: %d", debug);
+			sprintf(str, "percent_size: %f x: %d, y: %d", debug2, debug, debug3);
 			MessageBox(hwnd, str, "mouse", MB_ICONWARNING);
 			//paused = (paused) ? 0 : 1;
 			return 0;
@@ -218,7 +218,7 @@ void init_stuff() {
 	blue.b = 255;
 
 	squares.items = malloc(MAX_SQUARES * sizeof(Square_t));
-	add_square((Vec3){0, 10, 10});
+	add_square((Vec3){-5, -5, 10});
 
 	return;
 }
@@ -252,10 +252,16 @@ void update_pixels(uint32_t *pixels) {
 	}
 
 	if (debug > 0) {
-		Vec3 one = {100, debug, 10};
-		Vec3 two = {500, debug, 10};
+		Vec3 one = {100, debug};
+		Vec3 two = {500, debug};
 		draw_line(one, two, green);
 	}
+	Vec3 oe = {0, HEIGHT / 2};
+	Vec3 to = {WIDTH, HEIGHT / 2};
+	draw_line(oe, to, red);
+	Vec3 ne = {WIDTH / 2, 0};
+	Vec3 wo = {WIDTH / 2, HEIGHT};
+	draw_line(ne, wo, red);
 
 	return;
 }
@@ -346,16 +352,15 @@ void draw_line(Vec3 start, Vec3 end, Colour_t colour) {
 
 void fill_square(Vec3 one, Vec3 two, Vec3 three, Vec3 four, Colour_t colour) {
 	Vec3 coords[4] = {one, two, three, four};
+	// dont draw if z is neg
+	if (! one.z) {
+		return;
+	}
 
-	// find the smallest y:
 	int smallest_y = HEIGHT + 1;
 	int smallest_y_index = 0;
 	int largest_y = -1;
 	for (int i = 0; i < 4; i++) {
-		// dont draw if z is neg
-		if (coords[i].x == 0) {
-			return;
-		}
 		if (coords[i].y < smallest_y) {
 			smallest_y = coords[i].y;
 			smallest_y_index = i;
@@ -365,7 +370,6 @@ void fill_square(Vec3 one, Vec3 two, Vec3 three, Vec3 four, Colour_t colour) {
 		}
 	}
 
-	// define two lines
 	Vec3 top = coords[smallest_y_index];
 	int left_index = smallest_y_index - 1;
 	if (left_index == -1) {
@@ -545,11 +549,12 @@ Vec3 rotate_and_project(Vec3 coord) {
 	int y = coord.y;
 	// project
 	if (z > 0) {
-		//x /= z;
-		//y /= z;
+		x /= z;
+		y /= z;
+		z = 1;
 	}
 	else {
-		return (Vec3){0, 0, 0};
+		z = 0;
 	}
 	// convert from standard grid to screen grid
 	x = x + WIDTH / 2;
