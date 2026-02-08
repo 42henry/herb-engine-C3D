@@ -259,6 +259,7 @@ void set_pixel(Vec2 coord, Colour_t colour) {
 		pixels[coord.y * WIDTH + coord.x] = pack_colour_to_uint32(1, colour);
 	}
 	else {
+		// TODO: remove this???
 		PostMessage(hwnd, WM_PIXELS_BOUNDS_ERROR, 0, 0);
 	}
 	return;
@@ -270,6 +271,9 @@ void draw_line(Vec3 start, Vec3 end, Colour_t colour) {
 	int change_in_x = end.x - start.x;
 
 	float m = (float)change_in_y / (float)change_in_x;
+	if (change_in_x == 0){
+		m = 9999999;	
+	}
 	int c = start.y - (m * start.x);
 
 	if (abs(change_in_y) > abs(change_in_x)) {
