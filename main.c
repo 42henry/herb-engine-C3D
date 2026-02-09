@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <math.h>
+#include <assert.h>
 
 #define WIDTH  800
 #define HEIGHT 500
@@ -72,6 +73,7 @@ static Colour_t get_pixel_colour(Vec2 coord);
 static void clear_screen(Colour_t colour);
 static void draw_line(Vec3 start, Vec3 end, Colour_t colour);
 static void fill_square(Vec3 one, Vec3 two, Vec3 three, Vec3 four, Colour_t new_colour);
+static int test_fill_square();
 static void add_square(Vec3 top_left);
 
 static Vec3 rotate_and_project(Vec3 coord);
@@ -216,6 +218,7 @@ void init_stuff() {
 	red.r = 255;
 	green.g = 255;
 	blue.b = 255;
+	assert(test_fill_square());
 
 	squares.items = malloc(MAX_SQUARES * sizeof(Square_t));
 	add_square((Vec3){-5, -5, 10});
@@ -236,27 +239,41 @@ void update_pixels(uint32_t *pixels) {
 
     clear_screen((Colour_t){100, 100, 100});
 
-	// TODO: convert from m to pixels
-	for (int i = 0; i < squares.count; i++) {
-		for (int j = 0; j < (TEXTURE_WIDTH * (TEXTURE_WIDTH + 1)); j++) {
-			// squares share corners...
-			if (j && ((j + 1) % (TEXTURE_WIDTH + 1)) == 0) {
-				continue;
-			}
-			fill_square(rotate_and_project(squares.items[i].coords[j]),
-						rotate_and_project(squares.items[i].coords[j + 1]),
-						rotate_and_project(squares.items[i].coords[j + TEXTURE_WIDTH + 2]),
-						rotate_and_project(squares.items[i].coords[j + TEXTURE_WIDTH + 1]),
-						(Colour_t){200, 160, 20});
-		}
-	}
+	//for (int i = 0; i < squares.count; i++) {
+		//for (int j = 0; j < (TEXTURE_WIDTH * (TEXTURE_WIDTH + 1)); j++) {
+			//// squares share corners...
+			//if (j && ((j + 1) % (TEXTURE_WIDTH + 1)) == 0) {
+				//continue;
+			//}
+			//fill_square(rotate_and_project(squares.items[i].coords[j]),
+						//rotate_and_project(squares.items[i].coords[j + 1]),
+						//rotate_and_project(squares.items[i].coords[j + TEXTURE_WIDTH + 2]),
+						//rotate_and_project(squares.items[i].coords[j + TEXTURE_WIDTH + 1]),
+						//(Colour_t){200, 160, 20});
+		//}
+	//}
+	static Vec3 one = {WIDTH / 2, HEIGHT / 2, 10};
+	static Vec3 two = {WIDTH / 2, HEIGHT / 2, 10};
+	static Vec3 three = {WIDTH / 2, HEIGHT / 2, 10};
+	static Vec3 four = {WIDTH / 2, HEIGHT / 2, 10};
+	one.x -= 1;
+	one.y -= 1;
+	two.x += 1;
+	two.y -= 1;
+	three.x += 1;
+	three.y += 1;
+	four.x -= 1;
+	four.y += 1;
+	fill_square(one, two, three, four, green);
+	// if x or y becomes negative, our fill_square function fails
 
-	Vec3 oe = {0, HEIGHT / 2};
-	Vec3 to = {WIDTH, HEIGHT / 2};
-	draw_line(oe, to, red);
-	Vec3 ne = {WIDTH / 2, 0};
-	Vec3 wo = {WIDTH / 2, HEIGHT};
-	draw_line(ne, wo, red);
+	Vec3 left = {0, HEIGHT / 2, 10};
+	Vec3 right = {WIDTH, HEIGHT / 2, 10};
+	Vec3 top = {WIDTH / 2, 0, 10};
+	Vec3 bottom = {WIDTH / 2, HEIGHT, 10};
+
+	draw_line(left, right, green);
+	draw_line(top, bottom, green);
 
 	return;
 }
@@ -482,6 +499,10 @@ void fill_square(Vec3 one, Vec3 two, Vec3 three, Vec3 four, Colour_t colour) {
 	return;
 }
 
+int test_fill_square() {
+	return 1;
+}
+
 void debug_log(char *str) {
 	paused = 1;
 	char log[100];
@@ -544,8 +565,8 @@ Vec3 rotate_and_project(Vec3 coord) {
 	int y = coord.y;
 	// project
 	if (z > 0) {
-		x /= z;
-		y /= z;
+		//x /= z;
+		//y /= z;
 		z = 1;
 	}
 	else {
