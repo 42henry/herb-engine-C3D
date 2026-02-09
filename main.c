@@ -11,7 +11,7 @@
 
 #define CM_TO_PIXELS 10
 
-#define CUBE_WIDTH (100 * CM_TO_PIXELS) // cube is 100cm big
+#define CUBE_WIDTH (30 * CM_TO_PIXELS) // cube is 100cm big
 #define MAX_SQUARES 100
 
 #define TEXTURE_WIDTH 3
@@ -544,11 +544,8 @@ Vec3 rotate_and_project(Vec3 coord) {
 	int y = coord.y;
 	// project
 	if (z > 0) {
-		debug = z * 0.1;
-		debug2 = x;
-		debug3 = x / (z * 0.1);
-		x /= (z * 0.1);
-		y /= (z * 0.1);
+		x /= z;
+		y /= z;
 		z = 1;
 	}
 	else {
