@@ -239,33 +239,48 @@ void update_pixels(uint32_t *pixels) {
 
     clear_screen((Colour_t){100, 100, 100});
 
-	//for (int i = 0; i < squares.count; i++) {
-		//for (int j = 0; j < (TEXTURE_WIDTH * (TEXTURE_WIDTH + 1)); j++) {
-			//// squares share corners...
-			//if (j && ((j + 1) % (TEXTURE_WIDTH + 1)) == 0) {
-				//continue;
-			//}
-			//fill_square(rotate_and_project(squares.items[i].coords[j]),
-						//rotate_and_project(squares.items[i].coords[j + 1]),
-						//rotate_and_project(squares.items[i].coords[j + TEXTURE_WIDTH + 2]),
-						//rotate_and_project(squares.items[i].coords[j + TEXTURE_WIDTH + 1]),
-						//(Colour_t){200, 160, 20});
-		//}
+	for (int i = 0; i < squares.count; i++) {
+		for (int j = 0; j < (TEXTURE_WIDTH * (TEXTURE_WIDTH + 1)); j++) {
+			// squares share corners...
+			if (j && ((j + 1) % (TEXTURE_WIDTH + 1)) == 0) {
+				continue;
+			}
+			fill_square(rotate_and_project(squares.items[i].coords[j]),
+						rotate_and_project(squares.items[i].coords[j + 1]),
+						rotate_and_project(squares.items[i].coords[j + TEXTURE_WIDTH + 2]),
+						rotate_and_project(squares.items[i].coords[j + TEXTURE_WIDTH + 1]),
+						(Colour_t){200, 160, 20});
+		}
+	}
+	//static Vec3 one = {WIDTH / 2, HEIGHT / 2, 10};
+	//static Vec3 two = {WIDTH / 2, HEIGHT / 2, 10};
+	//static Vec3 three = {WIDTH / 2, HEIGHT / 2, 10};
+	//static Vec3 four = {WIDTH / 2, HEIGHT / 2, 10};
+	//one.x -= 2;
+	//one.y -= 1;
+	//two.x += 1;
+	//two.y -= 2;
+	//three.x += 1;
+	//three.y += 2;
+	//four.x -= 2;
+	//four.y += 1;
+	//fill_square(one, two, three, four, green);
+	//// if x or y becomes negative, our fill_square function fails
+	//static Vec3 oone = {WIDTH / 2, HEIGHT / 2, 10};
+	//static Vec3 otwo = {WIDTH / 2, HEIGHT / 2, 10};
+	//static Vec3 othree = {WIDTH / 2, HEIGHT / 2, 10};
+	//static Vec3 ofour = {WIDTH / 2, HEIGHT / 2, 10};
+	//if (frame > 1) {
+		//oone.x -= 2;
+		//oone.y -= 1;
+		//otwo.x += 1;
+		//otwo.y -= 2;
+		//othree.x += 1;
+		//othree.y += 2;
+		//ofour.x -= 2;
+		//ofour.y += 1;
 	//}
-	static Vec3 one = {WIDTH / 2, HEIGHT / 2, 10};
-	static Vec3 two = {WIDTH / 2, HEIGHT / 2, 10};
-	static Vec3 three = {WIDTH / 2, HEIGHT / 2, 10};
-	static Vec3 four = {WIDTH / 2, HEIGHT / 2, 10};
-	one.x -= 1;
-	one.y -= 1;
-	two.x += 1;
-	two.y -= 1;
-	three.x += 1;
-	three.y += 1;
-	four.x -= 1;
-	four.y += 1;
-	fill_square(one, two, three, four, green);
-	// if x or y becomes negative, our fill_square function fails
+	//fill_square(oone, otwo, othree, ofour, blue);
 
 	Vec3 left = {0, HEIGHT / 2, 10};
 	Vec3 right = {WIDTH, HEIGHT / 2, 10};
@@ -459,14 +474,28 @@ void fill_square(Vec3 one, Vec3 two, Vec3 three, Vec3 four, Colour_t colour) {
 			}
 		}
 
-		if (right_x > left_x) {
-			for (int x = left_x; x < right_x; x++) {
-				set_pixel((Vec2){x, y}, colour);
+		if (y > 0 && y < HEIGHT) {
+			if (right_x > left_x) {
+				if (left_x < 0) {
+					left_x = 0;
+				}
+				if (right_x > WIDTH) {
+					right_x = WIDTH;
+				}
+				for (int x = left_x; x < right_x; x++) {
+					set_pixel((Vec2){x, y}, colour);
+				}
 			}
-		}
-		else {
-			for (int x = right_x; x < left_x; x++) {
-				set_pixel((Vec2){x, y}, colour);
+			else {
+				if (right_x < 0) {
+					right_x = 0;
+				}
+				if (left_x > WIDTH) {
+					left_x = WIDTH;
+				}
+				for (int x = right_x; x < left_x; x++) {
+					set_pixel((Vec2){x, y}, colour);
+				}
 			}
 		}
 
@@ -491,10 +520,10 @@ void fill_square(Vec3 one, Vec3 two, Vec3 three, Vec3 four, Colour_t colour) {
 		}
 	}
 
-	draw_line(one, two, green);
-	draw_line(two, three, green);
-	draw_line(three, four, green);
-	draw_line(four, one, green);
+	//draw_line(one, two, green);
+	//draw_line(two, three, green);
+	//draw_line(three, four, green);
+	//draw_line(four, one, green);
 
 	return;
 }
@@ -565,8 +594,8 @@ Vec3 rotate_and_project(Vec3 coord) {
 	int y = coord.y;
 	// project
 	if (z > 0) {
-		//x /= z;
-		//y /= z;
+		x /= (z * 0.01);
+		y /= (z * 0.01);
 		z = 1;
 	}
 	else {
