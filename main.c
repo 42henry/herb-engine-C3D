@@ -15,7 +15,7 @@
 #define CUBE_WIDTH (30 * CM_TO_PIXELS) // cube is 100cm big
 #define MAX_SQUARES 100
 
-#define TEXTURE_WIDTH 3
+#define TEXTURE_WIDTH 5
 #define COORDS_PER_SQUARE ((TEXTURE_WIDTH + 1) * (TEXTURE_WIDTH + 1))
 
 typedef struct {
@@ -403,105 +403,53 @@ void fill_square(Vec3 one, Vec3 two, Vec3 three, Vec3 four, Colour_t colour) {
 		left_index = 3;
 	}
 	int right_index = (smallest_y_index + 1) % 4;
-	Vec3 left = coords[left_index];
-	Vec3 right = coords[right_index];
 
-	Line_t left_line = {top, left};
-	Line_t right_line = {top, right};
-
-	int lines_drawn = 0;
+	Line_t left_line = {top, coords[left_index]};
+	Line_t right_line = {top, coords[right_index]};
 
 	int left_x = left_line.start.x;
 	int left_y = left_line.start.y;
 
 	int right_x = right_line.start.x;
 	int right_y = right_line.start.y;
-	for (int y = top.y + 1; y < largest_y; y++) {
-		int right_line_complete = 0;
-		int left_line_complete = 0;
+	if (smallest_y < 0) {
+		smallest_y = 0;
+	}
+	if (largest_y > HEIGHT) {
+		largest_y = HEIGHT;
+	}
+	for (int y = smallest_y; y < largest_y; y++) {
 
 		// draw left line to y
-		if (abs(get_line_gradient(left_line)) >= 1) {
-			left_x = (y - get_line_intercept(left_line)) / get_line_gradient(left_line);
-		}
-		else {
-			if (line_goes_right(left_line)) {
-				while (left_y != y) {
-					left_y = (get_line_gradient(left_line) * left_x) + get_line_intercept(left_line);
-					left_x++;
-					if (left_x >= left_line.end.x) {
-						left_line_complete = 1;
-						break;
-					}
-				}
-			}
-			else {
-				while (left_y != y) {
-					left_y = (get_line_gradient(left_line) * left_x) + get_line_intercept(left_line);
-					left_x--;
-					if (left_x <= left_line.end.x) {
-						left_line_complete = 1;
-						break;
-					}
-				}
-			}
-		}
+		left_x = (y - get_line_intercept(left_line)) / get_line_gradient(left_line);
 			
 		// draw right line to y
-		if (abs(get_line_gradient(right_line)) >= 1) {
-			right_x = (y - get_line_intercept(right_line)) / get_line_gradient(right_line);
+		right_x = (y - get_line_intercept(right_line)) / get_line_gradient(right_line);
+
+		if (right_x > left_x) {
+			if (left_x < 0) {
+				left_x = 0;
+			}
+			if (right_x > WIDTH) {
+				right_x = WIDTH;
+			}
+			for (int x = left_x; x < right_x; x++) {
+				set_pixel((Vec2){x, y}, colour);
+			}
 		}
 		else {
-			if (line_goes_right(right_line)) {
-				while (right_y != y) {
-					right_y = (get_line_gradient(right_line) * right_x) + get_line_intercept(right_line);
-					right_x++;
-					if (right_x >= right_line.end.x) {
-						right_line_complete = 1;
-						break;
-					}
-				}
+			if (right_x < 0) {
+				right_x = 0;
 			}
-			else {
-				while (right_y != y) {
-					right_y = (get_line_gradient(right_line) * right_x) + get_line_intercept(right_line);
-					right_x--;
-					if (right_x <= right_line.end.x) {
-						right_line_complete = 1;
-						break;
-					}
-				}
+			if (left_x > WIDTH) {
+				left_x = WIDTH;
+			}
+			for (int x = right_x; x < left_x; x++) {
+				set_pixel((Vec2){x, y}, colour);
 			}
 		}
 
-		if (y > 0 && y < HEIGHT) {
-			if (right_x > left_x) {
-				if (left_x < 0) {
-					left_x = 0;
-				}
-				if (right_x > WIDTH) {
-					right_x = WIDTH;
-				}
-				for (int x = left_x; x < right_x; x++) {
-					set_pixel((Vec2){x, y}, colour);
-				}
-			}
-			else {
-				if (right_x < 0) {
-					right_x = 0;
-				}
-				if (left_x > WIDTH) {
-					left_x = WIDTH;
-				}
-				for (int x = right_x; x < left_x; x++) {
-					set_pixel((Vec2){x, y}, colour);
-				}
-			}
-		}
-
-		if ((y >= left_line.end.y) || left_line_complete) {
-			lines_drawn++;
-
+		if (y >= left_line.end.y) {
 			left_index = left_index - 1;
 			if (left_index == -1) {
 				left_index = 3;
@@ -510,20 +458,13 @@ void fill_square(Vec3 one, Vec3 two, Vec3 three, Vec3 four, Colour_t colour) {
 			left_line.start = left_line.end;
 			left_line.end = coords[left_index];
 		}
-		if (y >= right_line.end.y || right_line_complete) {
-			lines_drawn++;
-
+		if (y >= right_line.end.y) {
 			right_index = (right_index + 1) % 4;
 
 			right_line.start = right_line.end;
 			right_line.end = coords[right_index];
 		}
 	}
-
-	//draw_line(one, two, green);
-	//draw_line(two, three, green);
-	//draw_line(three, four, green);
-	//draw_line(four, one, green);
 
 	return;
 }
