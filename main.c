@@ -15,7 +15,7 @@
 #define CUBE_WIDTH (30 * CM_TO_PIXELS) // cube is 100cm big
 #define MAX_SQUARES 100
 
-#define TEXTURE_WIDTH 5
+#define TEXTURE_WIDTH 8
 #define COORDS_PER_SQUARE ((TEXTURE_WIDTH + 1) * (TEXTURE_WIDTH + 1))
 
 typedef struct {
