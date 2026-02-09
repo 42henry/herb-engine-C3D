@@ -11,7 +11,7 @@
 
 #define CM_TO_PIXELS 10
 
-#define CUBE_WIDTH (10 * CM_TO_PIXELS) // cube is 10cm big
+#define CUBE_WIDTH (100 * CM_TO_PIXELS) // cube is 100cm big
 #define MAX_SQUARES 100
 
 #define TEXTURE_WIDTH 3
@@ -88,7 +88,9 @@ static Colour_t red = {255, 0, 0};
 static Colour_t green = {0, 255, 0};
 static Colour_t blue = {0, 0, 255};
 
-static float debug = 0;
+static int debug = 0;
+static int debug2 = 0;
+static int debug3 = 0;
 
 HWND hwnd;
 
@@ -128,7 +130,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		case WM_LBUTTONDOWN:
 		{
 			char str[100];
-			sprintf(str, "1/z: %f", debug);
+			sprintf(str, "z: %d, x: %d, x/z: %d", debug, debug2, debug3);
 			MessageBox(hwnd, str, "mouse", MB_ICONWARNING);
 			//paused = (paused) ? 0 : 1;
 			return 0;
@@ -542,9 +544,11 @@ Vec3 rotate_and_project(Vec3 coord) {
 	int y = coord.y;
 	// project
 	if (z > 0) {
-		x /= z;
-		y /= z;
-		debug = 1 / (float)z;
+		debug = z * 0.1;
+		debug2 = x;
+		debug3 = x / (z * 0.1);
+		x /= (z * 0.1);
+		y /= (z * 0.1);
 		z = 1;
 	}
 	else {
