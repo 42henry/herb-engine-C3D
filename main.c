@@ -12,6 +12,8 @@
 
 #define CM_TO_PIXELS 10
 
+#define WIDTH_IN_CM ((WIDTH) / (CM_TO_PIXELS))
+
 #define CUBE_WIDTH (30 * CM_TO_PIXELS) // cube is 100cm big
 #define MAX_SQUARES 100
 
@@ -554,10 +556,7 @@ Vec3 rotate_and_project(Vec3 coord) {
 	int x = (coord.z * sin(rotation) + coord.x * cos(rotation));
 	int z = (coord.z * cos(rotation) - coord.x * sin(rotation));
 	int y = coord.y;
-	float percent_size = ((float)WIDTH / z);
-	//char str[100];
-	//sprintf(str, "zscale: %f", z_scale);
-	//debug_log(str);
+	float percent_size = ((float)WIDTH_IN_CM / z);
 	// project
 	if (z > 0) {
 		x *= percent_size;
