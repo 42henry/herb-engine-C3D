@@ -1,7 +1,8 @@
-#include <windows.h>
-
+#include <X11/Xlib.h>
+#include <X11/Xutil.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <stdint.h>
 #include <string.h>
 #include <math.h>
@@ -17,6 +18,8 @@
 
 #define TEXTURE_WIDTH 8
 #define COORDS_PER_SQUARE ((TEXTURE_WIDTH + 1) * (TEXTURE_WIDTH + 1))
+
+#define FRAME_LENGTH 16666
 
 typedef struct {
 	int x;
@@ -49,13 +52,8 @@ typedef struct {
 	int count;
 } Squares_t;
 
-// --- Our pixel buffer (points into the Device Independent Bitmap section) ---
-static uint32_t *pixels = NULL;
+static char *pixels = NULL;
 static Squares_t squares;
-
-// --- Bitmap and Device Context we render into ---
-static HBITMAP bitmap = NULL;
-static HDC memDC = NULL;
 
 static void init_stuff();
 static void debug_log(char *str);
@@ -83,7 +81,6 @@ static int paused = 0;
 static int frame = 0;
 static int toggle = 0;
 
-static POINT mouse = {0};
 static float rotation = 0;
 
 static Colour_t red = {255, 0, 0};
@@ -94,122 +91,46 @@ static int debug = 0;
 static int debug2 = 0;
 static int debug3 = 0;
 
-HWND hwnd;
-
-// --- window message handler ---
-LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
-{
-    switch (msg)
-    {
-		case WM_TIMER:
-		// --- this is our draw loop ---
-		{
-			update_pixels();
-
-			// --- Request redraw ---
-			InvalidateRect(hwnd, NULL, FALSE);
-			return 0;
-		}
-
-        case WM_PAINT:
-        {
-			// --- draw our bitmap of pixels to the window ---
-            PAINTSTRUCT ps;
-            HDC hdc = BeginPaint(hwnd, &ps);
-
-            BitBlt(
-                hdc,
-                0, 0,
-                WIDTH, HEIGHT,
-                memDC,
-                0, 0,
-                SRCCOPY
-            );
-
-            EndPaint(hwnd, &ps);
-            return 0;
-        }
-		case WM_LBUTTONDOWN:
-		{
-			char str[100];
-			sprintf(str, "z: %d, x: %d, x/z: %d", debug, debug2, debug3);
-			MessageBox(hwnd, str, "mouse", MB_ICONWARNING);
-			//paused = (paused) ? 0 : 1;
-			return 0;
-		}
-        case WM_DESTROY:
-		    // --- Close window ---
-            PostQuitMessage(0);
-            return 0;
+int main() {
+    // Open X display
+    Display *display = XOpenDisplay(NULL);
+    if (display == NULL) {
+        fprintf(stderr, "Unable to open X display\n");
+        return 1;
     }
 
-    return DefWindowProc(hwnd, msg, wParam, lParam);
-}
+    // Create a window
+    int screen = DefaultScreen(display);
+    Window window = XCreateSimpleWindow(display, RootWindow(display, screen), 0, 0, WIDTH, HEIGHT, 1,
+                                        BlackPixel(display, screen), WhitePixel(display, screen));
+    XMapWindow(display, window);
 
-// --- Entry Point ---
-int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
-{
-    (void)hPrevInstance;
-    (void)lpCmdLine;
+    // Create a graphics context
+    GC gc = XCreateGC(display, window, 0, NULL);
 
-    // --- Describe a 32-bit top-down bitmap ---
-    BITMAPINFO bmi = {0};
-    bmi.bmiHeader.biSize        = sizeof(BITMAPINFOHEADER);
-    bmi.bmiHeader.biWidth       = WIDTH;
-    bmi.bmiHeader.biHeight      = -HEIGHT; // top-down
-    bmi.bmiHeader.biPlanes      = 1;
-    bmi.bmiHeader.biBitCount    = 32;
-    bmi.bmiHeader.biCompression = BI_RGB;
+    // Create an XImage for pixel manipulation
+    XImage *image = XCreateImage(display, DefaultVisual(display, screen), DefaultDepth(display, screen), ZPixmap,
+                                 0, (char *)malloc(WIDTH * HEIGHT * 4), WIDTH, HEIGHT, 32, 0);
 
-    // --- Create the Device Independent Bitmap section (array of pixels to use as a bitmap ((map of bits)) to put on screen) ---
-    bitmap = CreateDIBSection(
-        NULL,
-        &bmi,
-        DIB_RGB_COLORS,
-        (void**)&pixels,
-        NULL,
-        0
-    );
+    // Create a pixel array
+    pixels = image->data;
 
-    // --- Create a memory Device Context (virtual screen like device) and select the bitmap into it ---
-    memDC = CreateCompatibleDC(NULL);
-    SelectObject(memDC, bitmap);
-
-    // --- Register window class ---
-    WNDCLASS wc = {0};
-    wc.lpfnWndProc   = WindowProc;
-    wc.hInstance     = hInstance;
-    wc.lpszClassName = "DIBWindow";
-
-    RegisterClass(&wc);
-
-    // --- Create window ---
-    hwnd = CreateWindowEx(
-        0,
-        wc.lpszClassName,
-        "DigMake",
-        WS_OVERLAPPEDWINDOW,
-        CW_USEDEFAULT, CW_USEDEFAULT,
-        WIDTH, HEIGHT,
-        NULL, NULL,
-        hInstance,
-        NULL
-    );
-
-    ShowWindow(hwnd, nCmdShow);
-
-	// --- Setup a timer to redraw the window every 16 ms (60 fps) ---
-	SetTimer(hwnd, 1, 16, NULL); // ~60 Hz
-
+    // Main loop to update the window color
 	init_stuff();
+    while (1) {
+		update_pixels();
 
-    // --- Message loop ---
-    MSG msg;
-    while (GetMessage(&msg, NULL, 0, 0))
-    {
-        TranslateMessage(&msg);
-        DispatchMessage(&msg);
+		// Draw the updated image
+		XPutImage(display, window, gc, image, 0, 0, 0, 0, WIDTH, HEIGHT);
+        usleep(FRAME_LENGTH);
     }
+
+    // Cleanup
+    free(pixels);
+    XDestroyImage(image);
+    XFreeGC(display, gc);
+    XDestroyWindow(display, window);
+    XCloseDisplay(display);
 
     return 0;
 }
@@ -232,55 +153,53 @@ void update_pixels() {
 	}
 	frame++;
 
-	GetCursorPos(&mouse);
-	ScreenToClient(hwnd, &mouse);
-
-	rotation = -((mouse.x / (float)WIDTH) - 0.5) * 2 * 3.141;
+	// rotation = -((mouse.x / (float)WIDTH) - 0.5) * 2 * 3.141;
+	rotation = 0;
 
     clear_screen((Colour_t){100, 100, 100});
 
-	for (int i = 0; i < squares.count; i++) {
-		for (int j = 0; j < (TEXTURE_WIDTH * (TEXTURE_WIDTH + 1)); j++) {
-			// squares share corners...
-			if (j && ((j + 1) % (TEXTURE_WIDTH + 1)) == 0) {
-				continue;
-			}
-			fill_square(rotate_and_project(squares.items[i].coords[j]),
-						rotate_and_project(squares.items[i].coords[j + 1]),
-						rotate_and_project(squares.items[i].coords[j + TEXTURE_WIDTH + 2]),
-						rotate_and_project(squares.items[i].coords[j + TEXTURE_WIDTH + 1]),
-						(Colour_t){200, 160, 20});
-		}
+//	for (int i = 0; i < squares.count; i++) {
+//		for (int j = 0; j < (TEXTURE_WIDTH * (TEXTURE_WIDTH + 1)); j++) {
+//			// squares share corners...
+//			if (j && ((j + 1) % (TEXTURE_WIDTH + 1)) == 0) {
+//				continue;
+//			}
+//			fill_square(rotate_and_project(squares.items[i].coords[j]),
+//						rotate_and_project(squares.items[i].coords[j + 1]),
+//						rotate_and_project(squares.items[i].coords[j + TEXTURE_WIDTH + 2]),
+//						rotate_and_project(squares.items[i].coords[j + TEXTURE_WIDTH + 1]),
+//						(Colour_t){200, 160, 20});
+//		}
+//	}
+	static Vec3 one = {WIDTH / 2, HEIGHT / 2, 10};
+	static Vec3 two = {WIDTH / 2, HEIGHT / 2, 10};
+	static Vec3 three = {WIDTH / 2, HEIGHT / 2, 10};
+	static Vec3 four = {WIDTH / 2, HEIGHT / 2, 10};
+	one.x -= 2;
+	one.y -= 1;
+	two.x += 1;
+	two.y -= 2;
+	three.x += 1;
+	three.y += 2;
+	four.x -= 2;
+	four.y += 1;
+	fill_square(one, two, three, four, green);
+	// if x or y becomes negative, our fill_square function fails
+	static Vec3 oone = {WIDTH / 2, HEIGHT / 2, 10};
+	static Vec3 otwo = {WIDTH / 2, HEIGHT / 2, 10};
+	static Vec3 othree = {WIDTH / 2, HEIGHT / 2, 10};
+	static Vec3 ofour = {WIDTH / 2, HEIGHT / 2, 10};
+	if (frame > 1) {
+		oone.x -= 2;
+		oone.y -= 1;
+		otwo.x += 1;
+		otwo.y -= 2;
+		othree.x += 1;
+		othree.y += 2;
+		ofour.x -= 2;
+		ofour.y += 1;
 	}
-	//static Vec3 one = {WIDTH / 2, HEIGHT / 2, 10};
-	//static Vec3 two = {WIDTH / 2, HEIGHT / 2, 10};
-	//static Vec3 three = {WIDTH / 2, HEIGHT / 2, 10};
-	//static Vec3 four = {WIDTH / 2, HEIGHT / 2, 10};
-	//one.x -= 2;
-	//one.y -= 1;
-	//two.x += 1;
-	//two.y -= 2;
-	//three.x += 1;
-	//three.y += 2;
-	//four.x -= 2;
-	//four.y += 1;
-	//fill_square(one, two, three, four, green);
-	//// if x or y becomes negative, our fill_square function fails
-	//static Vec3 oone = {WIDTH / 2, HEIGHT / 2, 10};
-	//static Vec3 otwo = {WIDTH / 2, HEIGHT / 2, 10};
-	//static Vec3 othree = {WIDTH / 2, HEIGHT / 2, 10};
-	//static Vec3 ofour = {WIDTH / 2, HEIGHT / 2, 10};
-	//if (frame > 1) {
-		//oone.x -= 2;
-		//oone.y -= 1;
-		//otwo.x += 1;
-		//otwo.y -= 2;
-		//othree.x += 1;
-		//othree.y += 2;
-		//ofour.x -= 2;
-		//ofour.y += 1;
-	//}
-	//fill_square(oone, otwo, othree, ofour, blue);
+	fill_square(oone, otwo, othree, ofour, blue);
 
 	Vec3 left = {0, HEIGHT / 2, 10};
 	Vec3 right = {WIDTH, HEIGHT / 2, 10};
@@ -474,11 +393,7 @@ int test_fill_square() {
 }
 
 void debug_log(char *str) {
-	paused = 1;
-	char log[100];
-	strcpy(log, str);
-	MessageBox(hwnd, log, "Debug Log", MB_ICONWARNING);
-	PostQuitMessage(0);
+	printf("%s", str);
 }
 
 float get_line_gradient(Line_t line) {
