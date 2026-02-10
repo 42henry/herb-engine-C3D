@@ -57,6 +57,8 @@ static Squares_t squares;
 static HBITMAP bitmap = NULL;
 static HDC memDC = NULL;
 
+// FUNCTIONS DEFINITION
+
 static void init_stuff();
 static void debug_log(char *str);
 
@@ -77,6 +79,14 @@ static int test_fill_square();
 static void add_square(Vec3 top_left);
 
 static Vec3 rotate_and_project(Vec3 coord);
+static void update_movement();
+
+// VARIABLES DEFINITION:
+
+static Vec3 camera_pos = {0};
+static int speed = 0;
+static int walk_speed = 0;
+static int sprint_speed = 0;
 
 static Squares_t squares = {0};
 static int paused = 0;
@@ -215,6 +225,13 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 }
 
 void init_stuff() {
+	camera_pos.x = 0;
+	camera_pos.y = 0;
+	camera_pos.z = 0;
+	speed = 10;
+	walk_speed = speed;
+	sprint_speed = 20;
+
 	red.r = 255;
 	green.g = 255;
 	blue.b = 255;
@@ -234,6 +251,8 @@ void update_pixels() {
 
 	GetCursorPos(&mouse);
 	ScreenToClient(hwnd, &mouse);
+
+	update_movement();
 
 	rotation = -((mouse.x / (float)WIDTH) - 0.5) * 2 * 3.141;
 
@@ -530,13 +549,19 @@ void add_square(Vec3 top_left) {
 
 Vec3 rotate_and_project(Vec3 coord) {
 	// rotate
+	coord.x -= camera_pos.x;
+	coord.z -= camera_pos.z;
 	int x = (coord.z * sin(rotation) + coord.x * cos(rotation));
 	int z = (coord.z * cos(rotation) - coord.x * sin(rotation));
 	int y = coord.y;
+	float percent_size = ((float)WIDTH / z);
+	//char str[100];
+	//sprintf(str, "zscale: %f", z_scale);
+	//debug_log(str);
 	// project
 	if (z > 0) {
-		x /= (z * 0.01);
-		y /= (z * 0.01);
+		x *= percent_size;
+		y *= percent_size;
 		z = 1;
 	}
 	else {
@@ -546,4 +571,34 @@ Vec3 rotate_and_project(Vec3 coord) {
 	x = x + WIDTH / 2;
 	y = -y + HEIGHT / 2;
 	return (Vec3){x, y, z};
+}
+
+void update_movement()
+{
+	int x = 0;
+	int z = 0;
+	if (GetAsyncKeyState(VK_LSHIFT) & 0x8000) {
+        speed = sprint_speed;
+	}
+	else {
+		speed = walk_speed;
+	}
+    if (GetAsyncKeyState('W') & 0x8000) {
+        x = - speed * sin(rotation);
+        z = speed * cos(rotation);
+	}
+    if (GetAsyncKeyState('A') & 0x8000) {
+        x = - speed * cos(rotation);
+        z = - speed * sin(rotation);
+	}
+    if (GetAsyncKeyState('S') & 0x8000) {
+        x = speed * sin(rotation);
+        z = - speed * cos(rotation);
+	}
+    if (GetAsyncKeyState('D') & 0x8000) {
+        x = speed * cos(rotation);
+        z = speed * sin(rotation);
+	}
+    camera_pos.x += x;
+    camera_pos.z += z;
 }
