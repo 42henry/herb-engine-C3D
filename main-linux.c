@@ -18,7 +18,7 @@
 #define CUBE_WIDTH (30 * CM_TO_PIXELS) // cube is 100cm big
 #define MAX_SQUARES 100
 
-#define TEXTURE_WIDTH 8
+#define TEXTURE_WIDTH 100
 #define COORDS_PER_SQUARE ((TEXTURE_WIDTH + 1) * (TEXTURE_WIDTH + 1))
 
 #define FRAME_LENGTH 16666
@@ -410,29 +410,6 @@ void fill_square(Vec3 one, Vec3 two, Vec3 three, Vec3 four, Colour_t colour) {
 		// draw right line to y
 		right_x = (y - get_line_intercept(right_line)) / get_line_gradient(right_line);
 
-		if (right_x > left_x) {
-			if (left_x < 0) {
-				left_x = 0;
-			}
-			if (right_x > WIDTH) {
-				right_x = WIDTH;
-			}
-			for (int x = left_x; x < right_x; x++) {
-				set_pixel((Vec2){x, y}, colour);
-			}
-		}
-		else {
-			if (right_x < 0) {
-				right_x = 0;
-			}
-			if (left_x > WIDTH) {
-				left_x = WIDTH;
-			}
-			for (int x = right_x; x < left_x; x++) {
-				set_pixel((Vec2){x, y}, colour);
-			}
-		}
-
 		if (y >= left_line.end.y) {
 			left_index = left_index - 1;
 			if (left_index == -1) {
@@ -447,6 +424,35 @@ void fill_square(Vec3 one, Vec3 two, Vec3 three, Vec3 four, Colour_t colour) {
 
 			right_line.start = right_line.end;
 			right_line.end = coords[right_index];
+		}
+
+		if (right_x > left_x) {
+			if (left_x <= 0) {
+				continue;
+			}
+			if (left_x < 0) {
+				left_x = 0;
+			}
+			if (right_x > WIDTH) {
+				right_x = WIDTH;
+			}
+			for (int x = left_x; x < right_x; x++) {
+				set_pixel((Vec2){x, y}, colour);
+			}
+		}
+		else {
+			if (right_x <= 0) {
+				continue;
+			}
+			if (right_x < 0) {
+				right_x = 0;
+			}
+			if (left_x > WIDTH) {
+				left_x = WIDTH;
+			}
+			for (int x = right_x; x < left_x; x++) {
+				set_pixel((Vec2){x, y}, colour);
+			}
 		}
 	}
 
