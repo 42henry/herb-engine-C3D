@@ -13,6 +13,8 @@
 
 #define CM_TO_PIXELS 10
 
+#define WIDTH_IN_CM ((WIDTH) / (CM_TO_PIXELS))
+
 #define CUBE_WIDTH (30 * CM_TO_PIXELS) // cube is 100cm big
 #define MAX_SQUARES 100
 
@@ -76,12 +78,22 @@ static void add_square(Vec3 top_left);
 
 static Vec3 rotate_and_project(Vec3 coord);
 
+static void update_movement();
+
+static Vec3 camera_pos = {0};
+static int speed = 0;
+static int walk_speed = 0;
+static int sprint_speed = 0;
+
 static Squares_t squares = {0};
 static int paused = 0;
 static int frame = 0;
 static int toggle = 0;
 
 static float rotation = 0;
+static Vec2 mouse = {0};
+static char keys[32];
+static KeyCode w, a, s, d, shift;
 
 static Colour_t red = {255, 0, 0};
 static Colour_t green = {0, 255, 0};
@@ -117,8 +129,21 @@ int main() {
 
     // Main loop to update the window color
 	init_stuff();
+    w     = XKeysymToKeycode(display, XK_w);
+    a     = XKeysymToKeycode(display, XK_a);
+    s     = XKeysymToKeycode(display, XK_s);
+    d     = XKeysymToKeycode(display, XK_d);
+    shift = XKeysymToKeycode(display, XK_Shift_L);
+
     while (1) {
 		update_pixels();
+
+		// Get mouse coordinates
+        Window root_return, child_return;
+		XQueryPointer(display, window, NULL, NULL, NULL, NULL, &mouse.x, &mouse.y, NULL);
+
+		// get keyboad
+		XQueryKeymap(display, keys);
 
 		// Draw the updated image
 		XPutImage(display, window, gc, image, 0, 0, 0, 0, WIDTH, HEIGHT);
@@ -136,6 +161,14 @@ int main() {
 }
 
 void init_stuff() {
+
+	camera_pos.x = 0;
+	camera_pos.y = 0;
+	camera_pos.z = 0;
+	speed = 10;
+	walk_speed = speed;
+	sprint_speed = 20;
+
 	red.r = 255;
 	green.g = 255;
 	blue.b = 255;
@@ -153,53 +186,54 @@ void update_pixels() {
 	}
 	frame++;
 
-	// rotation = -((mouse.x / (float)WIDTH) - 0.5) * 2 * 3.141;
-	rotation = 0;
+	update_movement();
+
+	rotation = -((mouse.x / (float)WIDTH) - 0.5) * 2 * 3.141;
 
     clear_screen((Colour_t){100, 100, 100});
 
-//	for (int i = 0; i < squares.count; i++) {
-//		for (int j = 0; j < (TEXTURE_WIDTH * (TEXTURE_WIDTH + 1)); j++) {
-//			// squares share corners...
-//			if (j && ((j + 1) % (TEXTURE_WIDTH + 1)) == 0) {
-//				continue;
-//			}
-//			fill_square(rotate_and_project(squares.items[i].coords[j]),
-//						rotate_and_project(squares.items[i].coords[j + 1]),
-//						rotate_and_project(squares.items[i].coords[j + TEXTURE_WIDTH + 2]),
-//						rotate_and_project(squares.items[i].coords[j + TEXTURE_WIDTH + 1]),
-//						(Colour_t){200, 160, 20});
-//		}
-//	}
-	static Vec3 one = {WIDTH / 2, HEIGHT / 2, 10};
-	static Vec3 two = {WIDTH / 2, HEIGHT / 2, 10};
-	static Vec3 three = {WIDTH / 2, HEIGHT / 2, 10};
-	static Vec3 four = {WIDTH / 2, HEIGHT / 2, 10};
-	one.x -= 2;
-	one.y -= 1;
-	two.x += 1;
-	two.y -= 2;
-	three.x += 1;
-	three.y += 2;
-	four.x -= 2;
-	four.y += 1;
-	fill_square(one, two, three, four, green);
-	// if x or y becomes negative, our fill_square function fails
-	static Vec3 oone = {WIDTH / 2, HEIGHT / 2, 10};
-	static Vec3 otwo = {WIDTH / 2, HEIGHT / 2, 10};
-	static Vec3 othree = {WIDTH / 2, HEIGHT / 2, 10};
-	static Vec3 ofour = {WIDTH / 2, HEIGHT / 2, 10};
-	if (frame > 1) {
-		oone.x -= 2;
-		oone.y -= 1;
-		otwo.x += 1;
-		otwo.y -= 2;
-		othree.x += 1;
-		othree.y += 2;
-		ofour.x -= 2;
-		ofour.y += 1;
+	for (int i = 0; i < squares.count; i++) {
+		for (int j = 0; j < (TEXTURE_WIDTH * (TEXTURE_WIDTH + 1)); j++) {
+			// squares share corners...
+			if (j && ((j + 1) % (TEXTURE_WIDTH + 1)) == 0) {
+				continue;
+			}
+			fill_square(rotate_and_project(squares.items[i].coords[j]),
+						rotate_and_project(squares.items[i].coords[j + 1]),
+						rotate_and_project(squares.items[i].coords[j + TEXTURE_WIDTH + 2]),
+						rotate_and_project(squares.items[i].coords[j + TEXTURE_WIDTH + 1]),
+						(Colour_t){200, 160, 20});
+		}
 	}
-	fill_square(oone, otwo, othree, ofour, blue);
+	//static Vec3 one = {WIDTH / 2, HEIGHT / 2, 10};
+	//static Vec3 two = {WIDTH / 2, HEIGHT / 2, 10};
+	//static Vec3 three = {WIDTH / 2, HEIGHT / 2, 10};
+	//static Vec3 four = {WIDTH / 2, HEIGHT / 2, 10};
+	//one.x -= 2;
+	//one.y -= 1;
+	//two.x += 1;
+	//two.y -= 2;
+	//three.x += 1;
+	//three.y += 2;
+	//four.x -= 2;
+	//four.y += 1;
+	//fill_square(one, two, three, four, green);
+	//// if x or y becomes negative, our fill_square function fails
+	//static Vec3 oone = {WIDTH / 2, HEIGHT / 2, 10};
+	//static Vec3 otwo = {WIDTH / 2, HEIGHT / 2, 10};
+	//static Vec3 othree = {WIDTH / 2, HEIGHT / 2, 10};
+	//static Vec3 ofour = {WIDTH / 2, HEIGHT / 2, 10};
+	//if (frame > 1) {
+		//oone.x -= 2;
+		//oone.y -= 1;
+		//otwo.x += 1;
+		//otwo.y -= 2;
+		//othree.x += 1;
+		//othree.y += 2;
+		//ofour.x -= 2;
+		//ofour.y += 1;
+	//}
+	//fill_square(oone, otwo, othree, ofour, blue);
 
 	Vec3 left = {0, HEIGHT / 2, 10};
 	Vec3 right = {WIDTH, HEIGHT / 2, 10};
@@ -393,7 +427,7 @@ int test_fill_square() {
 }
 
 void debug_log(char *str) {
-	printf("%s", str);
+	printf("\n%s", str);
 }
 
 float get_line_gradient(Line_t line) {
@@ -445,13 +479,16 @@ void add_square(Vec3 top_left) {
 
 Vec3 rotate_and_project(Vec3 coord) {
 	// rotate
+	coord.x -= camera_pos.x;
+	coord.z -= camera_pos.z;
 	int x = (coord.z * sin(rotation) + coord.x * cos(rotation));
 	int z = (coord.z * cos(rotation) - coord.x * sin(rotation));
 	int y = coord.y;
+	float percent_size = ((float)WIDTH_IN_CM / z);
 	// project
 	if (z > 0) {
-		x /= (z * 0.01);
-		y /= (z * 0.01);
+		x *= percent_size;
+		y *= percent_size;
 		z = 1;
 	}
 	else {
@@ -461,4 +498,34 @@ Vec3 rotate_and_project(Vec3 coord) {
 	x = x + WIDTH / 2;
 	y = -y + HEIGHT / 2;
 	return (Vec3){x, y, z};
+}
+
+void update_movement()
+{
+	int x = 0;
+	int z = 0;
+	if (keys[shift / 8] & (1 << (w % 8))) {
+        speed = sprint_speed;
+	}
+	else {
+		speed = walk_speed;
+	}
+    if (keys[w / 8] & (1 << (w % 8))) {
+        x = - speed * sin(rotation);
+        z = speed * cos(rotation);
+	}
+    if (keys[a / 8] & (1 << (w % 8))) {
+        x = - speed * cos(rotation);
+        z = - speed * sin(rotation);
+	}
+    if (keys[s / 8] & (1 << (w % 8))) {
+        x = speed * sin(rotation);
+        z = - speed * cos(rotation);
+	}
+    if (keys[d / 8] & (1 << (w % 8))) {
+        x = speed * cos(rotation);
+        z = speed * sin(rotation);
+	}
+    camera_pos.x += x;
+    camera_pos.z += z;
 }
