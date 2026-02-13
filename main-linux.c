@@ -102,6 +102,8 @@ static int debug = 0;
 static int debug2 = 0;
 static int debug3 = 0;
 
+static Colour_t texture[TEXTURE_WIDTH * TEXTURE_WIDTH] = {0};
+
 int main() {
     // Open X display
     Display *display = XOpenDisplay(NULL);
@@ -182,6 +184,29 @@ void init_stuff() {
 	squares.items = malloc(MAX_SQUARES * sizeof(Square_t));
 	add_square((Vec3){-5, -5, 10});
 
+	int swap = 0;
+	for (int i = 0; i < TEXTURE_WIDTH * TEXTURE_WIDTH; i++) {
+		if (i % TEXTURE_WIDTH == 0) {
+			swap = (swap ? 0 : 1);
+		}
+		if (swap) {
+			if (i % 2 == 0) {
+				texture[i] = green;
+			}
+			else {
+				texture[i] = blue;
+			}
+		}
+		else {
+			if (i % 2 == 0) {
+				texture[i] = blue;
+			}
+			else {
+				texture[i] = green;
+			}
+		}
+	}
+
 	return;
 }
 
@@ -198,6 +223,7 @@ void update_pixels() {
     clear_screen((Colour_t){100, 100, 100});
 
  	for (int i = 0; i < squares.count; i++) {
+		int count = 0;
  		for (int j = 0; j < (TEXTURE_WIDTH * (TEXTURE_WIDTH + 1)); j++) {
  			// squares share corners...
  			if (j && ((j + 1) % (TEXTURE_WIDTH + 1)) == 0) {
@@ -207,7 +233,7 @@ void update_pixels() {
  						rotate_and_project(squares.items[i].coords[j + 1]),
  						rotate_and_project(squares.items[i].coords[j + TEXTURE_WIDTH + 2]),
  						rotate_and_project(squares.items[i].coords[j + TEXTURE_WIDTH + 1]),
- 						(Colour_t){200, 160, 20});
+ 						texture[count++]);
  		}
  	}
 //	static Vec3 one = {WIDTH / 2, HEIGHT / 2, 10};
