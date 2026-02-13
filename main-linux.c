@@ -8,8 +8,8 @@
 #include <math.h>
 #include <assert.h>
 
-#define WIDTH  800
-#define HEIGHT 500
+#define WIDTH  1500
+#define HEIGHT 1500
 
 #define CM_TO_PIXELS 10
 
@@ -18,7 +18,7 @@
 #define CUBE_WIDTH (30 * CM_TO_PIXELS) // cube is 100cm big
 #define MAX_SQUARES 100
 
-#define TEXTURE_WIDTH 100
+#define TEXTURE_WIDTH 8
 #define COORDS_PER_SQUARE ((TEXTURE_WIDTH + 1) * (TEXTURE_WIDTH + 1))
 
 #define FRAME_LENGTH 16666
