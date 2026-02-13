@@ -430,9 +430,6 @@ void fill_square(Vec3 one, Vec3 two, Vec3 three, Vec3 four, Colour_t colour) {
 			if (left_x <= 0) {
 				continue;
 			}
-			if (left_x < 0) {
-				left_x = 0;
-			}
 			if (right_x > WIDTH) {
 				right_x = WIDTH;
 			}
@@ -443,9 +440,6 @@ void fill_square(Vec3 one, Vec3 two, Vec3 three, Vec3 four, Colour_t colour) {
 		else {
 			if (right_x <= 0) {
 				continue;
-			}
-			if (right_x < 0) {
-				right_x = 0;
 			}
 			if (left_x > WIDTH) {
 				left_x = WIDTH;
