@@ -20,7 +20,7 @@
 #define CUBE_WIDTH (10 * CM_TO_PIXELS)
 #define MAX_SQUARES 5000
 
-#define TEXTURE_WIDTH 8
+#define TEXTURE_WIDTH 3
 #define COORDS_PER_SQUARE ((TEXTURE_WIDTH + 1) * (TEXTURE_WIDTH + 1))
 
 #define TARGET_FPS 60
@@ -236,7 +236,7 @@ void init_stuff() {
 	add_cube((Vec3){50, 150, 10}, red);
 
 	Colour_t c = blue;
-	for (int i = 0; i < 100; i++) {
+	for (int i = 0; i < 10; i++) {
 		add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10}, c);
 		if (i % 2 == 0) {
 			add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10 + (2 * CUBE_WIDTH)}, c);
@@ -562,15 +562,22 @@ void add_cube(Vec3 top_left, Colour_t colour) {
 	int y = top_left.y;
 	int z = top_left.z;
 
+	int len = CUBE_WIDTH / TEXTURE_WIDTH;
+
+	for (int i = 0; i < TEXTURE_WIDTH; i++) {
+		for (int j = 0; j < TEXTURE_WIDTH; j++) {
+			Square_t square = {0};
+			square.coords[0] = (Vec3) {x + (i * len), y - (j * len), z};
+			square.coords[1] = (Vec3) {x + ((i + 1) * len), y - (j * len), z};
+			square.coords[2] = (Vec3) {x + ((i + 1) * len), y - ((j + 1) * len), z};
+			square.coords[3] = (Vec3) {x + (i * len), y - ((j + 1) * len), z};
+
+			square.colour = pack_colour_to_uint32(1, colour);
+
+			world_squares.items[world_squares.count++] = square;
+		}
+	}
 	Square_t square = {0};
-	square.coords[0] = (Vec3) {x, y, z};
-	square.coords[1] = (Vec3) {x + CUBE_WIDTH, y, z};
-	square.coords[2] = (Vec3) {x + CUBE_WIDTH, y - CUBE_WIDTH, z};
-	square.coords[3] = (Vec3) {x, y - CUBE_WIDTH, z};
-
-	square.colour = pack_colour_to_uint32(1, colour);
-
-	world_squares.items[world_squares.count++] = square;
 
 	square.coords[0] = (Vec3) {x, y, z + CUBE_WIDTH};
 	square.coords[1] = (Vec3) {x + CUBE_WIDTH, y, z + CUBE_WIDTH};
