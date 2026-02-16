@@ -5,6 +5,8 @@ I know nothing about graphics, and have used gpt to help write the x11 or winapi
 all I want is an array of pixels, that I can update each frame with my own functions,
 this is my attempt to make a 3D game like minecraft!
 
+![screenshot](screenshot.png)
+
 To start:
  - a fill function that takes 4 points and a colour, and fills the screen with that colour
  - a rotate and project function that takes an x y and z and rotates it about the camera, and projects it by z
