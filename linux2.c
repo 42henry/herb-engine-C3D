@@ -16,12 +16,12 @@
 #define WIDTH_IN_CM ((WIDTH) / (CM_TO_PIXELS))
 
 #define CUBE_WIDTH (30 * CM_TO_PIXELS) // cube is 100cm big
-#define MAX_SQUARES 100
+#define MAX_SQUARES 1000
 
 #define TEXTURE_WIDTH 8
 #define COORDS_PER_SQUARE ((TEXTURE_WIDTH + 1) * (TEXTURE_WIDTH + 1))
 
-#define FRAME_LENGTH 16666
+#define FRAME_LENGTH 16000
 
 typedef struct {
 	int x;
@@ -184,16 +184,18 @@ void init_stuff() {
 
 	squares.items = malloc(MAX_SQUARES * sizeof(Square_t));
 
-	Square_t square = {0};
-	square.coords[0] = (Vec2) {100, 400};
-	square.coords[1] = (Vec2) {1500, 400};
-	square.coords[2] = (Vec2) {3400, 1200};
-	square.coords[3] = (Vec2) {100, 800};
-	Colour_t colour = {20, 220, 10};
-	square.colour = pack_colour_to_uint32(1, colour);
+	for (int i = 0; i < 1; i++) {
+		Square_t square = {0};
+		square.coords[0] = (Vec2) {i + 100 % WIDTH, i + 400 % HEIGHT};
+		square.coords[1] = (Vec2) {i + 1500 % WIDTH, i + 400 % HEIGHT};
+		square.coords[2] = (Vec2) {i + 3400 % WIDTH, i + 1200 % HEIGHT};
+		square.coords[3] = (Vec2) {i + 1500 % WIDTH, i + 800 % HEIGHT};
+		Colour_t colour = {i % 255, i % 255 + 50, i % 255};
+		square.colour = pack_colour_to_uint32(1, colour);
 
-	squares.items[0] = square;
-	squares.count = 1;
+		squares.items[i] = square;
+		squares.count++;
+	}
 
 	int swap = 0;
 	for (int i = 0; i < TEXTURE_WIDTH * TEXTURE_WIDTH; i++) {
@@ -233,7 +235,15 @@ void update_pixels() {
 
     clear_screen((Colour_t){100, 100, 100});
 
-	fill_square(&squares.items[0]);
+	squares.items[0].coords[0].x = (squares.items[0].coords[0].x + 40) % WIDTH;
+	squares.items[0].coords[2].x = (squares.items[0].coords[2].x - 40);
+	if (squares.items[0].coords[2].x < 0) {
+		squares.items[0].coords[2].x = WIDTH;
+	}
+
+	for (int i = 0; i < squares.count; i++) {
+		fill_square(&squares.items[i]);
+	}
 
 	Vec3 one = {squares.items[0].coords[0].x, squares.items[0].coords[0].y, 10};
 	Vec3 two = {squares.items[0].coords[1].x, squares.items[0].coords[1].y, 10};
