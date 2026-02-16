@@ -230,6 +230,8 @@ void init_stuff() {
 	draw_squares.items = malloc(MAX_SQUARES * sizeof(Square_t));
 
 	add_cube((Vec3){-50, 50, 10}, green);
+	add_cube((Vec3){50, 50, 10}, blue);
+	add_cube((Vec3){50, 150, 10}, red);
 
 	int swap = 0;
 	for (int i = 0; i < TEXTURE_WIDTH * TEXTURE_WIDTH; i++) {
@@ -408,12 +410,16 @@ void fill_square(Square_t *square) {
 		if ((square->coords[left_end_index].y - square->coords[left_start_index].y) == 0) {
 			if (square->coords[left_end_index].x > square->coords[left_start_index].x) {
 				for (int x = square->coords[left_start_index].x; x < square->coords[left_end_index].x; x++) {
-					row[x] = square->colour;
+					if (x > -1 && x < WIDTH) {
+						row[x] = square->colour;
+					}
 				}
 			}
 			else {
 				for (int x = square->coords[left_end_index].x; x < square->coords[left_start_index].x; x++) {
-					row[x] = square->colour;
+					if (x > -1 && x < WIDTH) {
+						row[x] = square->colour;
+					}
 				}
 			}
 			left_start_index = left_end_index;
@@ -434,16 +440,21 @@ void fill_square(Square_t *square) {
 		if ((square->coords[right_end_index].y - square->coords[left_start_index].y) == 0) {
 			if (square->coords[right_end_index].x > square->coords[left_start_index].x) {
 				for (int x = square->coords[right_start_index].x; x < square->coords[left_end_index].x; x++) {
-					row[x] = square->colour;
+					if (x > -1 && x < WIDTH) {
+						row[x] = square->colour;
+					}
 				}
 			}
 			else {
 				for (int x = square->coords[right_end_index].x; x < square->coords[left_start_index].x; x++) {
-					row[x] = square->colour;
+					if (x > -1 && x < WIDTH) {
+						row[x] = square->colour;
+					}
 				}
 			}
 			right_start_index = right_end_index;
 			right_end_index = (right_end_index + 1) % 4;
+			continue;
 		}
 
 //		right_x = x1 + (((y - y1) * (x2 - x1)) / (y2 - y1));
