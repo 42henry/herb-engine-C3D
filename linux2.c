@@ -458,16 +458,16 @@ void fill_square(Square_t *square) {
 //		x1 = square->coords[right_start_index].x;
 //		x2 = square->coords[right_end_index].x;
 		// if ((y2 - y1) == 0) the draw the line, and move on to the next right line
-		if ((square->coords[right_end_index].y - square->coords[left_start_index].y) == 0) {
-			if (square->coords[right_end_index].x > square->coords[left_start_index].x) {
-				for (int x = square->coords[right_start_index].x; x < square->coords[left_end_index].x; x++) {
+		if ((square->coords[right_end_index].y - square->coords[right_start_index].y) == 0) {
+			if (square->coords[right_end_index].x > square->coords[right_start_index].x) {
+				for (int x = square->coords[right_start_index].x; x < square->coords[right_end_index].x; x++) {
 					if (x > -1 && x < WIDTH) {
 						row[x] = square->colour;
 					}
 				}
 			}
 			else {
-				for (int x = square->coords[right_end_index].x; x < square->coords[left_start_index].x; x++) {
+				for (int x = square->coords[right_end_index].x; x < square->coords[right_start_index].x; x++) {
 					if (x > -1 && x < WIDTH) {
 						row[x] = square->colour;
 					}
