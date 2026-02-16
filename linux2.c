@@ -14,11 +14,11 @@
 
 #define CM_TO_PIXELS 10
 
-#define FOV 1.5
+#define FOV 2
 #define WIDTH_IN_CM ((WIDTH) / (CM_TO_PIXELS))
 
 #define CUBE_WIDTH (10 * CM_TO_PIXELS)
-#define MAX_SQUARES 100
+#define MAX_SQUARES 5000
 
 #define TEXTURE_WIDTH 8
 #define COORDS_PER_SQUARE ((TEXTURE_WIDTH + 1) * (TEXTURE_WIDTH + 1))
@@ -83,6 +83,8 @@ static void rotate_and_project_squares();
 static void draw_all_squares();
 
 static void update_movement();
+
+int compare_squares(const void *one, const void *two);
 
 static Vec3 camera_pos = {0};
 static int speed = 0;
@@ -233,6 +235,23 @@ void init_stuff() {
 	add_cube((Vec3){50, 50, 10}, blue);
 	add_cube((Vec3){50, 150, 10}, red);
 
+	Colour_t c = blue;
+	for (int i = 0; i < 100; i++) {
+		add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10}, c);
+		if (i % 2 == 0) {
+			add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10 + (2 * CUBE_WIDTH)}, c);
+			c = green;
+		}
+		if (i % 3 == 0) {
+			add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10 + (CUBE_WIDTH)}, c);
+			c = red;
+		}
+		if (i % 4 == 0) {
+			add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10 + (CUBE_WIDTH)}, c);
+			c = blue;
+		}
+	}
+
 	int swap = 0;
 	for (int i = 0; i < TEXTURE_WIDTH * TEXTURE_WIDTH; i++) {
 		if (i % TEXTURE_WIDTH == 0) {
@@ -273,6 +292,8 @@ void update_pixels() {
     clear_screen((Colour_t){100, 100, 100});
 
 	rotate_and_project_squares();
+
+	qsort(draw_squares.items, draw_squares.count, sizeof(Square_t), compare_squares);
 
 	draw_all_squares();
 	return;
@@ -358,14 +379,14 @@ void draw_line(Vec3 start, Vec3 end, Colour_t colour) {
 }
 
 void fill_square(Square_t *square) {
-	if (square->coords[0].z == 0) {
-		return;
-	}
 
 	int smallest_y = HEIGHT + 1;
 	int smallest_y_index = 0;
 	int largest_y = -1;
 	for (int i = 0; i < 4; i++) {
+		if (square->coords[i].z == 0) {
+			return;
+		}
 		if (square->coords[i].y < smallest_y) {
 			smallest_y = square->coords[i].y;
 			smallest_y_index = i;
@@ -621,7 +642,6 @@ void rotate_and_project_squares() {
 			if (new_z > 0) {
 				new_x *= percent_size;
 				new_y *= percent_size;
-				new_z = 1;
 			}
 			else {
 				new_z = 0;
@@ -635,6 +655,7 @@ void rotate_and_project_squares() {
 			draw_squares.items[i].colour = world_squares.items[i].colour;
 		}
 	}
+	draw_squares.count = world_squares.count;
 }
 
 void update_movement()
@@ -676,7 +697,33 @@ void update_movement()
 }
 
 void draw_all_squares() {
-	for (int i = 0; i < world_squares.count; i++) {
+	for (int i = 0; i < draw_squares.count; i++) {
 		fill_square(&draw_squares.items[i]);
 	}
+}
+
+int compare_squares(const void *one, const void *two) {
+	const Square_t *square_one = one;
+	const Square_t *square_two = two;
+
+	float z1 = square_one->coords[0].z;
+	for (int i = 1; i < 4; i++) {
+		z1 += square_one->coords[i].z;
+	}
+	z1 /= 4;
+
+	float z2 = square_two->coords[0].z;
+	for (int i = 1; i < 4; i++) {
+		z2 += square_two->coords[i].z;
+	}
+	z2 /= 4;
+
+	if (z1 > z2) {
+		return -1;
+	}
+	if (z1 < z2) {
+		return 1;
+	}
+
+	return 0;
 }
