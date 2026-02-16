@@ -16,7 +16,7 @@
 
 #define WIDTH_IN_CM ((WIDTH) / (CM_TO_PIXELS))
 
-#define CUBE_WIDTH (30 * CM_TO_PIXELS) // cube is 100cm big
+#define CUBE_WIDTH (30 * CM_TO_PIXELS)
 #define MAX_SQUARES 100
 
 #define TEXTURE_WIDTH 8
@@ -48,7 +48,7 @@ typedef struct {
 } Colour_t;
 
 typedef struct {
-	Vec2 coords[4];	
+	Vec3 coords[4];	
 	uint32_t colour;
 } Square_t;
 
@@ -78,7 +78,8 @@ static void fill_square(Square_t *square);
 static int test_fill_square();
 static void add_square(Vec3 top_left);
 
-static Vec3 rotate_and_project(Vec3 coord);
+static void rotate_and_project_squares();
+static void draw_all_squares();
 
 static void update_movement();
 
@@ -87,7 +88,8 @@ static int speed = 0;
 static int walk_speed = 0;
 static int sprint_speed = 0;
 
-static Squares_t squares = {0};
+static Squares_t world_squares = {0};
+static Squares_t draw_squares = {0};
 static int paused = 0;
 static int frame = 0;
 static int toggle = 0;
@@ -195,7 +197,8 @@ int main() {
     }
 
     // Cleanup
-	free(squares.items);
+	free(world_squares.items);
+	free(draw_squares.items);
     free(pixels);
     XDestroyImage(image);
     XFreeGC(display, gc);
@@ -219,19 +222,20 @@ void init_stuff() {
 	blue.b = 255;
 	assert(test_fill_square());
 
-	squares.items = malloc(MAX_SQUARES * sizeof(Square_t));
+	world_squares.items = malloc(MAX_SQUARES * sizeof(Square_t));
+	draw_squares.items = malloc(MAX_SQUARES * sizeof(Square_t));
 
 	for (int i = 0; i < 1; i++) {
 		Square_t square = {0};
-		square.coords[0] = (Vec2) {i + 100 % WIDTH, i + 400 % HEIGHT};
-		square.coords[1] = (Vec2) {i + 1500 % WIDTH, i + 400 % HEIGHT};
-		square.coords[2] = (Vec2) {i + 3400 % WIDTH, i + 1200 % HEIGHT};
-		square.coords[3] = (Vec2) {i + 1500 % WIDTH, i + 800 % HEIGHT};
+		square.coords[0] = (Vec3) {-50, 50, 10};
+		square.coords[1] = (Vec3) {50, 50, 10};
+		square.coords[2] = (Vec3) {50, -50, 10};
+		square.coords[3] = (Vec3) {-50, -50, 10};
 		Colour_t colour = {i % 255, i % 255 + 50, i % 255};
 		square.colour = pack_colour_to_uint32(1, colour);
 
-		squares.items[i] = square;
-		squares.count++;
+		world_squares.items[i] = square;
+		world_squares.count++;
 	}
 
 	int swap = 0;
@@ -266,20 +270,15 @@ void update_pixels() {
 	}
 	frame++;
 
-	//update_movement();
+	update_movement();
 
-	//rotation = -((mouse.x / (float)WIDTH) - 0.5) * 2 * 3.141;
+	rotation = -((mouse.x / (float)WIDTH) - 0.5) * 2 * 3.141;
 
     clear_screen((Colour_t){100, 100, 100});
 
-	for (int i = 0; i < squares.count; i++) {
-		squares.items[i].coords[0].x = (squares.items[i].coords[0].x + 40) % WIDTH;
-		squares.items[i].coords[2].x = (squares.items[i].coords[2].x - 40);
-		if (squares.items[i].coords[2].x < 0) {
-			squares.items[i].coords[2].x = WIDTH;
-		}
-		fill_square(&squares.items[i]);
-	}
+	rotate_and_project_squares();
+
+	draw_all_squares();
 	return;
 }
 
@@ -363,6 +362,9 @@ void draw_line(Vec3 start, Vec3 end, Colour_t colour) {
 }
 
 void fill_square(Square_t *square) {
+	if (square->coords[0].z == 0) {
+		return;
+	}
 
 	int smallest_y = HEIGHT + 1;
 	int smallest_y_index = 0;
@@ -533,30 +535,39 @@ void add_square(Vec3 top_left) {
 	return;
 }
 
-Vec3 rotate_and_project(Vec3 coord) {
+void rotate_and_project_squares() {
 	// rotate
-	coord.x -= camera_pos.x;
-	coord.z -= camera_pos.z;
-	int x = (coord.z * sin(rotation) + coord.x * cos(rotation));
-	int z = (coord.z * cos(rotation) - coord.x * sin(rotation));
-	int y = coord.y;
-	if (z == 0) {
-		z = 0.01;
+	for (int i = 0; i < world_squares.count; i++) {
+		for (int j = 0; j < 4; j++) {
+			int x = world_squares.items[i].coords[j].x;
+			int y = world_squares.items[i].coords[j].y;
+			int z = world_squares.items[i].coords[j].z;
+			x -= camera_pos.x;
+			z -= camera_pos.z;
+			int new_x = (z * sin(rotation) + x * cos(rotation));
+			int new_z = (z * cos(rotation) - x * sin(rotation));
+			int new_y = y;
+			if (new_z == 0) {
+				new_z = 0.01;
+			}
+			float percent_size = ((float)WIDTH_IN_CM / new_z);
+			// project
+			if (new_z > 0) {
+				new_x *= percent_size;
+				new_y *= percent_size;
+				new_z = 1;
+			}
+			else {
+				new_z = 0;
+			}
+			// convert from standard grid to screen grid
+			new_x = new_x + WIDTH / 2;
+			new_y = -new_y + HEIGHT / 2;
+			draw_squares.items[i].coords[j].x = new_x;
+			draw_squares.items[i].coords[j].y = new_y;
+			draw_squares.items[i].coords[j].z = new_z;
+		}
 	}
-	float percent_size = ((float)WIDTH_IN_CM / z);
-	// project
-	if (z > 0) {
-		x *= percent_size;
-		y *= percent_size;
-		z = 1;
-	}
-	else {
-		z = 0;
-	}
-	// convert from standard grid to screen grid
-	x = x + WIDTH / 2;
-	y = -y + HEIGHT / 2;
-	return (Vec3){x, y, z};
 }
 
 void update_movement()
@@ -587,4 +598,10 @@ void update_movement()
 	}
     camera_pos.x += x;
     camera_pos.z += z;
+}
+
+void draw_all_squares() {
+	for (int i = 0; i < world_squares.count; i++) {
+		fill_square(&draw_squares.items[i]);
+	}
 }

@@ -8,7 +8,7 @@
 #include <math.h>
 #include <assert.h>
 
-#define WIDTH  1500
+#define WIDTH  3500
 #define HEIGHT 1500
 
 #define CM_TO_PIXELS 10
@@ -194,12 +194,12 @@ void init_stuff() {
 				texture[i] = green;
 			}
 			else {
-				texture[i] = blue;
+				texture[i] = red;
 			}
 		}
 		else {
 			if (i % 2 == 0) {
-				texture[i] = blue;
+				texture[i] = red;
 			}
 			else {
 				texture[i] = green;
@@ -278,13 +278,8 @@ void update_pixels() {
 }
 
 void clear_screen(Colour_t colour) {
-    for (int y = 0; y < HEIGHT; y++)
-    {
-        for (int x = 0; x < WIDTH; x++)
-        {
-            set_pixel((Vec2){x, y}, colour);
-        }
-    }
+	int c = pack_colour_to_uint32(1, colour);
+	memset(pixels, c, WIDTH * HEIGHT * sizeof(uint32_t));
 	return;
 }
 
