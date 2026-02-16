@@ -14,9 +14,10 @@
 
 #define CM_TO_PIXELS 10
 
+#define FOV 1.5
 #define WIDTH_IN_CM ((WIDTH) / (CM_TO_PIXELS))
 
-#define CUBE_WIDTH (30 * CM_TO_PIXELS)
+#define CUBE_WIDTH (10 * CM_TO_PIXELS)
 #define MAX_SQUARES 100
 
 #define TEXTURE_WIDTH 8
@@ -76,7 +77,7 @@ static void clear_screen(Colour_t colour);
 static void draw_line(Vec3 start, Vec3 end, Colour_t colour);
 static void fill_square(Square_t *square);
 static int test_fill_square();
-static void add_square(Vec3 top_left);
+static void add_cube(Vec3 top_left, Colour_t colour);
 
 static void rotate_and_project_squares();
 static void draw_all_squares();
@@ -94,10 +95,11 @@ static int paused = 0;
 static int frame = 0;
 static int toggle = 0;
 
-static float rotation = 0;
+static float x_rotation = 0;
+static float y_rotation = 0;
 static Vec2 mouse = {0};
 static char keys[32];
-static KeyCode w, a, s, d, shift;
+static KeyCode w, a, s, d, shift, space, control;
 
 static Colour_t red = {255, 0, 0};
 static Colour_t green = {0, 255, 0};
@@ -142,6 +144,8 @@ int main() {
     s     = XKeysymToKeycode(display, XK_s);
     d     = XKeysymToKeycode(display, XK_d);
     shift = XKeysymToKeycode(display, XK_Shift_L);
+    space = XKeysymToKeycode(display, XK_space);
+    control = XKeysymToKeycode(display, XK_Control_L);
 
 	clock_gettime(CLOCK_MONOTONIC, &last);
 
@@ -225,18 +229,7 @@ void init_stuff() {
 	world_squares.items = malloc(MAX_SQUARES * sizeof(Square_t));
 	draw_squares.items = malloc(MAX_SQUARES * sizeof(Square_t));
 
-	for (int i = 0; i < 1; i++) {
-		Square_t square = {0};
-		square.coords[0] = (Vec3) {-50, 50, 10};
-		square.coords[1] = (Vec3) {50, 50, 10};
-		square.coords[2] = (Vec3) {50, -50, 10};
-		square.coords[3] = (Vec3) {-50, -50, 10};
-		Colour_t colour = {i % 255, i % 255 + 50, i % 255};
-		square.colour = pack_colour_to_uint32(1, colour);
-
-		world_squares.items[i] = square;
-		world_squares.count++;
-	}
+	add_cube((Vec3){-50, 50, 10}, green);
 
 	int swap = 0;
 	for (int i = 0; i < TEXTURE_WIDTH * TEXTURE_WIDTH; i++) {
@@ -272,7 +265,8 @@ void update_pixels() {
 
 	update_movement();
 
-	rotation = -((mouse.x / (float)WIDTH) - 0.5) * 2 * 3.141;
+	x_rotation = -((mouse.x / (float)WIDTH) - 0.5) * 2 * 3.141;
+	y_rotation = ((mouse.y / (float)HEIGHT) - 0.5) * 2 * 3.141;
 
     clear_screen((Colour_t){100, 100, 100});
 
@@ -531,7 +525,65 @@ int line_goes_right(Line_t line) {
 	return (change_in_x > 0);
 }
 
-void add_square(Vec3 top_left) {
+void add_cube(Vec3 top_left, Colour_t colour) {
+	int x = top_left.x;
+	int y = top_left.y;
+	int z = top_left.z;
+
+	Square_t square = {0};
+	square.coords[0] = (Vec3) {x, y, z};
+	square.coords[1] = (Vec3) {x + CUBE_WIDTH, y, z};
+	square.coords[2] = (Vec3) {x + CUBE_WIDTH, y - CUBE_WIDTH, z};
+	square.coords[3] = (Vec3) {x, y - CUBE_WIDTH, z};
+
+	square.colour = pack_colour_to_uint32(1, colour);
+
+	world_squares.items[world_squares.count++] = square;
+
+	square.coords[0] = (Vec3) {x, y, z + CUBE_WIDTH};
+	square.coords[1] = (Vec3) {x + CUBE_WIDTH, y, z + CUBE_WIDTH};
+	square.coords[2] = (Vec3) {x + CUBE_WIDTH, y - CUBE_WIDTH, z + CUBE_WIDTH};
+	square.coords[3] = (Vec3) {x, y - CUBE_WIDTH, z + CUBE_WIDTH};
+
+	square.colour = pack_colour_to_uint32(1, colour);
+
+	world_squares.items[world_squares.count++] = square;
+
+	square.coords[0] = (Vec3) {x, y, z};
+	square.coords[1] = (Vec3) {x, y, z + CUBE_WIDTH};
+	square.coords[2] = (Vec3) {x, y - CUBE_WIDTH, z + CUBE_WIDTH};
+	square.coords[3] = (Vec3) {x, y - CUBE_WIDTH, z};
+
+	square.colour = pack_colour_to_uint32(1, colour);
+
+	world_squares.items[world_squares.count++] = square;
+
+	square.coords[0] = (Vec3) {x + CUBE_WIDTH, y, z};
+	square.coords[1] = (Vec3) {x + CUBE_WIDTH, y, z + CUBE_WIDTH};
+	square.coords[2] = (Vec3) {x + CUBE_WIDTH, y - CUBE_WIDTH, z + CUBE_WIDTH};
+	square.coords[3] = (Vec3) {x + CUBE_WIDTH, y - CUBE_WIDTH, z};
+
+	square.colour = pack_colour_to_uint32(1, colour);
+
+	world_squares.items[world_squares.count++] = square;
+
+	square.coords[0] = (Vec3) {x, y, z};
+	square.coords[1] = (Vec3) {x + CUBE_WIDTH, y, z};
+	square.coords[2] = (Vec3) {x + CUBE_WIDTH, y, z + CUBE_WIDTH};
+	square.coords[3] = (Vec3) {x, y, z + CUBE_WIDTH};
+
+	square.colour = pack_colour_to_uint32(1, colour);
+
+	world_squares.items[world_squares.count++] = square;
+
+	square.coords[0] = (Vec3) {x, y - CUBE_WIDTH, z};
+	square.coords[1] = (Vec3) {x + CUBE_WIDTH, y - CUBE_WIDTH, z};
+	square.coords[2] = (Vec3) {x + CUBE_WIDTH, y - CUBE_WIDTH, z + CUBE_WIDTH};
+	square.coords[3] = (Vec3) {x, y - CUBE_WIDTH, z + CUBE_WIDTH};
+
+	square.colour = pack_colour_to_uint32(1, colour);
+
+	world_squares.items[world_squares.count++] = square;
 	return;
 }
 
@@ -543,14 +595,17 @@ void rotate_and_project_squares() {
 			int y = world_squares.items[i].coords[j].y;
 			int z = world_squares.items[i].coords[j].z;
 			x -= camera_pos.x;
+			y -= camera_pos.y;
 			z -= camera_pos.z;
-			int new_x = (z * sin(rotation) + x * cos(rotation));
-			int new_z = (z * cos(rotation) - x * sin(rotation));
-			int new_y = y;
+			int new_x = (z * sin(x_rotation) + x * cos(x_rotation));
+			int z2 = (z * cos(x_rotation) - x * sin(x_rotation));
+
+			int new_y = (z2 * sin(y_rotation) + y * cos(y_rotation));
+			int new_z = (z2 * cos(y_rotation) - y * sin(y_rotation));
 			if (new_z == 0) {
 				new_z = 0.01;
 			}
-			float percent_size = ((float)WIDTH_IN_CM / new_z);
+			float percent_size = ((float)(WIDTH_IN_CM * FOV) / new_z);
 			// project
 			if (new_z > 0) {
 				new_x *= percent_size;
@@ -566,6 +621,7 @@ void rotate_and_project_squares() {
 			draw_squares.items[i].coords[j].x = new_x;
 			draw_squares.items[i].coords[j].y = new_y;
 			draw_squares.items[i].coords[j].z = new_z;
+			draw_squares.items[i].colour = world_squares.items[i].colour;
 		}
 	}
 }
@@ -574,29 +630,37 @@ void update_movement()
 {
 	int x = 0;
 	int z = 0;
-	if (keys[shift / 8] & (1 << (shift % 8))) {
+	int y = 0;
+	if (keys[control / 8] & (1 << (control % 8))) {
         speed = sprint_speed;
 	}
 	else {
 		speed = walk_speed;
 	}
     if (keys[w / 8] & (1 << (w % 8))) {
-        x = - speed * sin(rotation);
-        z = speed * cos(rotation);
+        x = - speed * sin(x_rotation);
+        z = speed * cos(x_rotation);
 	}
     if (keys[a / 8] & (1 << (a % 8))) {
-        x = - speed * cos(rotation);
-        z = - speed * sin(rotation);
+        x = - speed * cos(x_rotation);
+        z = - speed * sin(x_rotation);
 	}
     if (keys[s / 8] & (1 << (s % 8))) {
-        x = speed * sin(rotation);
-        z = - speed * cos(rotation);
+        x = speed * sin(x_rotation);
+        z = - speed * cos(x_rotation);
 	}
     if (keys[d / 8] & (1 << (d % 8))) {
-        x = speed * cos(rotation);
-        z = speed * sin(rotation);
+        x = speed * cos(x_rotation);
+        z = speed * sin(x_rotation);
+	}
+    if (keys[space / 8] & (1 << (space % 8))) {
+        y = speed;
+	}
+    if (keys[shift / 8] & (1 << (shift % 8))) {
+        y = - speed;
 	}
     camera_pos.x += x;
+    camera_pos.y += y;
     camera_pos.z += z;
 }
 
