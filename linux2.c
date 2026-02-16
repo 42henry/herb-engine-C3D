@@ -17,7 +17,7 @@
 #define WIDTH_IN_CM ((WIDTH) / (CM_TO_PIXELS))
 
 #define CUBE_WIDTH (30 * CM_TO_PIXELS) // cube is 100cm big
-#define MAX_SQUARES 1000
+#define MAX_SQUARES 100
 
 #define TEXTURE_WIDTH 8
 #define COORDS_PER_SQUARE ((TEXTURE_WIDTH + 1) * (TEXTURE_WIDTH + 1))
@@ -272,13 +272,12 @@ void update_pixels() {
 
     clear_screen((Colour_t){100, 100, 100});
 
-	squares.items[0].coords[0].x = (squares.items[0].coords[0].x + 40) % WIDTH;
-	squares.items[0].coords[2].x = (squares.items[0].coords[2].x - 40);
-	if (squares.items[0].coords[2].x < 0) {
-		squares.items[0].coords[2].x = WIDTH;
-	}
-
 	for (int i = 0; i < squares.count; i++) {
+		squares.items[i].coords[0].x = (squares.items[i].coords[0].x + 40) % WIDTH;
+		squares.items[i].coords[2].x = (squares.items[i].coords[2].x - 40);
+		if (squares.items[i].coords[2].x < 0) {
+			squares.items[i].coords[2].x = WIDTH;
+		}
 		fill_square(&squares.items[i]);
 	}
 	return;
