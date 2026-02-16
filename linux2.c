@@ -7,6 +7,7 @@
 #include <string.h>
 #include <math.h>
 #include <assert.h>
+#include <time.h>
 
 #define WIDTH  3500
 #define HEIGHT 1500
@@ -21,7 +22,8 @@
 #define TEXTURE_WIDTH 8
 #define COORDS_PER_SQUARE ((TEXTURE_WIDTH + 1) * (TEXTURE_WIDTH + 1))
 
-#define FRAME_LENGTH 16000
+#define TARGET_FPS 60
+#define FRAME_TIME_NS (1000000000 / TARGET_FPS)
 
 typedef struct {
 	int x;
@@ -105,6 +107,8 @@ static int debug3 = 0;
 
 static Colour_t texture[TEXTURE_WIDTH * TEXTURE_WIDTH] = {0};
 
+struct timespec last, now;
+
 int main() {
     // Open X display
     Display *display = XOpenDisplay(NULL);
@@ -137,8 +141,21 @@ int main() {
     d     = XKeysymToKeycode(display, XK_d);
     shift = XKeysymToKeycode(display, XK_Shift_L);
 
+	clock_gettime(CLOCK_MONOTONIC, &last);
+
     while (1) {
-		update_pixels();
+		// --- Handle events ---
+		while (XPending(display)) {
+			XEvent event;
+			XNextEvent(display, &event);
+
+			if (event.type == Expose) {
+				// redraw if needed
+			}
+			if (event.type == DestroyNotify) {
+				return 0;
+			}
+		}
 
 		// Get mouse coordinates
 		Window root, child;
@@ -153,12 +170,32 @@ int main() {
 		// get keyboad
 		XQueryKeymap(display, keys);
 
-		// Draw the updated image
+		// --- Update ---
+		update_pixels();
+
+		// --- Render ---
 		XPutImage(display, window, gc, image, 0, 0, 0, 0, WIDTH, HEIGHT);
-        usleep(FRAME_LENGTH);
+		XFlush(display);
+
+		// --- Frame timing ---
+		clock_gettime(CLOCK_MONOTONIC, &now);
+
+		long elapsed =
+			(now.tv_sec - last.tv_sec) * 1000000000L +
+			(now.tv_nsec - last.tv_nsec);
+
+		if (elapsed < FRAME_TIME_NS) {
+			struct timespec sleep_time;
+			sleep_time.tv_sec = 0;
+			sleep_time.tv_nsec = FRAME_TIME_NS - elapsed;
+			nanosleep(&sleep_time, NULL);
+		}
+
+		clock_gettime(CLOCK_MONOTONIC, &last);
     }
 
     // Cleanup
+	free(squares.items);
     free(pixels);
     XDestroyImage(image);
     XFreeGC(display, gc);
@@ -229,9 +266,9 @@ void update_pixels() {
 	}
 	frame++;
 
-	update_movement();
+	//update_movement();
 
-	rotation = -((mouse.x / (float)WIDTH) - 0.5) * 2 * 3.141;
+	//rotation = -((mouse.x / (float)WIDTH) - 0.5) * 2 * 3.141;
 
     clear_screen((Colour_t){100, 100, 100});
 
@@ -244,37 +281,12 @@ void update_pixels() {
 	for (int i = 0; i < squares.count; i++) {
 		fill_square(&squares.items[i]);
 	}
-
-	Vec3 one = {squares.items[0].coords[0].x, squares.items[0].coords[0].y, 10};
-	Vec3 two = {squares.items[0].coords[1].x, squares.items[0].coords[1].y, 10};
-	Vec3 three = {squares.items[0].coords[2].x, squares.items[0].coords[2].y, 10};
-	Vec3 four = {squares.items[0].coords[3].x, squares.items[0].coords[3].y, 10};
-
-	draw_line(one, two, red);
-	draw_line(two, three, red);
-	draw_line(three, four, red);
-	draw_line(four, one, red);
-
-	Vec3 left = {0, HEIGHT / 2, 10};
-	Vec3 right = {WIDTH, HEIGHT / 2, 10};
-	Vec3 top = {WIDTH / 2, 0, 10};
-	Vec3 bottom = {WIDTH / 2, HEIGHT, 10};
-
-	draw_line(left, right, green);
-	draw_line(top, bottom, green);
-
 	return;
 }
 
 void clear_screen(Colour_t colour) {
 	uint32_t c = pack_colour_to_uint32(1, colour);
-    for (int y = 0; y < HEIGHT; y++)
-    {
-        for (int x = 0; x < WIDTH; x++)
-        {
-            set_pixel((Vec2){x, y}, c);
-        }
-    }
+	memset(pixels, c, WIDTH * HEIGHT * sizeof(uint32_t));
 	return;
 }
 
@@ -387,6 +399,8 @@ void fill_square(Square_t *square) {
 		largest_y = HEIGHT;
 	}
 	for (int y = smallest_y; y < largest_y; y++) {
+		// help avoid cache misses:
+		uint32_t* row = &pixels[y * WIDTH];
 
 		// get x coords y using y = mx + c
 // 		int y1 = square->coords[left_start_index].y;
@@ -399,12 +413,12 @@ void fill_square(Square_t *square) {
 		if ((square->coords[left_end_index].y - square->coords[left_start_index].y) == 0) {
 			if (square->coords[left_end_index].x > square->coords[left_start_index].x) {
 				for (int x = square->coords[left_start_index].x; x < square->coords[left_end_index].x; x++) {
-					set_pixel((Vec2){x, y}, square->colour);
+					row[x] = square->colour;
 				}
 			}
 			else {
 				for (int x = square->coords[left_end_index].x; x < square->coords[left_start_index].x; x++) {
-					set_pixel((Vec2){x, y}, square->colour);
+					row[x] = square->colour;
 				}
 			}
 			left_start_index = left_end_index;
@@ -425,12 +439,12 @@ void fill_square(Square_t *square) {
 		if ((square->coords[right_end_index].y - square->coords[left_start_index].y) == 0) {
 			if (square->coords[right_end_index].x > square->coords[left_start_index].x) {
 				for (int x = square->coords[right_start_index].x; x < square->coords[left_end_index].x; x++) {
-					set_pixel((Vec2){x, y}, square->colour);
+					row[x] = square->colour;
 				}
 			}
 			else {
 				for (int x = square->coords[right_end_index].x; x < square->coords[left_start_index].x; x++) {
-					set_pixel((Vec2){x, y}, square->colour);
+					row[x] = square->colour;
 				}
 			}
 			right_start_index = right_end_index;
@@ -463,7 +477,7 @@ void fill_square(Square_t *square) {
 				right_x = WIDTH;
 			}
 			for (int x = left_x; x < right_x; x++) {
-				set_pixel((Vec2){x, y}, square->colour);
+				row[x] = square->colour;
 			}
 		}
 		else {
@@ -474,7 +488,7 @@ void fill_square(Square_t *square) {
 				left_x = WIDTH;
 			}
 			for (int x = right_x; x < left_x; x++) {
-				set_pixel((Vec2){x, y}, square->colour);
+				row[x] = square->colour;
 			}
 		}
 	}
