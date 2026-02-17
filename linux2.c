@@ -296,6 +296,7 @@ void update_pixels() {
 	qsort(draw_squares.items, draw_squares.count, sizeof(Square_t), compare_squares);
 
 	draw_all_squares();
+
 	return;
 }
 
@@ -416,6 +417,10 @@ void fill_square(Square_t *square) {
 	if (largest_y > HEIGHT) {
 		largest_y = HEIGHT;
 	}
+	// TODO: swap for loops and setting arrays for memset!
+	// like this:
+	// memset(&pixels[y * WIDTH + x1], pack_colour_to_uint32(1, green), ((x2 - x1) * sizeof(uint32_t)));
+
 	for (int y = smallest_y; y < largest_y; y++) {
 		// help avoid cache misses:
 		uint32_t* row = &pixels[y * WIDTH];
