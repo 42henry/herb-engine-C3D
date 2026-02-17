@@ -577,52 +577,76 @@ void add_cube(Vec3 top_left, Colour_t colour) {
 			world_squares.items[world_squares.count++] = square;
 		}
 	}
-	Square_t square = {0};
+	for (int i = 0; i < TEXTURE_WIDTH; i++) {
+		for (int j = 0; j < TEXTURE_WIDTH; j++) {
+			Square_t square = {0};
 
-	square.coords[0] = (Vec3) {x, y, z + CUBE_WIDTH};
-	square.coords[1] = (Vec3) {x + CUBE_WIDTH, y, z + CUBE_WIDTH};
-	square.coords[2] = (Vec3) {x + CUBE_WIDTH, y - CUBE_WIDTH, z + CUBE_WIDTH};
-	square.coords[3] = (Vec3) {x, y - CUBE_WIDTH, z + CUBE_WIDTH};
+			square.coords[0] = (Vec3) {x, y, z + CUBE_WIDTH};
+			square.coords[1] = (Vec3) {x + ((i + 1) * len), y, z + CUBE_WIDTH};
+			square.coords[2] = (Vec3) {x + ((i + 1) * len), y - ((j + 1) * len), z + CUBE_WIDTH};
+			square.coords[3] = (Vec3) {x, y - ((j + 1) * len), z + CUBE_WIDTH};
 
-	square.colour = pack_colour_to_uint32(1, colour);
+			square.colour = pack_colour_to_uint32(1, colour);
 
-	world_squares.items[world_squares.count++] = square;
+			world_squares.items[world_squares.count++] = square;
+		}
+	}
+	for (int i = 0; i < TEXTURE_WIDTH; i++) {
+		for (int j = 0; j < TEXTURE_WIDTH; j++) {
+			Square_t square = {0};
 
-	square.coords[0] = (Vec3) {x, y, z};
-	square.coords[1] = (Vec3) {x, y, z + CUBE_WIDTH};
-	square.coords[2] = (Vec3) {x, y - CUBE_WIDTH, z + CUBE_WIDTH};
-	square.coords[3] = (Vec3) {x, y - CUBE_WIDTH, z};
+			square.coords[0] = (Vec3) {x, y, z};
+			square.coords[1] = (Vec3) {x, y, z + ((i + 1) * len)};
+			square.coords[2] = (Vec3) {x, y - ((j + 1) * len), z + ((i + 1) * len)};
+			square.coords[3] = (Vec3) {x, y - ((j + 1) * len), z};
 
-	square.colour = pack_colour_to_uint32(1, colour);
+			square.colour = pack_colour_to_uint32(1, colour);
 
-	world_squares.items[world_squares.count++] = square;
+			world_squares.items[world_squares.count++] = square;
+		}
+	}
+	for (int i = 0; i < TEXTURE_WIDTH; i++) {
+		for (int j = 0; j < TEXTURE_WIDTH; j++) {
+			Square_t square = {0};
 
-	square.coords[0] = (Vec3) {x + CUBE_WIDTH, y, z};
-	square.coords[1] = (Vec3) {x + CUBE_WIDTH, y, z + CUBE_WIDTH};
-	square.coords[2] = (Vec3) {x + CUBE_WIDTH, y - CUBE_WIDTH, z + CUBE_WIDTH};
-	square.coords[3] = (Vec3) {x + CUBE_WIDTH, y - CUBE_WIDTH, z};
+			square.coords[0] = (Vec3) {x + CUBE_WIDTH, y, z};
+			square.coords[1] = (Vec3) {x + CUBE_WIDTH, y, z + ((i + 1) * len)};
+			square.coords[2] = (Vec3) {x + CUBE_WIDTH, y - ((j + 1) * len), z + ((i + 1) * len)};
+			square.coords[3] = (Vec3) {x + CUBE_WIDTH, y - ((j + 1) * len), z};
 
-	square.colour = pack_colour_to_uint32(1, colour);
+			square.colour = pack_colour_to_uint32(1, colour);
 
-	world_squares.items[world_squares.count++] = square;
+			world_squares.items[world_squares.count++] = square;
+		}
+	}
+	for (int i = 0; i < TEXTURE_WIDTH; i++) {
+		for (int j = 0; j < TEXTURE_WIDTH; j++) {
+			Square_t square = {0};
 
-	square.coords[0] = (Vec3) {x, y, z};
-	square.coords[1] = (Vec3) {x + CUBE_WIDTH, y, z};
-	square.coords[2] = (Vec3) {x + CUBE_WIDTH, y, z + CUBE_WIDTH};
-	square.coords[3] = (Vec3) {x, y, z + CUBE_WIDTH};
+			square.coords[0] = (Vec3) {x, y, z};
+			square.coords[1] = (Vec3) {x + ((i + 1) * len), y, z};
+			square.coords[2] = (Vec3) {x + ((i + 1) * len), y, z + ((j + 1) * len)};
+			square.coords[3] = (Vec3) {x, y, z + ((j + 1) * len)};
 
-	square.colour = pack_colour_to_uint32(1, colour);
+			square.colour = pack_colour_to_uint32(1, colour);
 
-	world_squares.items[world_squares.count++] = square;
+			world_squares.items[world_squares.count++] = square;
+		}
+	}
+	for (int i = 0; i < TEXTURE_WIDTH; i++) {
+		for (int j = 0; j < TEXTURE_WIDTH; j++) {
+			Square_t square = {0};
 
-	square.coords[0] = (Vec3) {x, y - CUBE_WIDTH, z};
-	square.coords[1] = (Vec3) {x + CUBE_WIDTH, y - CUBE_WIDTH, z};
-	square.coords[2] = (Vec3) {x + CUBE_WIDTH, y - CUBE_WIDTH, z + CUBE_WIDTH};
-	square.coords[3] = (Vec3) {x, y - CUBE_WIDTH, z + CUBE_WIDTH};
+			square.coords[0] = (Vec3) {x, y - CUBE_WIDTH, z};
+			square.coords[1] = (Vec3) {x + ((i + 1) * len), y - CUBE_WIDTH, z};
+			square.coords[2] = (Vec3) {x + ((i + 1) * len), y - CUBE_WIDTH, z + ((i + 1) * len)};
+			square.coords[3] = (Vec3) {x, y - CUBE_WIDTH, z + ((i + 1) * len)};
 
-	square.colour = pack_colour_to_uint32(1, colour);
+			square.colour = pack_colour_to_uint32(1, colour);
 
-	world_squares.items[world_squares.count++] = square;
+			world_squares.items[world_squares.count++] = square;
+		}
+	}
 	return;
 }
 
