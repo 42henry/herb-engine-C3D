@@ -343,17 +343,7 @@ void update_pixels() {
 
 	qsort(draw_squares.items, draw_squares.count, sizeof(Square_t), compare_squares);
 
-	// draw_all_squares();
-	static int max = 0;
-	if (frame % 30 == 0) {
-		max++;
-	}
-	if (max > draw_squares.count) {
-		max = draw_squares.count;
-	}
-	for (int i = 0; i < max; i++) {
-		fill_square(&draw_squares.items[i]);
-	}
+	draw_all_squares();
 
 	return;
 }
@@ -677,10 +667,10 @@ void add_cube(Vec3 top_left, Colour_t colour) {
 		for (int j = 0; j < TEXTURE_WIDTH; j++) {
 			Square_t square = {0};
 
-			square.coords[0] = (Vec3) {x, y, z + CUBE_WIDTH};
-			square.coords[1] = (Vec3) {x + ((i + 1) * len), y, z + CUBE_WIDTH};
+			square.coords[0] = (Vec3) {x + (i * len), y - (j * len), z + CUBE_WIDTH};
+			square.coords[1] = (Vec3) {x + ((i + 1) * len), y - (j * len), z + CUBE_WIDTH};
 			square.coords[2] = (Vec3) {x + ((i + 1) * len), y - ((j + 1) * len), z + CUBE_WIDTH};
-			square.coords[3] = (Vec3) {x, y - ((j + 1) * len), z + CUBE_WIDTH};
+			square.coords[3] = (Vec3) {x + (i * len), y - ((j + 1) * len), z + CUBE_WIDTH};
 
 			Colour_t c = grass_texture->data[2 * texture_side + j * TEXTURE_WIDTH + i];
 			square.colour = pack_colour_to_uint32(1, c);
@@ -693,10 +683,10 @@ void add_cube(Vec3 top_left, Colour_t colour) {
 		for (int j = 0; j < TEXTURE_WIDTH; j++) {
 			Square_t square = {0};
 
-			square.coords[0] = (Vec3) {x, y, z};
-			square.coords[1] = (Vec3) {x, y, z + ((i + 1) * len)};
+			square.coords[0] = (Vec3) {x, y - (j * len), z + (i * len)};
+			square.coords[1] = (Vec3) {x, y - (j * len), z + ((i + 1) * len)};
 			square.coords[2] = (Vec3) {x, y - ((j + 1) * len), z + ((i + 1) * len)};
-			square.coords[3] = (Vec3) {x, y - ((j + 1) * len), z};
+			square.coords[3] = (Vec3) {x, y - ((j + 1) * len), z + (i * len)};
 
 			Colour_t c = grass_texture->data[2 * texture_side + j * TEXTURE_WIDTH + i];
 			square.colour = pack_colour_to_uint32(1, c);
@@ -709,10 +699,10 @@ void add_cube(Vec3 top_left, Colour_t colour) {
 		for (int j = 0; j < TEXTURE_WIDTH; j++) {
 			Square_t square = {0};
 
-			square.coords[0] = (Vec3) {x + CUBE_WIDTH, y, z};
-			square.coords[1] = (Vec3) {x + CUBE_WIDTH, y, z + ((i + 1) * len)};
+			square.coords[0] = (Vec3) {x + CUBE_WIDTH, y - (j * len), z + (i * len)};
+			square.coords[1] = (Vec3) {x + CUBE_WIDTH, y - (j * len), z + ((i + 1) * len)};
 			square.coords[2] = (Vec3) {x + CUBE_WIDTH, y - ((j + 1) * len), z + ((i + 1) * len)};
-			square.coords[3] = (Vec3) {x + CUBE_WIDTH, y - ((j + 1) * len), z};
+			square.coords[3] = (Vec3) {x + CUBE_WIDTH, y - ((j + 1) * len), z + (i * len)};
 
 			Colour_t c = grass_texture->data[2 * texture_side + j * TEXTURE_WIDTH + i];
 			square.colour = pack_colour_to_uint32(1, c);
@@ -725,10 +715,10 @@ void add_cube(Vec3 top_left, Colour_t colour) {
 		for (int j = 0; j < TEXTURE_WIDTH; j++) {
 			Square_t square = {0};
 
-			square.coords[0] = (Vec3) {x, y, z};
-			square.coords[1] = (Vec3) {x + ((i + 1) * len), y, z};
+			square.coords[0] = (Vec3) {x + (i * len), y, z + (j * len)};
+			square.coords[1] = (Vec3) {x + ((i + 1) * len), y, z + (j * len)};
 			square.coords[2] = (Vec3) {x + ((i + 1) * len), y, z + ((j + 1) * len)};
-			square.coords[3] = (Vec3) {x, y, z + ((j + 1) * len)};
+			square.coords[3] = (Vec3) {x + (i * len), y, z + ((j + 1) * len)};
 
 			Colour_t c = grass_texture->data[j * TEXTURE_WIDTH + i];
 			square.colour = pack_colour_to_uint32(1, c);
@@ -741,10 +731,10 @@ void add_cube(Vec3 top_left, Colour_t colour) {
 		for (int j = 0; j < TEXTURE_WIDTH; j++) {
 			Square_t square = {0};
 
-			square.coords[0] = (Vec3) {x, y - CUBE_WIDTH, z};
-			square.coords[1] = (Vec3) {x + ((i + 1) * len), y - CUBE_WIDTH, z};
-			square.coords[2] = (Vec3) {x + ((i + 1) * len), y - CUBE_WIDTH, z + ((i + 1) * len)};
-			square.coords[3] = (Vec3) {x, y - CUBE_WIDTH, z + ((i + 1) * len)};
+			square.coords[0] = (Vec3) {x + (i * len), y - CUBE_WIDTH, z + (j * len)};
+			square.coords[1] = (Vec3) {x + ((i + 1) * len), y - CUBE_WIDTH, z + (j * len)};
+			square.coords[2] = (Vec3) {x + ((i + 1) * len), y - CUBE_WIDTH, z + ((j + 1) * len)};
+			square.coords[3] = (Vec3) {x + (i * len), y - CUBE_WIDTH, z + ((j + 1) * len)};
 
 			Colour_t c = grass_texture->data[1 * texture_side + j * TEXTURE_WIDTH + i];
 			square.colour = pack_colour_to_uint32(1, c);
