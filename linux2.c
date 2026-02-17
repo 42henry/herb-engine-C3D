@@ -284,6 +284,7 @@ void init_stuff() {
     free(myImg.data);
 
 	grass_texture = readPPM("grass.ppm");
+	assert(grass_texture != NULL);
 
 	camera_pos.x = 0;
 	camera_pos.y = 0;
