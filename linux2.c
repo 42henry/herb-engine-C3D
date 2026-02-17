@@ -9,6 +9,9 @@
 #include <assert.h>
 #include <time.h>
 
+//TODO: maybe use floats for z for better drawing in front of each other accuracy
+//TODO: maybe make squares a few pixels larger so they don't miss their edges
+
 #define WIDTH  3500
 #define HEIGHT 1500
 
@@ -319,7 +322,6 @@ Colour_t unpack_colour_from_uint32(uint32_t packed_colour) {
 }
 
 void set_pixel(Vec2 coord, uint32_t colour) {
-	// TODO: remove these checks when not debugging as they slow us down
 	if ((coord.y < HEIGHT) && (coord.x < WIDTH)) {
 		if ((coord.y * WIDTH + coord.x) < (WIDTH * HEIGHT)) {
 			pixels[coord.y * WIDTH + coord.x] = colour;
@@ -417,12 +419,8 @@ void fill_square(Square_t *square) {
 	if (largest_y > HEIGHT) {
 		largest_y = HEIGHT;
 	}
-	// TODO: swap for loops and setting arrays for memset!
-	// like this:
-	// memset(&pixels[y * WIDTH + x1], pack_colour_to_uint32(1, green), ((x2 - x1) * sizeof(uint32_t)));
 
 	for (int y = smallest_y; y < largest_y; y++) {
-		// help avoid cache misses:
 		uint32_t* row = &pixels[y * WIDTH];
 
 		// get x coords y using y = mx + c
@@ -434,18 +432,30 @@ void fill_square(Square_t *square) {
 
 		// if ((y2 - y1) == 0) the draw the line, and move on to the next left line
 		if ((square->coords[left_end_index].y - square->coords[left_start_index].y) == 0) {
-			if (square->coords[left_end_index].x > square->coords[left_start_index].x) {
-				for (int x = square->coords[left_start_index].x; x < square->coords[left_end_index].x; x++) {
-					if (x > -1 && x < WIDTH) {
-						row[x] = square->colour;
-					}
+			int x1 = square->coords[left_start_index].x;
+			int x2 = square->coords[left_end_index].x;
+			if (x2 > x1) {
+				if (x1 < 0) {
+					x1 = 0;
+				}
+				if (x2 > WIDTH) {
+					x2 = WIDTH;
+				}
+				// TODO: might need to add check here if x1 < x2
+				for (int x = x1; x < x2; x++) {
+					row[x] = square->colour;
 				}
 			}
 			else {
-				for (int x = square->coords[left_end_index].x; x < square->coords[left_start_index].x; x++) {
-					if (x > -1 && x < WIDTH) {
-						row[x] = square->colour;
-					}
+				if (x2 < 0) {
+					x2 = 0;
+				}
+				if (x1 > WIDTH) {
+					x1 = WIDTH;
+				}
+				// TODO: might need to add check here if x2 < x1
+				for (int x = x2; x < x1; x++) {
+					row[x] = square->colour;
 				}
 			}
 			left_start_index = left_end_index;
@@ -464,18 +474,30 @@ void fill_square(Square_t *square) {
 //		x2 = square->coords[right_end_index].x;
 		// if ((y2 - y1) == 0) the draw the line, and move on to the next right line
 		if ((square->coords[right_end_index].y - square->coords[right_start_index].y) == 0) {
-			if (square->coords[right_end_index].x > square->coords[right_start_index].x) {
-				for (int x = square->coords[right_start_index].x; x < square->coords[right_end_index].x; x++) {
-					if (x > -1 && x < WIDTH) {
-						row[x] = square->colour;
-					}
+			int x1 = square->coords[right_start_index].x;
+			int x2 = square->coords[right_end_index].x;
+			if (x2 > x1) {
+				if (x1 < 0) {
+					x1 = 0;
+				}
+				if (x2 > WIDTH) {
+					x2 = WIDTH;
+				}
+				// TODO: might need to add check here if x1 < x2
+				for (int x = x1; x < x2; x++) {
+					row[x] = square->colour;
 				}
 			}
 			else {
-				for (int x = square->coords[right_end_index].x; x < square->coords[right_start_index].x; x++) {
-					if (x > -1 && x < WIDTH) {
-						row[x] = square->colour;
-					}
+				if (x2 < 0) {
+					x2 = 0;
+				}
+				if (x1 > WIDTH) {
+					x1 = WIDTH;
+				}
+				// TODO: might need to add check here if x2 < x1
+				for (int x = x2; x < x1; x++) {
+					row[x] = square->colour;
 				}
 			}
 			right_start_index = right_end_index;
@@ -508,6 +530,7 @@ void fill_square(Square_t *square) {
 			if (right_x > WIDTH) {
 				right_x = WIDTH;
 			}
+			// TODO: might need to recheck if left_x < right_x in case where left_x was already larger than width...
 			for (int x = left_x; x < right_x; x++) {
 				row[x] = square->colour;
 			}
@@ -519,6 +542,7 @@ void fill_square(Square_t *square) {
 			if (left_x > WIDTH) {
 				left_x = WIDTH;
 			}
+			// TODO: might need to recheck if right_x < left_x
 			for (int x = right_x; x < left_x; x++) {
 				row[x] = square->colour;
 			}
