@@ -9,7 +9,7 @@
 #include <assert.h>
 #include <time.h>
 
-//TODO: maybe use floats for z for better drawing in front of each other accuracy
+//TODO: fix squares not drawing in correct order
 //TODO: maybe make squares a few pixels larger so they don't miss their edges
 //TODO: cap y rotation to top and bottom of window
 //TODO: allow for pressing WASD and moving mouse at same time
@@ -301,48 +301,25 @@ void init_stuff() {
 	draw_squares.items = malloc(MAX_SQUARES * sizeof(Square_t));
 
 	add_cube((Vec3){-50, 50, 10}, green);
-	add_cube((Vec3){50, 50, 10}, blue);
-	add_cube((Vec3){50, 150, 10}, red);
-
-	Colour_t c = blue;
-	for (int i = 0; i < 10; i++) {
-		add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10}, c);
-		if (i % 2 == 0) {
-			add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10 + (2 * CUBE_WIDTH)}, c);
-			c = green;
-		}
-		if (i % 3 == 0) {
-			add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10 + (CUBE_WIDTH)}, c);
-			c = red;
-		}
-		if (i % 4 == 0) {
-			add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10 + (CUBE_WIDTH)}, c);
-			c = blue;
-		}
-	}
-
-	int swap = 0;
-	for (int i = 0; i < TEXTURE_WIDTH * TEXTURE_WIDTH; i++) {
-		if (i % TEXTURE_WIDTH == 0) {
-			swap = (swap ? 0 : 1);
-		}
-		if (swap) {
-			if (i % 2 == 0) {
-				texture[i] = green;
-			}
-			else {
-				texture[i] = red;
-			}
-		}
-		else {
-			if (i % 2 == 0) {
-				texture[i] = red;
-			}
-			else {
-				texture[i] = green;
-			}
-		}
-	}
+	//add_cube((Vec3){50, 50, 10}, blue);
+	//add_cube((Vec3){50, 150, 10}, red);
+//
+	//Colour_t c = blue;
+	//for (int i = 0; i < 10; i++) {
+		//add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10}, c);
+		//if (i % 2 == 0) {
+			//add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10 + (2 * CUBE_WIDTH)}, c);
+			//c = green;
+		//}
+		//if (i % 3 == 0) {
+			//add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10 + (CUBE_WIDTH)}, c);
+			//c = red;
+		//}
+		//if (i % 4 == 0) {
+			//add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10 + (CUBE_WIDTH)}, c);
+			//c = blue;
+		//}
+	//}
 
 	return;
 }
