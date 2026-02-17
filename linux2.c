@@ -420,6 +420,7 @@ void fill_square(Square_t *square) {
 		largest_y = HEIGHT;
 	}
 
+	// TODO: could we use y+=2 or smthn instead of y++ here to make it faster?
 	for (int y = smallest_y; y < largest_y; y++) {
 		uint32_t* row = &pixels[y * WIDTH];
 
