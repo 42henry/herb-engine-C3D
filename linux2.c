@@ -11,6 +11,9 @@
 
 //TODO: maybe use floats for z for better drawing in front of each other accuracy
 //TODO: maybe make squares a few pixels larger so they don't miss their edges
+//TODO: cap y rotation to top and bottom of window
+//TODO: allow for pressing WASD and moving mouse at same time
+//TODO: collisions, generate terrain, gravity
 
 #define WIDTH  3500
 #define HEIGHT 1500
@@ -46,10 +49,15 @@ typedef struct {
 } Line_t;
 
 typedef struct {
-	int r;
-	int g;
-	int b;
+	unsigned char r;
+	unsigned char g;
+	unsigned char b;
 } Colour_t;
+
+typedef struct {
+    int width, height;
+    Colour_t *data;
+} Texture_t;
 
 typedef struct {
 	Vec3 coords[4];	
@@ -89,6 +97,9 @@ static void update_movement();
 
 int compare_squares(const void *one, const void *two);
 
+void writePPM(const char *filename, Texture_t *img);
+Texture_t* readPPM(const char *filename);
+
 static Vec3 camera_pos = {0};
 static int speed = 0;
 static int walk_speed = 0;
@@ -117,6 +128,8 @@ static int debug3 = 0;
 static Colour_t texture[TEXTURE_WIDTH * TEXTURE_WIDTH] = {0};
 
 struct timespec last, now;
+
+Texture_t *grass_texture = NULL;
 
 int main() {
     // Open X display
@@ -218,6 +231,59 @@ int main() {
 }
 
 void init_stuff() {
+	// create grass texture
+	// * 3 for top bottom side
+    int w = TEXTURE_WIDTH * 3, h = TEXTURE_WIDTH;
+    Texture_t myImg = {w, h, malloc(w * h * 3)};
+
+    Colour_t dark_green = {10, 180, 20};
+    Colour_t brown = {150, 75, 10};
+
+	// top
+	myImg.data[0] = dark_green;
+	myImg.data[1] = dark_green;
+	myImg.data[2] = dark_green;
+
+	myImg.data[3] = dark_green;
+	myImg.data[4] = dark_green;
+	myImg.data[5] = dark_green;
+
+	myImg.data[6] = dark_green;
+	myImg.data[7] = dark_green;
+	myImg.data[8] = dark_green;
+
+	// bottom
+	myImg.data[9] = brown;
+	myImg.data[10] = brown;
+	myImg.data[11] = brown;
+
+	myImg.data[12] = brown;
+	myImg.data[13] = brown;
+	myImg.data[14] = brown;
+
+	myImg.data[15] = brown;
+	myImg.data[16] = brown;
+	myImg.data[17] = brown;
+
+	// side
+	myImg.data[18] = dark_green;
+	myImg.data[19] = dark_green;
+	myImg.data[20] = dark_green;
+
+	myImg.data[21] = brown;
+	myImg.data[22] = brown;
+	myImg.data[23] = brown;
+
+	myImg.data[24] = brown;
+	myImg.data[25] = brown;
+	myImg.data[26] = brown;
+
+    writePPM("grass.ppm", &myImg);
+    printf("Texture_t 'grass.ppm' created successfully.\n");
+
+    free(myImg.data);
+
+	grass_texture = readPPM("grass.ppm");
 
 	camera_pos.x = 0;
 	camera_pos.y = 0;
@@ -292,7 +358,7 @@ void update_pixels() {
 	x_rotation = -((mouse.x / (float)WIDTH) - 0.5) * 2 * 3.141;
 	y_rotation = ((mouse.y / (float)HEIGHT) - 0.5) * 2 * 3.141;
 
-    clear_screen((Colour_t){100, 100, 100});
+    clear_screen((Colour_t){50, 180, 255});
 
 	rotate_and_project_squares();
 
@@ -304,8 +370,14 @@ void update_pixels() {
 }
 
 void clear_screen(Colour_t colour) {
+	//uint32_t c = pack_colour_to_uint32(1, colour);
+	//memset(pixels, c, WIDTH * HEIGHT * sizeof(uint32_t));
 	uint32_t c = pack_colour_to_uint32(1, colour);
-	memset(pixels, c, WIDTH * HEIGHT * sizeof(uint32_t));
+	for (int x = 0; x < WIDTH; x++) {
+		for (int y = 0; y < HEIGHT; y++) {
+			pixels[y * WIDTH + x] = c;
+		}
+	}
 	return;
 }
 
@@ -594,6 +666,9 @@ void add_cube(Vec3 top_left, Colour_t colour) {
 
 	int len = CUBE_WIDTH / TEXTURE_WIDTH;
 
+	int texture_side = TEXTURE_WIDTH * TEXTURE_WIDTH;
+
+	// front
 	for (int i = 0; i < TEXTURE_WIDTH; i++) {
 		for (int j = 0; j < TEXTURE_WIDTH; j++) {
 			Square_t square = {0};
@@ -602,11 +677,13 @@ void add_cube(Vec3 top_left, Colour_t colour) {
 			square.coords[2] = (Vec3) {x + ((i + 1) * len), y - ((j + 1) * len), z};
 			square.coords[3] = (Vec3) {x + (i * len), y - ((j + 1) * len), z};
 
-			square.colour = pack_colour_to_uint32(1, colour);
+			Colour_t c = grass_texture->data[2 * texture_side + j * TEXTURE_WIDTH + i];
+			square.colour = pack_colour_to_uint32(1, c);
 
 			world_squares.items[world_squares.count++] = square;
 		}
 	}
+	// back
 	for (int i = 0; i < TEXTURE_WIDTH; i++) {
 		for (int j = 0; j < TEXTURE_WIDTH; j++) {
 			Square_t square = {0};
@@ -616,11 +693,13 @@ void add_cube(Vec3 top_left, Colour_t colour) {
 			square.coords[2] = (Vec3) {x + ((i + 1) * len), y - ((j + 1) * len), z + CUBE_WIDTH};
 			square.coords[3] = (Vec3) {x, y - ((j + 1) * len), z + CUBE_WIDTH};
 
-			square.colour = pack_colour_to_uint32(1, colour);
+			Colour_t c = grass_texture->data[2 * texture_side + j * TEXTURE_WIDTH + i];
+			square.colour = pack_colour_to_uint32(1, c);
 
 			world_squares.items[world_squares.count++] = square;
 		}
 	}
+	// left
 	for (int i = 0; i < TEXTURE_WIDTH; i++) {
 		for (int j = 0; j < TEXTURE_WIDTH; j++) {
 			Square_t square = {0};
@@ -630,11 +709,13 @@ void add_cube(Vec3 top_left, Colour_t colour) {
 			square.coords[2] = (Vec3) {x, y - ((j + 1) * len), z + ((i + 1) * len)};
 			square.coords[3] = (Vec3) {x, y - ((j + 1) * len), z};
 
-			square.colour = pack_colour_to_uint32(1, colour);
+			Colour_t c = grass_texture->data[2 * texture_side + j * TEXTURE_WIDTH + i];
+			square.colour = pack_colour_to_uint32(1, c);
 
 			world_squares.items[world_squares.count++] = square;
 		}
 	}
+	// right
 	for (int i = 0; i < TEXTURE_WIDTH; i++) {
 		for (int j = 0; j < TEXTURE_WIDTH; j++) {
 			Square_t square = {0};
@@ -644,11 +725,13 @@ void add_cube(Vec3 top_left, Colour_t colour) {
 			square.coords[2] = (Vec3) {x + CUBE_WIDTH, y - ((j + 1) * len), z + ((i + 1) * len)};
 			square.coords[3] = (Vec3) {x + CUBE_WIDTH, y - ((j + 1) * len), z};
 
-			square.colour = pack_colour_to_uint32(1, colour);
+			Colour_t c = grass_texture->data[2 * texture_side + j * TEXTURE_WIDTH + i];
+			square.colour = pack_colour_to_uint32(1, c);
 
 			world_squares.items[world_squares.count++] = square;
 		}
 	}
+	// top
 	for (int i = 0; i < TEXTURE_WIDTH; i++) {
 		for (int j = 0; j < TEXTURE_WIDTH; j++) {
 			Square_t square = {0};
@@ -658,11 +741,13 @@ void add_cube(Vec3 top_left, Colour_t colour) {
 			square.coords[2] = (Vec3) {x + ((i + 1) * len), y, z + ((j + 1) * len)};
 			square.coords[3] = (Vec3) {x, y, z + ((j + 1) * len)};
 
-			square.colour = pack_colour_to_uint32(1, colour);
+			Colour_t c = grass_texture->data[j * TEXTURE_WIDTH + i];
+			square.colour = pack_colour_to_uint32(1, c);
 
 			world_squares.items[world_squares.count++] = square;
 		}
 	}
+	// bottom
 	for (int i = 0; i < TEXTURE_WIDTH; i++) {
 		for (int j = 0; j < TEXTURE_WIDTH; j++) {
 			Square_t square = {0};
@@ -672,7 +757,8 @@ void add_cube(Vec3 top_left, Colour_t colour) {
 			square.coords[2] = (Vec3) {x + ((i + 1) * len), y - CUBE_WIDTH, z + ((i + 1) * len)};
 			square.coords[3] = (Vec3) {x, y - CUBE_WIDTH, z + ((i + 1) * len)};
 
-			square.colour = pack_colour_to_uint32(1, colour);
+			Colour_t c = grass_texture->data[1 * texture_side + j * TEXTURE_WIDTH + i];
+			square.colour = pack_colour_to_uint32(1, c);
 
 			world_squares.items[world_squares.count++] = square;
 		}
@@ -787,4 +873,59 @@ int compare_squares(const void *one, const void *two) {
 	}
 
 	return 0;
+}
+
+void writePPM(const char *filename, Texture_t *img) {
+    FILE *fp = fopen(filename, "wb");
+    if (!fp) {
+		assert(0);
+	}
+
+    fprintf(fp, "P6\n%d %d\n255\n", img->width, img->height);
+    
+    fwrite(img->data, 3, img->width * img->height, fp);
+    fclose(fp);
+}
+
+Texture_t* readPPM(const char *filename) {
+    FILE *fp = fopen(filename, "rb");
+    if (!fp) return NULL;
+
+    char header[3];
+    int width, height, maxVal;
+
+    if (fscanf(fp, "%2s", header) != 1 || strcmp(header, "P6") != 0) {
+        fclose(fp);
+        return NULL;
+    }
+
+    if (fscanf(fp, "%d %d", &width, &height) != 2) {
+        fclose(fp);
+        return NULL;
+    }
+
+    if (fscanf(fp, "%d", &maxVal) != 1 || maxVal != 255) {
+        fclose(fp);
+        return NULL;
+    }
+
+    fgetc(fp);  // consume exactly one byte
+
+    Texture_t *img = malloc(sizeof(Texture_t));
+    img->width = width;
+    img->height = height;
+    img->data = malloc(width * height * sizeof(Colour_t));
+
+    if (fread(img->data,
+              sizeof(Colour_t),
+              width * height,
+              fp) != width * height) {
+        free(img->data);
+        free(img);
+        fclose(fp);
+        return NULL;
+    }
+
+    fclose(fp);
+    return img;
 }
