@@ -10,6 +10,7 @@
 #include <time.h>
 
 //TODO: fix squares not drawing in correct order
+      //this is actually due to add cube being wrong!
 //TODO: maybe make squares a few pixels larger so they don't miss their edges
 //TODO: cap y rotation to top and bottom of window
 //TODO: allow for pressing WASD and moving mouse at same time
@@ -342,7 +343,17 @@ void update_pixels() {
 
 	qsort(draw_squares.items, draw_squares.count, sizeof(Square_t), compare_squares);
 
-	draw_all_squares();
+	// draw_all_squares();
+	static int max = 0;
+	if (frame % 30 == 0) {
+		max++;
+	}
+	if (max > draw_squares.count) {
+		max = draw_squares.count;
+	}
+	for (int i = 0; i < max; i++) {
+		fill_square(&draw_squares.items[i]);
+	}
 
 	return;
 }
