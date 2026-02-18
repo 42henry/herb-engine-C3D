@@ -114,7 +114,7 @@ static float x_rotation = 0;
 static float y_rotation = 0;
 static Vec2 mouse = {0};
 static int keys[256] = {0};
-static KeyCode w, a, s, d, shift, space, control;
+static KeyCode w, a, s, d, shift, space, control, escape;
 
 static Colour_t red = {255, 0, 0};
 static Colour_t green = {0, 255, 0};
@@ -129,6 +129,8 @@ static Colour_t texture[TEXTURE_WIDTH * TEXTURE_WIDTH] = {0};
 struct timespec last, now;
 
 Texture_t *grass_texture = NULL;
+
+static int hold_mouse = 1;
 
 int main() {
     // Open X display
@@ -161,7 +163,9 @@ int main() {
 	XSelectInput(display, window,
 		ExposureMask |
 		KeyPressMask |
-		KeyReleaseMask
+		KeyReleaseMask |
+		ButtonPressMask |
+		ButtonReleaseMask
 	);
 	
     // Create a graphics context
@@ -183,6 +187,7 @@ int main() {
     shift = XKeysymToKeycode(display, XK_Shift_L);
     space = XKeysymToKeycode(display, XK_space);
     control = XKeysymToKeycode(display, XK_Control_L);
+    escape = XKeysymToKeycode(display, XK_Escape);
 
 	clock_gettime(CLOCK_MONOTONIC, &last);
 
@@ -193,49 +198,69 @@ int main() {
 			XEvent event;
 			XNextEvent(display, &event);
 
-			if (event.type == KeyPress) {
-				KeyCode code = event.xkey.keycode;
-				keys[code] = 1;
-			}
-			else if (event.type == KeyRelease) {
-				KeyCode code = event.xkey.keycode;
-				keys[code] = 0;
-			}
-			else if (event.type == DestroyNotify) {
-				return 0;
+			switch (event.type) {
+				case KeyPress: {
+					KeyCode code = event.xkey.keycode;
+					keys[code] = 1;
+					break;
+			    }
+				case KeyRelease: {
+					KeyCode code = event.xkey.keycode;
+					keys[code] = 0;
+					break;
+			    }
+				case ButtonPress: {
+					int button_type = event.xbutton.button;
+					int x = event.xbutton.x;
+					int y = event.xbutton.y;
+					hold_mouse = 1;
+					XDefineCursor(display, window, cursor);
+					XWarpPointer(display, None, window,
+					 0, 0, 0, 0,
+					 (WIDTH / 2), (HEIGHT / 2));
+					break;
+			    }
+				case ButtonRelease: {
+					break;
+				}
+				case DestroyNotify: {
+					break;
+				}
 			}
 		}
 
-		// handle the mouse: 
-		int center_x = WIDTH / 2;
-		int center_y = HEIGHT / 2;
+		if (hold_mouse) {
+			// handle the mouse: 
+			Window root, child;
+			int root_x, root_y;
+			unsigned int mask;
 
-		Window root, child;
-		int root_x, root_y;
-		unsigned int mask;
+			XQueryPointer(display, window,
+						  &root, &child,
+						  &root_x, &root_y,
+						  &mouse.x, &mouse.y,
+						  &mask);
 
-		XQueryPointer(display, window,
-					  &root, &child,
-					  &root_x, &root_y,
-					  &mouse.x, &mouse.y,
-					  &mask);
+			int dx = mouse.x - (WIDTH / 2);
+			int dy = mouse.y - (HEIGHT / 2);
 
-		int dx = mouse.x - center_x;
-		int dy = mouse.y - center_y;
+			float sensitivity = 0.005f;
 
-		float sensitivity = 0.005f;
+			x_rotation -= dx * sensitivity;
+			y_rotation += dy * sensitivity;
 
-		x_rotation -= dx * sensitivity;
-		y_rotation += dy * sensitivity;
+			// Clamp vertical rotation
+			if (y_rotation > 3.141/2) y_rotation = 3.141/2;
+			if (y_rotation < -3.141/2) y_rotation = -3.141/2;
 
-		// Clamp vertical rotation
-		if (y_rotation > 3.141/2) y_rotation = 3.141/2;
-		if (y_rotation < -3.141/2) y_rotation = -3.141/2;
-
-		// Warp pointer back to center
-		XWarpPointer(display, None, window,
+			// Warp pointer back to center
+			XWarpPointer(display, None, window,
 					 0, 0, 0, 0,
-					 center_x, center_y);
+					 WIDTH / 2, HEIGHT / 2);
+		}
+		else {
+			XUndefineCursor(display, window);
+		}
 
 		// --- Update ---
 		frame++;
@@ -331,6 +356,8 @@ void init_stuff() {
 
 	grass_texture = readPPM("grass.ppm");
 	assert(grass_texture != NULL);
+
+	hold_mouse = 1;
 
 	camera_pos.x = 0;
 	camera_pos.y = 0;
@@ -854,6 +881,9 @@ void update_movement()
 	}
     if (keys[shift]) {
         y += - speed;
+	}
+	if (keys[escape]) {
+		hold_mouse = 0;
 	}
     camera_pos.x += x;
     camera_pos.y += y;
