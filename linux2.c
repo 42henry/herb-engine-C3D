@@ -10,9 +10,10 @@
 #include <time.h>
 
 //TODO: fix squares not drawing in correct order
-//      - something goes wrong when a cube is above y 0
+//      - something to do with our qsorting of the squares...
 //TODO: maybe make squares a few pixels larger so they don't miss their edges
-//TODO: collisions, generate terrain, gravity
+//TODO: make movement velocity based
+//TODO: generate terrain
 
 #define WIDTH  3500
 #define HEIGHT 1500
@@ -23,9 +24,9 @@
 #define WIDTH_IN_CM ((WIDTH) / (CM_TO_PIXELS))
 
 #define CUBE_WIDTH (10 * CM_TO_PIXELS)
-#define MAX_SQUARES 5000
+#define MAX_SQUARES 20000
 
-#define TEXTURE_WIDTH 3
+#define TEXTURE_WIDTH 5
 #define COORDS_PER_SQUARE ((TEXTURE_WIDTH + 1) * (TEXTURE_WIDTH + 1))
 
 #define TARGET_FPS 60
@@ -129,6 +130,7 @@ static Colour_t texture[TEXTURE_WIDTH * TEXTURE_WIDTH] = {0};
 struct timespec last, now;
 
 Texture_t *grass_texture = NULL;
+static int using_texture = 0;
 
 static int hold_mouse = 1;
 
@@ -304,6 +306,7 @@ int main() {
 void init_stuff() {
 	// create grass texture
 	// * 3 for top bottom side
+	srand(time(NULL));
     int w = TEXTURE_WIDTH * 3, h = TEXTURE_WIDTH;
     Texture_t myImg = {w, h, malloc(w * h * 3)};
 
@@ -311,43 +314,23 @@ void init_stuff() {
     Colour_t brown = {150, 75, 10};
 
 	// top
-	myImg.data[0] = dark_green;
-	myImg.data[1] = dark_green;
-	myImg.data[2] = dark_green;
-
-	myImg.data[3] = dark_green;
-	myImg.data[4] = dark_green;
-	myImg.data[5] = dark_green;
-
-	myImg.data[6] = dark_green;
-	myImg.data[7] = dark_green;
-	myImg.data[8] = dark_green;
-
+	int i = 0;
+	for (i; i < TEXTURE_WIDTH * TEXTURE_WIDTH; i++) {
+		myImg.data[i] = (Colour_t){10 + (rand() % 50), 180 + (rand() % 50), 20 + (rand() % 50), };
+	}
 	// bottom
-	myImg.data[9] = brown;
-	myImg.data[10] = brown;
-	myImg.data[11] = brown;
-
-	myImg.data[12] = brown;
-	myImg.data[13] = brown;
-	myImg.data[14] = brown;
-
-	myImg.data[15] = brown;
-	myImg.data[16] = brown;
-	myImg.data[17] = brown;
-
+	for (i; i < 2 * TEXTURE_WIDTH * TEXTURE_WIDTH; i++) {
+		myImg.data[i] = (Colour_t){150 + (rand() % 50), 75 + (rand() % 50), 10 + (rand() % 50), };
+	}
 	// side
-	myImg.data[18] = dark_green;
-	myImg.data[19] = dark_green;
-	myImg.data[20] = dark_green;
-
-	myImg.data[21] = brown;
-	myImg.data[22] = brown;
-	myImg.data[23] = brown;
-
-	myImg.data[24] = brown;
-	myImg.data[25] = brown;
-	myImg.data[26] = brown;
+	for (i; i < 3 * TEXTURE_WIDTH * TEXTURE_WIDTH; i++) {
+		if (i < 2.5 * TEXTURE_WIDTH * TEXTURE_WIDTH) {
+			myImg.data[i] = (Colour_t){10 + (rand() % 50), 180 + (rand() % 50), 20 + (rand() % 50), };
+		}
+		else {
+			myImg.data[i] = (Colour_t){150 + (rand() % 50), 75 + (rand() % 50), 10 + (rand() % 50), };
+		}
+	}
 
     writePPM("grass.ppm", &myImg);
     printf("Texture_t 'grass.ppm' created successfully.\n");
@@ -357,11 +340,13 @@ void init_stuff() {
 	grass_texture = readPPM("grass.ppm");
 	assert(grass_texture != NULL);
 
+	using_texture = 1;
+
 	hold_mouse = 1;
 
 	camera_pos.x = 0;
-	camera_pos.y = 0;
-	camera_pos.z = 0;
+	camera_pos.y = 300;
+	camera_pos.z = 100;
 	speed = 10;
 	walk_speed = speed;
 	sprint_speed = 20;
@@ -374,25 +359,14 @@ void init_stuff() {
 	world_squares.items = malloc(MAX_SQUARES * sizeof(Square_t));
 	draw_squares.items = malloc(MAX_SQUARES * sizeof(Square_t));
 
-	add_cube((Vec3){-50, 50, 10}, green);
-	add_cube((Vec3){50, 50, 10}, blue);
 	add_cube((Vec3){50, 150, 10}, red);
 
 	Colour_t c = blue;
-	for (int i = 0; i < 10; i++) {
+	for (int i = -5; i < 5; i++) {
 		add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10}, c);
-		if (i % 2 == 0) {
-			add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10 + (2 * CUBE_WIDTH)}, c);
-			c = green;
-		}
-		if (i % 3 == 0) {
-			add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10 + (CUBE_WIDTH)}, c);
-			c = red;
-		}
-		if (i % 4 == 0) {
-			add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10 + (CUBE_WIDTH)}, c);
-			c = blue;
-		}
+		add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10 + (2 * CUBE_WIDTH)}, c);
+		add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10 + (CUBE_WIDTH)}, c);
+		add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10 + (CUBE_WIDTH)}, c);
 	}
 
 	return;
@@ -721,8 +695,13 @@ void add_cube(Vec3 top_left, Colour_t colour) {
 			square.coords[2] = (Vec3) {x + ((i + 1) * len), y - ((j + 1) * len), z};
 			square.coords[3] = (Vec3) {x + (i * len), y - ((j + 1) * len), z};
 
-			Colour_t c = grass_texture->data[2 * texture_side + j * TEXTURE_WIDTH + i];
-			square.colour = pack_colour_to_uint32(1, c);
+			if (using_texture) {
+				Colour_t c = grass_texture->data[2 * texture_side + j * TEXTURE_WIDTH + i];
+				square.colour = pack_colour_to_uint32(1, c);
+			}
+			else {
+				square.colour = pack_colour_to_uint32(1, colour);
+			}
 
 			world_squares.items[world_squares.count++] = square;
 		}
@@ -737,8 +716,13 @@ void add_cube(Vec3 top_left, Colour_t colour) {
 			square.coords[2] = (Vec3) {x + ((i + 1) * len), y - ((j + 1) * len), z + CUBE_WIDTH};
 			square.coords[3] = (Vec3) {x + (i * len), y - ((j + 1) * len), z + CUBE_WIDTH};
 
-			Colour_t c = grass_texture->data[2 * texture_side + j * TEXTURE_WIDTH + i];
-			square.colour = pack_colour_to_uint32(1, c);
+			if (using_texture) {
+				Colour_t c = grass_texture->data[2 * texture_side + j * TEXTURE_WIDTH + i];
+				square.colour = pack_colour_to_uint32(1, c);
+			}
+			else {
+				square.colour = pack_colour_to_uint32(1, colour);
+			}
 
 			world_squares.items[world_squares.count++] = square;
 		}
@@ -753,8 +737,13 @@ void add_cube(Vec3 top_left, Colour_t colour) {
 			square.coords[2] = (Vec3) {x, y - ((j + 1) * len), z + ((i + 1) * len)};
 			square.coords[3] = (Vec3) {x, y - ((j + 1) * len), z + (i * len)};
 
-			Colour_t c = grass_texture->data[2 * texture_side + j * TEXTURE_WIDTH + i];
-			square.colour = pack_colour_to_uint32(1, c);
+			if (using_texture) {
+				Colour_t c = grass_texture->data[2 * texture_side + j * TEXTURE_WIDTH + i];
+				square.colour = pack_colour_to_uint32(1, c);
+			}
+			else {
+				square.colour = pack_colour_to_uint32(1, colour);
+			}
 
 			world_squares.items[world_squares.count++] = square;
 		}
@@ -769,8 +758,13 @@ void add_cube(Vec3 top_left, Colour_t colour) {
 			square.coords[2] = (Vec3) {x + CUBE_WIDTH, y - ((j + 1) * len), z + ((i + 1) * len)};
 			square.coords[3] = (Vec3) {x + CUBE_WIDTH, y - ((j + 1) * len), z + (i * len)};
 
-			Colour_t c = grass_texture->data[2 * texture_side + j * TEXTURE_WIDTH + i];
-			square.colour = pack_colour_to_uint32(1, c);
+			if (using_texture) {
+				Colour_t c = grass_texture->data[2 * texture_side + j * TEXTURE_WIDTH + i];
+				square.colour = pack_colour_to_uint32(1, c);
+			}
+			else {
+				square.colour = pack_colour_to_uint32(1, colour);
+			}
 
 			world_squares.items[world_squares.count++] = square;
 		}
@@ -785,8 +779,13 @@ void add_cube(Vec3 top_left, Colour_t colour) {
 			square.coords[2] = (Vec3) {x + ((i + 1) * len), y, z + ((j + 1) * len)};
 			square.coords[3] = (Vec3) {x + (i * len), y, z + ((j + 1) * len)};
 
-			Colour_t c = grass_texture->data[j * TEXTURE_WIDTH + i];
-			square.colour = pack_colour_to_uint32(1, c);
+			if (using_texture) {
+				Colour_t c = grass_texture->data[j * TEXTURE_WIDTH + i];
+				square.colour = pack_colour_to_uint32(1, c);
+			}
+			else {
+				square.colour = pack_colour_to_uint32(1, colour);
+			}
 
 			world_squares.items[world_squares.count++] = square;
 		}
@@ -801,8 +800,13 @@ void add_cube(Vec3 top_left, Colour_t colour) {
 			square.coords[2] = (Vec3) {x + ((i + 1) * len), y - CUBE_WIDTH, z + ((j + 1) * len)};
 			square.coords[3] = (Vec3) {x + (i * len), y - CUBE_WIDTH, z + ((j + 1) * len)};
 
-			Colour_t c = grass_texture->data[1 * texture_side + j * TEXTURE_WIDTH + i];
-			square.colour = pack_colour_to_uint32(1, c);
+			if (using_texture) {
+				Colour_t c = grass_texture->data[1 * texture_side + j * TEXTURE_WIDTH + i];
+				square.colour = pack_colour_to_uint32(1, c);
+			}
+			else {
+				square.colour = pack_colour_to_uint32(1, colour);
+			}
 
 			world_squares.items[world_squares.count++] = square;
 		}
@@ -877,7 +881,7 @@ void update_movement()
         z += speed * sin(x_rotation);
 	}
     if (keys[space]) {
-        y += speed;
+        y += 20;
 	}
     if (keys[shift]) {
         y += - speed;
@@ -885,9 +889,49 @@ void update_movement()
 	if (keys[escape]) {
 		hold_mouse = 0;
 	}
+
+    // gravity:
+	y -= 10;
+
     camera_pos.x += x;
     camera_pos.y += y;
     camera_pos.z += z;
+	
+	// collisions:
+	for (int i = 0; i < world_squares.count; i++) {
+		int x1 = 0;
+		int y1 = 0;
+		int z1 = 0;
+		for (int j = 0; j < 4; j++) {
+			x1 += world_squares.items[i].coords[j].x;	
+			y1 += world_squares.items[i].coords[j].y;	
+			z1 += world_squares.items[i].coords[j].z;	
+		}
+		x1 /= 4;
+		y1 /= 4;
+		z1 /= 4;
+		int collision_dist = CUBE_WIDTH / 2;
+		if ((abs(camera_pos.x - x1) < collision_dist) && (abs(camera_pos.y - y1) < collision_dist) && (abs(camera_pos.z - z1) < collision_dist)){
+			camera_pos.x -= x;
+			//if (! ((abs(camera_pos.x - x1) < collision_dist) && (abs(camera_pos.y - y1) < collision_dist) && (abs(camera_pos.z - z1) < collision_dist))){
+				//camera_pos.y += y;
+				//camera_pos.z += z;
+				//return;
+			//}
+			camera_pos.y -= y;
+			//if (! ((abs(camera_pos.x - x1) < collision_dist) && (abs(camera_pos.y - y1) < collision_dist) && (abs(camera_pos.z - z1) < collision_dist))){
+				//camera_pos.x += x;
+				//camera_pos.z += z;
+				//return;
+			//}
+			camera_pos.z -= z;
+			//if (! ((abs(camera_pos.x - x1) < collision_dist) && (abs(camera_pos.y - y1) < collision_dist) && (abs(camera_pos.z - z1) < collision_dist))){
+				//camera_pos.x += x;
+				//camera_pos.y += y;
+				//return;
+			//}
+		} 
+	}
 }
 
 void draw_all_squares() {
