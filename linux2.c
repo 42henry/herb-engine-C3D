@@ -11,6 +11,8 @@
 
 //TODO: improve collisions
 //TODO: make movement velocity based
+//TODO: make it so you can destroy squares - maybe use the r value in world squares to mark the start/end of one cube!
+//TODO: make it so you can place cubes - find the closest unused top left coord, and add a cube!
 //TODO: terrain generation
 
 #define WIDTH  3500
@@ -651,7 +653,7 @@ float get_line_gradient(Line_t line) {
 	int change_in_x = line.end.x - line.start.x;
 
 	if (change_in_x == 0){
-		m = WIDTH * 10;	
+		float m = WIDTH * 10;	
 		return m;
 	}
 	float m = (float)change_in_y / (float)change_in_x;
