@@ -1,5 +1,8 @@
+// --------------- LINUX SPECIFIC ----------------
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
+// ----------------------------------------------- 
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -72,6 +75,7 @@ typedef struct {
 static uint32_t *pixels = NULL;
 
 static void init_stuff();
+static void cleanup();
 static void debug_log(char *str);
 
 static int get_line_intercept(Line_t line);
@@ -79,6 +83,7 @@ static float get_line_gradient(Line_t line);
 static int line_goes_right(Line_t line);
 static int line_goes_down(Line_t line);
 
+static void update();
 static void update_pixels();
 static uint32_t pack_colour_to_uint32(int a, Colour_t colour);
 static Colour_t unpack_colour_from_uint32(uint32_t packed_colour);
@@ -93,7 +98,7 @@ static void add_cube(Vec3 top_left, Colour_t colour);
 static void rotate_and_project_squares();
 static void draw_all_squares();
 
-static void update_movement();
+static void handle_input();
 
 int compare_squares(const void *one, const void *two);
 
@@ -114,25 +119,26 @@ static int toggle = 0;
 static float x_rotation = 0;
 static float y_rotation = 0;
 static Vec2 mouse = {0};
+static int mouse_left_click = 0;
+static int mouse_right_click = 0;
+static int mouse_defined = 0;
 static int keys[256] = {0};
-static KeyCode w, a, s, d, shift, space, control, escape;
 
 static Colour_t red = {255, 0, 0};
 static Colour_t green = {0, 255, 0};
 static Colour_t blue = {0, 0, 255};
 
-static int debug = 0;
-static int debug2 = 0;
-static int debug3 = 0;
-
 static Colour_t texture[TEXTURE_WIDTH * TEXTURE_WIDTH] = {0};
-
-struct timespec last, now;
 
 Texture_t *grass_texture = NULL;
 static int using_texture = 0;
 
 static int hold_mouse = 1;
+static float mouse_sensitivity = 0.005f;
+
+// ------------- LINUX SPECIFIC START --------------
+struct timespec last, now;
+static KeyCode w, a, s, d, shift, space, control, escape;
 
 int main() {
     // Open X display
@@ -160,6 +166,7 @@ int main() {
 	blank = XCreateBitmapFromData(display, window, data, 1, 1);
 	Cursor cursor = XCreatePixmapCursor(display, blank, blank, &dummy, &dummy, 0, 0);
 	XDefineCursor(display, window, cursor);
+	mouse_defined = 1;
 
 	// input
 	XSelectInput(display, window,
@@ -213,16 +220,17 @@ int main() {
 			    }
 				case ButtonPress: {
 					int button_type = event.xbutton.button;
-					int x = event.xbutton.x;
-					int y = event.xbutton.y;
-					hold_mouse = 1;
-					XDefineCursor(display, window, cursor);
-					XWarpPointer(display, None, window,
-					 0, 0, 0, 0,
-					 (WIDTH / 2), (HEIGHT / 2));
+					if (button_type == 1) {
+						mouse_left_click = 1;
+					}
+					else if (button_type == 2) {
+						mouse_right_click = 1;
+					}
 					break;
 			    }
 				case ButtonRelease: {
+					mouse_left_click = 0;
+					mouse_right_click = 0;
 					break;
 				}
 				case DestroyNotify: {
@@ -233,6 +241,13 @@ int main() {
 
 		if (hold_mouse) {
 			// handle the mouse: 
+			if (! mouse_defined) {
+				XDefineCursor(display, window, cursor);
+				mouse_defined = 1;
+				XWarpPointer(display, None, window,
+				 0, 0, 0, 0,
+				 (WIDTH / 2), (HEIGHT / 2));
+			}
 			Window root, child;
 			int root_x, root_y;
 			unsigned int mask;
@@ -243,33 +258,20 @@ int main() {
 						  &mouse.x, &mouse.y,
 						  &mask);
 
-			int dx = mouse.x - (WIDTH / 2);
-			int dy = mouse.y - (HEIGHT / 2);
-
-			float sensitivity = 0.005f;
-
-			x_rotation -= dx * sensitivity;
-			y_rotation += dy * sensitivity;
-
-			// Clamp vertical rotation
-			if (y_rotation > 3.141/2) y_rotation = 3.141/2;
-			if (y_rotation < -3.141/2) y_rotation = -3.141/2;
-
 			// Warp pointer back to center
 			XWarpPointer(display, None, window,
 					 0, 0, 0, 0,
 					 WIDTH / 2, HEIGHT / 2);
 		}
 		else {
-			XUndefineCursor(display, window);
+			if (mouse_defined) {
+				XUndefineCursor(display, window);
+				mouse_defined = 0;
+			}
 		}
 
 		// --- Update ---
-		frame++;
-
-		update_movement();
-
-		update_pixels();
+		update();
 
 		// --- Render ---
 		XPutImage(display, window, gc, image, 0, 0, 0, 0, WIDTH, HEIGHT);
@@ -292,9 +294,7 @@ int main() {
 	}
 
     // Cleanup
-	free(world_squares.items);
-	free(draw_squares.items);
-    free(pixels);
+	cleanup();
     XDestroyImage(image);
     XFreeGC(display, gc);
     XDestroyWindow(display, window);
@@ -303,10 +303,13 @@ int main() {
     return 0;
 }
 
+// ---------------- LINUX SPECIFC END ---------------
+
 void init_stuff() {
+	srand(time(NULL));
+	mouse_sensitivity = 0.005f;
 	// create grass texture
 	// * 3 for top bottom side
-	srand(time(NULL));
     int w = TEXTURE_WIDTH * 3, h = TEXTURE_WIDTH;
     Texture_t myImg = {w, h, malloc(w * h * 3)};
 
@@ -369,6 +372,20 @@ void init_stuff() {
 	}
 
 	return;
+}
+
+void cleanup() {
+	free(world_squares.items);
+	free(draw_squares.items);
+    free(pixels);
+}
+
+void update() {
+	frame++;
+
+	handle_input();
+
+	update_pixels();
 }
 
 void update_pixels() {
@@ -879,8 +896,23 @@ void rotate_and_project_squares() {
 	draw_squares.count = world_squares.count;
 }
 
-void update_movement()
+void handle_input()
 {
+	if (mouse_left_click) {
+		hold_mouse = 1;
+	}
+	if (hold_mouse) {
+		int dx = mouse.x - (WIDTH / 2);
+		int dy = mouse.y - (HEIGHT / 2);
+
+		x_rotation -= dx * mouse_sensitivity;
+		y_rotation += dy * mouse_sensitivity;
+
+		// Clamp vertical rotation
+		if (y_rotation > 3.141/2) y_rotation = 3.141/2;
+		if (y_rotation < -3.141/2) y_rotation = -3.141/2;
+
+	}
 	int x = 0;
 	int z = 0;
 	int y = 0;
