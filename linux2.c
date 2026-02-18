@@ -9,6 +9,7 @@
 #include <assert.h>
 #include <time.h>
 
+//TODO: improve collisions
 //TODO: make movement velocity based
 //TODO: terrain generation
 
@@ -24,7 +25,6 @@
 #define MAX_SQUARES 20000
 
 #define TEXTURE_WIDTH 5
-#define COORDS_PER_SQUARE ((TEXTURE_WIDTH + 1) * (TEXTURE_WIDTH + 1))
 
 #define TARGET_FPS 60
 #define FRAME_TIME_NS (1000000000 / TARGET_FPS)
@@ -59,7 +59,7 @@ typedef struct {
 typedef struct {
 	Vec3 coords[4];	
 	uint32_t colour;
-	int r;
+	int r; // distance from camera
 } Square_t;
 
 typedef struct {
@@ -131,8 +131,6 @@ Texture_t *grass_texture = NULL;
 static int using_texture = 0;
 
 static int hold_mouse = 1;
-
-static int dlog = 0;
 
 int main() {
     // Open X display
@@ -216,7 +214,6 @@ int main() {
 					int x = event.xbutton.x;
 					int y = event.xbutton.y;
 					hold_mouse = 1;
-					dlog = (dlog ? 0 : 1);
 					XDefineCursor(display, window, cursor);
 					XWarpPointer(display, None, window,
 					 0, 0, 0, 0,
@@ -334,7 +331,6 @@ void init_stuff() {
 	}
 
     writePPM("grass.ppm", &myImg);
-    printf("Texture_t 'grass.ppm' created successfully.\n");
 
     free(myImg.data);
 
@@ -438,7 +434,6 @@ void draw_line(Vec3 start, Vec3 end, Colour_t colour) {
 	float m = get_line_gradient(line);
 	int c = get_line_intercept(line);
 
-	//if (abs(change_in_y) > abs(change_in_x)) {
 	if (abs(m) >= 1) {
 		if (line_goes_down(line)) {
 			for (int y = line.start.y; y <= line.end.y; y++) {
@@ -643,6 +638,7 @@ void fill_square(Square_t *square) {
 }
 
 int test_fill_square() {
+	// TODO
 	return 1;
 }
 
@@ -654,10 +650,11 @@ float get_line_gradient(Line_t line) {
 	int change_in_y = line.end.y - line.start.y;
 	int change_in_x = line.end.x - line.start.x;
 
-	float m = (float)change_in_y / (float)change_in_x;
 	if (change_in_x == 0){
 		m = WIDTH * 10;	
+		return m;
 	}
+	float m = (float)change_in_y / (float)change_in_x;
 	return m;
 }
 
@@ -695,6 +692,7 @@ void add_cube(Vec3 top_left, Colour_t colour) {
 			square.coords[3] = (Vec3) {x + (i * len), y - ((j + 1) * len), z};
 
 			if (using_texture) {
+				// 2, as the side face textures are the 2nd square of the texture image
 				Colour_t c = grass_texture->data[2 * texture_side + j * TEXTURE_WIDTH + i];
 				square.colour = pack_colour_to_uint32(1, c);
 			}
@@ -779,6 +777,7 @@ void add_cube(Vec3 top_left, Colour_t colour) {
 			square.coords[3] = (Vec3) {x + (i * len), y, z + ((j + 1) * len)};
 
 			if (using_texture) {
+				// 0, as the top face textures are the first square of the texture image
 				Colour_t c = grass_texture->data[j * TEXTURE_WIDTH + i];
 				square.colour = pack_colour_to_uint32(1, c);
 			}
@@ -800,6 +799,7 @@ void add_cube(Vec3 top_left, Colour_t colour) {
 			square.coords[3] = (Vec3) {x + (i * len), y - CUBE_WIDTH, z + ((j + 1) * len)};
 
 			if (using_texture) {
+				// 1, as the top face textures are the first square of the texture image
 				Colour_t c = grass_texture->data[1 * texture_side + j * TEXTURE_WIDTH + i];
 				square.colour = pack_colour_to_uint32(1, c);
 			}
@@ -915,7 +915,7 @@ void update_movement()
 	}
 
     // gravity:
-	// y -= 10;
+	//y -= 10;
 
     camera_pos.x += x;
     camera_pos.y += y;
