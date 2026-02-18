@@ -9,10 +9,10 @@ Interesting to note - so far whatever I've done has recreated the style of PS1 g
 
 Some dev screenshots:
 
-![screenshot](screenshot.png)
-![screenshot](screenshot2.png)
-![screenshot](screenshot3.png)
-![screenshot](screenshot4.png)
+![screenshot](pics/screenshot.png)
+![screenshot](pics/screenshot2.png)
+![screenshot](pics/screenshot3.png)
+![screenshot](pics/screenshot4.png)
 
 Work done so far:
  - a fill function that takes 4 points and a colour, and fills the screen with that colour
