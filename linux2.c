@@ -12,8 +12,6 @@
 //TODO: fix squares not drawing in correct order
 //      - something goes wrong when a cube is above y 0
 //TODO: maybe make squares a few pixels larger so they don't miss their edges
-//TODO: allow for pressing WASD and moving mouse at same time
-//        - idk why this doesn't already work?
 //TODO: collisions, generate terrain, gravity
 
 #define WIDTH  3500
