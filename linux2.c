@@ -13,7 +13,7 @@
 //      - something to do with our qsorting of the squares...
 //TODO: maybe make squares a few pixels larger so they don't miss their edges
 //TODO: make movement velocity based
-//TODO: generate terrain
+//TODO: terrain generation
 
 #define WIDTH  3500
 #define HEIGHT 1500
