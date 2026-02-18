@@ -361,13 +361,13 @@ void init_stuff() {
 
 	add_cube((Vec3){50, 150, 10}, red);
 
-	Colour_t c = blue;
-	for (int i = -5; i < 5; i++) {
-		add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10}, c);
-		add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10 + (2 * CUBE_WIDTH)}, c);
-		add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10 + (CUBE_WIDTH)}, c);
-		add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10 + (CUBE_WIDTH)}, c);
-	}
+	//Colour_t c = blue;
+	//for (int i = -5; i < 5; i++) {
+		//add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10}, c);
+		//add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10 + (2 * CUBE_WIDTH)}, c);
+		//add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10 + (CUBE_WIDTH)}, c);
+		//add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10 + (CUBE_WIDTH)}, c);
+	//}
 
 	return;
 }
@@ -830,7 +830,7 @@ void rotate_and_project_squares() {
 			int new_y = (z2 * sin(y_rotation) + y * cos(y_rotation));
 			int new_z = (z2 * cos(y_rotation) - y * sin(y_rotation));
 			if (new_z == 0) {
-				new_z = 0.01;
+				new_z = 1;
 			}
 			float percent_size = ((float)(WIDTH_IN_CM * FOV) / new_z);
 			// project
@@ -891,7 +891,7 @@ void update_movement()
 	}
 
     // gravity:
-	y -= 10;
+	// y -= 10;
 
     camera_pos.x += x;
     camera_pos.y += y;
@@ -944,24 +944,29 @@ int compare_squares(const void *one, const void *two) {
 	const Square_t *square_one = one;
 	const Square_t *square_two = two;
 
-	float z1 = square_one->coords[0].z;
-	for (int i = 1; i < 4; i++) {
-		z1 += square_one->coords[i].z;
-	}
-	z1 /= 4;
+	int x1 = (square_one->coords[0].x + square_one->coords[2].x) / 2;
+	int y1 = (square_one->coords[0].y + square_one->coords[2].y) / 2;
+	int z1 = (square_one->coords[0].z + square_one->coords[2].z) / 2;
 
-	float z2 = square_two->coords[0].z;
-	for (int i = 1; i < 4; i++) {
-		z2 += square_two->coords[i].z;
-	}
-	z2 /= 4;
+	int x2 = (square_two->coords[0].x + square_two->coords[2].x) / 2;
+	int y2 = (square_two->coords[0].y + square_two->coords[2].y) / 2;
+	int z2 = (square_two->coords[0].z + square_two->coords[2].z) / 2;
 
-	if (z1 > z2) {
+	int r1 = sqrt((x1 * x1) + (y1 * y1) + (z1 * z1));
+	int r2 = sqrt((x2 * x2) + (y2 * y2) + (z2 * z2));
+
+	if (r1 > r2) {
 		return -1;
 	}
-	if (z1 < z2) {
+	if (r1 < r2) {
 		return 1;
 	}
+	//if (z1 > z2) {
+		//return -1;
+	//}
+	//if (z1 < z2) {
+		//return 1;
+	//}
 
 	return 0;
 }
