@@ -9,9 +9,6 @@
 #include <assert.h>
 #include <time.h>
 
-//TODO: fix squares not drawing in correct order
-//      - something to do with our qsorting of the squares...
-//TODO: maybe make squares a few pixels larger so they don't miss their edges
 //TODO: make movement velocity based
 //TODO: terrain generation
 
@@ -62,6 +59,7 @@ typedef struct {
 typedef struct {
 	Vec3 coords[4];	
 	uint32_t colour;
+	int r;
 } Square_t;
 
 typedef struct {
@@ -133,6 +131,8 @@ Texture_t *grass_texture = NULL;
 static int using_texture = 0;
 
 static int hold_mouse = 1;
+
+static int dlog = 0;
 
 int main() {
     // Open X display
@@ -216,6 +216,7 @@ int main() {
 					int x = event.xbutton.x;
 					int y = event.xbutton.y;
 					hold_mouse = 1;
+					dlog = (dlog ? 0 : 1);
 					XDefineCursor(display, window, cursor);
 					XWarpPointer(display, None, window,
 					 0, 0, 0, 0,
@@ -361,13 +362,13 @@ void init_stuff() {
 
 	add_cube((Vec3){50, 150, 10}, red);
 
-	//Colour_t c = blue;
-	//for (int i = -5; i < 5; i++) {
-		//add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10}, c);
-		//add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10 + (2 * CUBE_WIDTH)}, c);
-		//add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10 + (CUBE_WIDTH)}, c);
-		//add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10 + (CUBE_WIDTH)}, c);
-	//}
+	Colour_t c = blue;
+	for (int i = -5; i < 5; i++) {
+		add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10}, c);
+		add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10 + (2 * CUBE_WIDTH)}, c);
+		add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10 + (CUBE_WIDTH)}, c);
+		add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10 + (CUBE_WIDTH)}, c);
+	}
 
 	return;
 }
@@ -388,8 +389,6 @@ void update_pixels() {
 }
 
 void clear_screen(Colour_t colour) {
-	//uint32_t c = pack_colour_to_uint32(1, colour);
-	//memset(pixels, c, WIDTH * HEIGHT * sizeof(uint32_t));
 	uint32_t c = pack_colour_to_uint32(1, colour);
 	for (int x = 0; x < WIDTH; x++) {
 		for (int y = 0; y < HEIGHT; y++) {
@@ -817,6 +816,12 @@ void add_cube(Vec3 top_left, Colour_t colour) {
 void rotate_and_project_squares() {
 	// rotate
 	for (int i = 0; i < world_squares.count; i++) {
+
+		// distance to camera = r
+		int x1 = 0;
+		int y1 = 0;
+		int z1 = 0;
+
 		for (int j = 0; j < 4; j++) {
 			int x = world_squares.items[i].coords[j].x;
 			int y = world_squares.items[i].coords[j].y;
@@ -824,6 +829,21 @@ void rotate_and_project_squares() {
 			x -= camera_pos.x;
 			y -= camera_pos.y;
 			z -= camera_pos.z;
+
+			if (j == 0) {
+				x1 += x;
+				y1 += y;
+				z1 += z;
+			}
+			if (j == 2) {
+				x1 += x;
+				x1 /= 2;
+				y1 += y;
+				y1 /= 2;
+				z1 += z;
+				z1 /= 2;
+			}
+
 			int new_x = (z * sin(x_rotation) + x * cos(x_rotation));
 			int z2 = (z * cos(x_rotation) - x * sin(x_rotation));
 
@@ -849,6 +869,10 @@ void rotate_and_project_squares() {
 			draw_squares.items[i].coords[j].z = new_z;
 			draw_squares.items[i].colour = world_squares.items[i].colour;
 		}
+
+		int r = sqrt((x1 * x1) + (y1 * y1) + (z1 * z1));
+		draw_squares.items[i].r = r;
+
 	}
 	draw_squares.count = world_squares.count;
 }
@@ -944,16 +968,8 @@ int compare_squares(const void *one, const void *two) {
 	const Square_t *square_one = one;
 	const Square_t *square_two = two;
 
-	int x1 = (square_one->coords[0].x + square_one->coords[2].x) / 2;
-	int y1 = (square_one->coords[0].y + square_one->coords[2].y) / 2;
-	int z1 = (square_one->coords[0].z + square_one->coords[2].z) / 2;
-
-	int x2 = (square_two->coords[0].x + square_two->coords[2].x) / 2;
-	int y2 = (square_two->coords[0].y + square_two->coords[2].y) / 2;
-	int z2 = (square_two->coords[0].z + square_two->coords[2].z) / 2;
-
-	int r1 = sqrt((x1 * x1) + (y1 * y1) + (z1 * z1));
-	int r2 = sqrt((x2 * x2) + (y2 * y2) + (z2 * z2));
+	int r1 = square_one->r;
+	int r2 = square_two->r;
 
 	if (r1 > r2) {
 		return -1;
@@ -961,12 +977,6 @@ int compare_squares(const void *one, const void *two) {
 	if (r1 < r2) {
 		return 1;
 	}
-	//if (z1 > z2) {
-		//return -1;
-	//}
-	//if (z1 < z2) {
-		//return 1;
-	//}
 
 	return 0;
 }
