@@ -1,16 +1,7 @@
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <stdint.h>
-#include <string.h>
-#include <math.h>
-#include <assert.h>
 
-void update_pixels();
-
-static uint32_t *pixels = NULL;
+#include "herbengineC3D.c"
 
 int main() {
     // Open X display
@@ -26,6 +17,29 @@ int main() {
                                         BlackPixel(display, screen), WhitePixel(display, screen));
     XMapWindow(display, window);
 
+	// hide the mouse
+	XGrabPointer(display, window, True,
+             ButtonPressMask | ButtonReleaseMask | PointerMotionMask,
+             GrabModeAsync, GrabModeAsync,
+             window, None, CurrentTime);
+	Pixmap blank;
+	XColor dummy;
+	char data[1] = {0};
+
+	blank = XCreateBitmapFromData(display, window, data, 1, 1);
+	Cursor cursor = XCreatePixmapCursor(display, blank, blank, &dummy, &dummy, 0, 0);
+	XDefineCursor(display, window, cursor);
+	mouse_defined = 1;
+
+	// input
+	XSelectInput(display, window,
+		ExposureMask |
+		KeyPressMask |
+		KeyReleaseMask |
+		ButtonPressMask |
+		ButtonReleaseMask
+	);
+	
     // Create a graphics context
     GC gc = XCreateGC(display, window, 0, NULL);
 
@@ -43,44 +57,111 @@ int main() {
     s     = XKeysymToKeycode(display, XK_s);
     d     = XKeysymToKeycode(display, XK_d);
     shift = XKeysymToKeycode(display, XK_Shift_L);
+    space = XKeysymToKeycode(display, XK_space);
+    control = XKeysymToKeycode(display, XK_Control_L);
+    escape = XKeysymToKeycode(display, XK_Escape);
 
-    while (1) {
-		update_pixels();
+	clock_gettime(CLOCK_MONOTONIC, &last);
 
-		// Get mouse coordinates
-		Window root, child;
-		int root_x, root_y;
-		unsigned int mask;
-		XQueryPointer(display, window,
-              &root, &child,
-              &root_x, &root_y,
-              &mouse.x, &mouse.y,
-              &mask);
+	// ENTRY POINT
+	while(1) {
+		while (XPending(display)) {
+			// --- Handle events ---
+			XEvent event;
+			XNextEvent(display, &event);
 
-		// get keyboad
-		XQueryKeymap(display, keys);
+			switch (event.type) {
+				case KeyPress: {
+					KeyCode code = event.xkey.keycode;
+					keys[code] = 1;
+					break;
+			    }
+				case KeyRelease: {
+					KeyCode code = event.xkey.keycode;
+					keys[code] = 0;
+					break;
+			    }
+				case ButtonPress: {
+					int button_type = event.xbutton.button;
+					if (button_type == 1) {
+						mouse_left_click = 1;
+					}
+					else if (button_type == 2) {
+						mouse_right_click = 1;
+					}
+					break;
+			    }
+				case ButtonRelease: {
+					mouse_left_click = 0;
+					mouse_right_click = 0;
+					break;
+				}
+				case DestroyNotify: {
+					break;
+				}
+			}
+		}
 
-		// Draw the updated image
+		if (hold_mouse) {
+			// handle the mouse: 
+			if (! mouse_defined) {
+				XDefineCursor(display, window, cursor);
+				mouse_defined = 1;
+				XWarpPointer(display, None, window,
+				 0, 0, 0, 0,
+				 (WIDTH / 2), (HEIGHT / 2));
+			}
+			Window root, child;
+			int root_x, root_y;
+			unsigned int mask;
+
+			XQueryPointer(display, window,
+						  &root, &child,
+						  &root_x, &root_y,
+						  &mouse.x, &mouse.y,
+						  &mask);
+
+			// Warp pointer back to center
+			XWarpPointer(display, None, window,
+					 0, 0, 0, 0,
+					 WIDTH / 2, HEIGHT / 2);
+		}
+		else {
+			if (mouse_defined) {
+				XUndefineCursor(display, window);
+				mouse_defined = 0;
+			}
+		}
+
+		// --- Update ---
+		update();
+
+		// --- Render ---
 		XPutImage(display, window, gc, image, 0, 0, 0, 0, WIDTH, HEIGHT);
-        usleep(FRAME_LENGTH);
-    }
+		XFlush(display);
+
+		// --- Frame timing ---
+		clock_gettime(CLOCK_MONOTONIC, &now);
+
+		long elapsed = (now.tv_sec - last.tv_sec) * 1000000000L + (now.tv_nsec - last.tv_nsec);
+
+		if (elapsed < FRAME_TIME_NS) {
+			struct timespec sleep_time;
+			sleep_time.tv_sec = 0;
+			sleep_time.tv_nsec = FRAME_TIME_NS - elapsed;
+			nanosleep(&sleep_time, NULL);
+		}
+
+		clock_gettime(CLOCK_MONOTONIC, &last);
+		
+	}
 
     // Cleanup
-    free(pixels);
+	cleanup();
     XDestroyImage(image);
     XFreeGC(display, gc);
     XDestroyWindow(display, window);
     XCloseDisplay(display);
 
     return 0;
-}
-
-void update_pixels() {
-	int r = 0;
-	int g = 255;
-	int b = 0;
-	int a = 1;
-	for (int i = 0; i < WIDTH * HEIGHT; i++) {
-		pixels[i] = (a << 24 | r << 16) | (g << 8) | b;
-	}
 }
