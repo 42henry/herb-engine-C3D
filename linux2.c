@@ -10,9 +10,8 @@
 #include <time.h>
 
 //TODO: fix squares not drawing in correct order
-      //this is actually due to add cube being wrong!
+//      - something goes wrong when a cube is above y 0
 //TODO: maybe make squares a few pixels larger so they don't miss their edges
-//TODO: cap y rotation to top and bottom of window
 //TODO: allow for pressing WASD and moving mouse at same time
 //TODO: collisions, generate terrain, gravity
 
@@ -303,25 +302,25 @@ void init_stuff() {
 	draw_squares.items = malloc(MAX_SQUARES * sizeof(Square_t));
 
 	add_cube((Vec3){-50, 50, 10}, green);
-	//add_cube((Vec3){50, 50, 10}, blue);
-	//add_cube((Vec3){50, 150, 10}, red);
-//
-	//Colour_t c = blue;
-	//for (int i = 0; i < 10; i++) {
-		//add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10}, c);
-		//if (i % 2 == 0) {
-			//add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10 + (2 * CUBE_WIDTH)}, c);
-			//c = green;
-		//}
-		//if (i % 3 == 0) {
-			//add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10 + (CUBE_WIDTH)}, c);
-			//c = red;
-		//}
-		//if (i % 4 == 0) {
-			//add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10 + (CUBE_WIDTH)}, c);
-			//c = blue;
-		//}
-	//}
+	add_cube((Vec3){50, 50, 10}, blue);
+	add_cube((Vec3){50, 150, 10}, red);
+
+	Colour_t c = blue;
+	for (int i = 0; i < 10; i++) {
+		add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10}, c);
+		if (i % 2 == 0) {
+			add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10 + (2 * CUBE_WIDTH)}, c);
+			c = green;
+		}
+		if (i % 3 == 0) {
+			add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10 + (CUBE_WIDTH)}, c);
+			c = red;
+		}
+		if (i % 4 == 0) {
+			add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10 + (CUBE_WIDTH)}, c);
+			c = blue;
+		}
+	}
 
 	return;
 }
@@ -336,6 +335,12 @@ void update_pixels() {
 
 	x_rotation = -((mouse.x / (float)WIDTH) - 0.5) * 2 * 3.141;
 	y_rotation = ((mouse.y / (float)HEIGHT) - 0.5) * 2 * 3.141;
+	if (y_rotation > (3.141 / 2)) {
+		y_rotation = 3.141 / 2;
+	}
+	if (y_rotation < -(3.141 / 2)) {
+		y_rotation = -3.141 / 2;
+	}
 
     clear_screen((Colour_t){50, 180, 255});
 
