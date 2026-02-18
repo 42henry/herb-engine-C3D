@@ -13,6 +13,7 @@
 //      - something goes wrong when a cube is above y 0
 //TODO: maybe make squares a few pixels larger so they don't miss their edges
 //TODO: allow for pressing WASD and moving mouse at same time
+//        - idk why this doesn't already work?
 //TODO: collisions, generate terrain, gravity
 
 #define WIDTH  3500
@@ -114,7 +115,7 @@ static int toggle = 0;
 static float x_rotation = 0;
 static float y_rotation = 0;
 static Vec2 mouse = {0};
-static char keys[32];
+static int keys[256] = {0};
 static KeyCode w, a, s, d, shift, space, control;
 
 static Colour_t red = {255, 0, 0};
@@ -145,6 +146,26 @@ int main() {
                                         BlackPixel(display, screen), WhitePixel(display, screen));
     XMapWindow(display, window);
 
+	// hide the mouse
+	XGrabPointer(display, window, True,
+             ButtonPressMask | ButtonReleaseMask | PointerMotionMask,
+             GrabModeAsync, GrabModeAsync,
+             window, None, CurrentTime);
+	Pixmap blank;
+	XColor dummy;
+	char data[1] = {0};
+
+	blank = XCreateBitmapFromData(display, window, data, 1, 1);
+	Cursor cursor = XCreatePixmapCursor(display, blank, blank, &dummy, &dummy, 0, 0);
+	XDefineCursor(display, window, cursor);
+
+	// input
+	XSelectInput(display, window,
+		ExposureMask |
+		KeyPressMask |
+		KeyReleaseMask
+	);
+	
     // Create a graphics context
     GC gc = XCreateGC(display, window, 0, NULL);
 
@@ -167,34 +188,62 @@ int main() {
 
 	clock_gettime(CLOCK_MONOTONIC, &last);
 
-    while (1) {
-		// --- Handle events ---
+	// ENTRY POINT
+	while(1) {
 		while (XPending(display)) {
+			// --- Handle events ---
 			XEvent event;
 			XNextEvent(display, &event);
 
-			if (event.type == Expose) {
-				// redraw if needed
+			if (event.type == KeyPress) {
+				KeyCode code = event.xkey.keycode;
+				keys[code] = 1;
 			}
-			if (event.type == DestroyNotify) {
+			else if (event.type == KeyRelease) {
+				KeyCode code = event.xkey.keycode;
+				keys[code] = 0;
+			}
+			else if (event.type == DestroyNotify) {
 				return 0;
 			}
 		}
 
-		// Get mouse coordinates
+		// handle the mouse: 
+		int center_x = WIDTH / 2;
+		int center_y = HEIGHT / 2;
+
 		Window root, child;
 		int root_x, root_y;
 		unsigned int mask;
-		XQueryPointer(display, window,
-              &root, &child,
-              &root_x, &root_y,
-              &mouse.x, &mouse.y,
-              &mask);
 
-		// get keyboad
-		XQueryKeymap(display, keys);
+		XQueryPointer(display, window,
+					  &root, &child,
+					  &root_x, &root_y,
+					  &mouse.x, &mouse.y,
+					  &mask);
+
+		int dx = mouse.x - center_x;
+		int dy = mouse.y - center_y;
+
+		float sensitivity = 0.005f;
+
+		x_rotation -= dx * sensitivity;
+		y_rotation += dy * sensitivity;
+
+		// Clamp vertical rotation
+		if (y_rotation > 3.141/2) y_rotation = 3.141/2;
+		if (y_rotation < -3.141/2) y_rotation = -3.141/2;
+
+		// Warp pointer back to center
+		XWarpPointer(display, None, window,
+					 0, 0, 0, 0,
+					 center_x, center_y);
 
 		// --- Update ---
+		frame++;
+
+		update_movement();
+
 		update_pixels();
 
 		// --- Render ---
@@ -204,9 +253,7 @@ int main() {
 		// --- Frame timing ---
 		clock_gettime(CLOCK_MONOTONIC, &now);
 
-		long elapsed =
-			(now.tv_sec - last.tv_sec) * 1000000000L +
-			(now.tv_nsec - last.tv_nsec);
+		long elapsed = (now.tv_sec - last.tv_sec) * 1000000000L + (now.tv_nsec - last.tv_nsec);
 
 		if (elapsed < FRAME_TIME_NS) {
 			struct timespec sleep_time;
@@ -216,7 +263,8 @@ int main() {
 		}
 
 		clock_gettime(CLOCK_MONOTONIC, &last);
-    }
+		
+	}
 
     // Cleanup
 	free(world_squares.items);
@@ -329,19 +377,6 @@ void update_pixels() {
 	if (paused) {
 		return;
 	}
-	frame++;
-
-	update_movement();
-
-	x_rotation = -((mouse.x / (float)WIDTH) - 0.5) * 2 * 3.141;
-	y_rotation = ((mouse.y / (float)HEIGHT) - 0.5) * 2 * 3.141;
-	if (y_rotation > (3.141 / 2)) {
-		y_rotation = 3.141 / 2;
-	}
-	if (y_rotation < -(3.141 / 2)) {
-		y_rotation = -3.141 / 2;
-	}
-
     clear_screen((Colour_t){50, 180, 255});
 
 	rotate_and_project_squares();
@@ -794,33 +829,33 @@ void update_movement()
 	int x = 0;
 	int z = 0;
 	int y = 0;
-	if (keys[control / 8] & (1 << (control % 8))) {
+	if (keys[control]) {
         speed = sprint_speed;
 	}
 	else {
 		speed = walk_speed;
 	}
-    if (keys[w / 8] & (1 << (w % 8))) {
-        x = - speed * sin(x_rotation);
-        z = speed * cos(x_rotation);
+    if (keys[w]) {
+        x += - speed * sin(x_rotation);
+        z += speed * cos(x_rotation);
 	}
-    if (keys[a / 8] & (1 << (a % 8))) {
-        x = - speed * cos(x_rotation);
-        z = - speed * sin(x_rotation);
+    if (keys[a]) {
+        x += - speed * cos(x_rotation);
+        z += - speed * sin(x_rotation);
 	}
-    if (keys[s / 8] & (1 << (s % 8))) {
-        x = speed * sin(x_rotation);
-        z = - speed * cos(x_rotation);
+    if (keys[s]) {
+        x += speed * sin(x_rotation);
+        z += - speed * cos(x_rotation);
 	}
-    if (keys[d / 8] & (1 << (d % 8))) {
-        x = speed * cos(x_rotation);
-        z = speed * sin(x_rotation);
+    if (keys[d]) {
+        x += speed * cos(x_rotation);
+        z += speed * sin(x_rotation);
 	}
-    if (keys[space / 8] & (1 << (space % 8))) {
-        y = speed;
+    if (keys[space]) {
+        y += speed;
 	}
-    if (keys[shift / 8] & (1 << (shift % 8))) {
-        y = - speed;
+    if (keys[shift]) {
+        y += - speed;
 	}
     camera_pos.x += x;
     camera_pos.y += y;
