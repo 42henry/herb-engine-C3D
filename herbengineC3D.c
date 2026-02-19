@@ -15,6 +15,8 @@
 
 //TODO: terrain generation
 
+//TODO: clean the code, especially rotate_and_project()
+
 //TODO: make it work on windows - need to get keys/keycodes correct, and use timespec to set frame rate similarly, and get mouse.x and y and left click and right click etc
 
 #define WIDTH  3500
