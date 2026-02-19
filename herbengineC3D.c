@@ -13,6 +13,8 @@
 
 //TODO: highlight the cube under cursor
 
+//TODO: debug placing/destroying blocks - use a wired mouse
+
 //TODO: terrain generation
 
 //TODO: clean the code, especially rotate_and_project()
@@ -211,13 +213,13 @@ void init_stuff() {
 	add_cube((Vec3){100 + 50, 150, 10}, red);
 	add_cube((Vec3){200 + 50, 150, 10}, red);
 	add_cube((Vec3){300 + 50, 150, 10}, red);
-
-	Colour_t c = blue;
-	for (int i = -5; i < 5; i++) {
-		add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10}, c);
-		add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10 + (2 * CUBE_WIDTH)}, c);
-		add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10 + (CUBE_WIDTH)}, c);
-	}
+//
+	//Colour_t c = blue;
+	//for (int i = -5; i < 5; i++) {
+		//add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10}, c);
+		//add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10 + (2 * CUBE_WIDTH)}, c);
+		//add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10 + (CUBE_WIDTH)}, c);
+	//}
 
 	return;
 }
@@ -947,24 +949,129 @@ void handle_input()
     camera_pos.z += z;
 	
 	// collisions:
-	//for (cube) {
-		// x1 = top left
-		//int x1 = world_squares.items[i].coords[0].x;
-		//int y1 = world_squares.items[i].coords[0].x;
-		//int z1 = world_squares.items[i].coords[0].x;
+	int n = TEXTURE_WIDTH * TEXTURE_WIDTH * 6;
+	for (int i = 0; i < world_squares.count; i += n) {
+		// x1 = top left front
+		int x1 = world_squares.items[i].coords[0].x;
+		int y1 = world_squares.items[i].coords[0].y;
+		int z1 = world_squares.items[i].coords[0].z;
 
-		// x2 = bottom right
-		//int x2 = x1.x + CUBE_WIDTH;	
-		//int y2 = y1.y - CUBE_WIDTH;	
-		//int z2 = z1.z + CUBE_WIDTH;	
+		// x2 = bottom right back
+		int x2 = x1 + CUBE_WIDTH;	
+		int y2 = y1 - CUBE_WIDTH;	
+		int z2 = z1 + CUBE_WIDTH;	
 
-		// if camera_pos is within these coords:
-		// find which face the camera_pos crossed
-		// by checking camera_pos.x - x and camera_pos.x with the left and right planes
-		// by checking camera_pos.y - y and camera_pos.y with the top and bottom planes
-		// by checking camera_pos.z - z and camera_pos.z with the front and back planes
-		// whichever it was, undo that axis specific movement and return;
-	//}
+		// for each corner of the camera_pos extended by a collision_dist (player size), is that inside the cube:
+		// there's gotta be a better way to do this......
+		int player_width = CUBE_WIDTH / 2;
+		int player_height = CUBE_WIDTH * 1.5;
+		for (int i = 0; i < 8; i++) {
+			int player_x = camera_pos.x;
+			int player_y = camera_pos.y;
+			int player_z = camera_pos.z;
+			switch (i) {
+				case 0: {
+				    // top left front
+					player_x -= player_width / 2;
+					player_y -= player_height / 2;
+					player_z -= player_width / 2;
+					break;
+				}
+				case 1: {
+				    // top right front
+					player_x += player_width / 2;
+					player_y -= player_height / 2;
+					player_z -= player_width / 2;
+					break;
+				}
+				case 2: {
+				    // bottom left front
+					player_x -= player_width / 2;
+					player_y += player_height / 2;
+					player_z -= player_width / 2;
+					break;
+				}
+				case 3: {
+				    // bottom right front
+					player_x += player_width / 2;
+					player_y += player_height / 2;
+					player_z -= player_width / 2;
+					break;
+				}
+				case 4: {
+				    // top left back
+					player_x -= player_width / 2;
+					player_y -= player_height / 2;
+					player_z += player_width / 2;
+					break;
+				}
+				case 5: {
+				    // top right back
+					player_x += player_width / 2;
+					player_y -= player_height / 2;
+					player_z += player_width / 2;
+					break;
+				}
+				case 6: {
+				    // bottom left back
+					player_x -= player_width / 2;
+					player_y += player_height / 2;
+					player_z += player_width / 2;
+					break;
+				}
+				case 7: {
+				    // bottom right back
+					player_x += player_width / 2;
+					player_y += player_height / 2;
+					player_z += player_width / 2;
+					break;
+				}
+			}
+			if (player_x > x1 &&
+				player_x < x2 &&
+				player_y < y1 &&
+				player_y > y2 &&
+				player_z > z1 &&
+				player_z < z2
+				) {
+
+				player_x -= x;
+
+				if (! (player_x > x1 &&
+					player_x < x2 &&
+					player_y < y1 &&
+					player_y > y2 &&
+					player_z > z1 &&
+					player_z < z2
+					)) {
+					camera_pos.x -= x;
+				}
+				player_x += x;
+				player_y -= y;
+				if (! (player_x > x1 &&
+					player_x < x2 &&
+					player_y < y1 &&
+					player_y > y2 &&
+					player_z > z1 &&
+					player_z < z2
+					)) {
+					camera_pos.y -= y;
+				}
+				player_y += y;
+				player_z -= z;
+				if (! (player_x > x1 &&
+					player_x < x2 &&
+					player_y < y1 &&
+					player_y > y2 &&
+					player_z > z1 &&
+					player_z < z2
+					)) {
+					camera_pos.z -= z;
+				}
+				player_z += z;
+			}
+		}
+	}
 }
 
 void draw_all_squares() {
