@@ -93,7 +93,7 @@ static void draw_line(Vec3 start, Vec3 end, Colour_t colour);
 static void fill_square(Square_t *square);
 static int test_fill_square();
 static void add_cube(Vec3 top_left, Colour_t colour);
-static void remove_cube(Vec3 top_left_coord);
+static void remove_cube(int index);
 
 static void rotate_and_project_squares();
 static void draw_all_squares();
@@ -142,11 +142,8 @@ struct timespec last, now;
 static int mouse_was_clicked = 0;
 
 static int central_cube_index;
-static int clicked_once = 0;
 
-static int highlight_x = 0;
-static int highlight_y = 0;
-static int highlight_z = 0;
+static int cube_highlighted = 0;
 
 static int dlog = 0;
 
@@ -701,36 +698,21 @@ void add_cube(Vec3 top_left, Colour_t colour) {
 	return;
 }
 
-void remove_cube(Vec3 top_left_coord) {
-	// remove the highlighted cube
-
-	// number of squares in a cube = TEXTURE_WIDTH * TEXTURE_WIDTH * 6
+void remove_cube(int index) {
 	int num_of_squares = TEXTURE_WIDTH * TEXTURE_WIDTH * 6;
 
-	// find the cube
-	for (int i = 0; i < world_squares.count; i += num_of_squares) {
-		// find a square coord that matches
-		if (world_squares.items[i].coords[0].x == top_left_coord.x && world_squares.items[i].coords[0].y == top_left_coord.y && world_squares.items[i].coords[0].z == top_left_coord.z) {
-			// check that square is the first in a cube
-			if (world_squares.items[i].r) {
-				// need to move along by num_of_squares to remove a cube
-				int count = i;
-				for (int j = i + num_of_squares; j < world_squares.count; j++) {
-					world_squares.items[count] = world_squares.items[j];
-					count++;	
-				}
-				if (world_squares.count >= num_of_squares) {
-					world_squares.count -= num_of_squares;
-				}
-				return;
-			}
-		}
+	int count = index;
+	for (int i = index + num_of_squares; i < world_squares.count; i++) {
+		world_squares.items[count] = world_squares.items[i];
+		count++;	
 	}
-
+	world_squares.count -= num_of_squares;
+	return;
 }
 
 void rotate_and_project_squares() {
 	int closest_r = 99999999;
+	cube_highlighted = 0;
 	for (int i = 0; i < world_squares.count; i++) {
 
 		// distance to camera = r
@@ -823,13 +805,10 @@ void rotate_and_project_squares() {
 						break;
 					}
 				}
-				highlight_x = world_squares.items[index].coords[0].x;
-				highlight_y = world_squares.items[index].coords[0].y;
-				highlight_z = world_squares.items[index].coords[0].z;
 				central_cube_index = index;
+				cube_highlighted = 1;
 			}
 		}
-
 	}
 	draw_squares.count = world_squares.count;
 }
@@ -842,15 +821,10 @@ void handle_input()
 	}
 	else {
 		if (mouse_was_clicked) {
+			if (cube_highlighted) {
+				remove_cube(central_cube_index);
+			}
 			dlog = (dlog ? 0 : 1);
-			using_texture = 0;
-			Vec3 pos = {0};
-			pos.x = world_squares.items[central_cube_index].coords[0].x;
-			pos.y = world_squares.items[central_cube_index].coords[0].y;
-			pos.z = world_squares.items[central_cube_index].coords[0].z;
-			add_cube(pos, red);
-			using_texture = 1;
-			clicked_once = 1;
 		}
 		mouse_was_clicked = 0;
 	}
