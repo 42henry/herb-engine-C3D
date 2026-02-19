@@ -148,6 +148,9 @@ static int highlight_x = 0;
 static int highlight_y = 0;
 static int highlight_z = 0;
 
+static int lil = 0;
+static int dlog = 0;
+
 void init_stuff() {
 	srand(time(NULL));
 	mouse_sensitivity = 0.005f;
@@ -801,8 +804,7 @@ void rotate_and_project_squares() {
 			if (draw_squares.items[i].coords[j].y < top_left_y) {
 				top_left_y = draw_squares.items[i].coords[j].y;
 			}	
-			if (draw_squares.items[i].coords[j].y > bottom_right_y) {
-				bottom_right_y = draw_squares.items[i].coords[j].y;
+			if (draw_squares.items[i].coords[j].y > bottom_right_y) { bottom_right_y = draw_squares.items[i].coords[j].y;
 			}	
 		}
 
@@ -810,6 +812,10 @@ void rotate_and_project_squares() {
 			// if it is, check that square.r is closest r
 			if (draw_squares.items[i].r < closest_r) {
 				closest_r = draw_squares.items[i].r;
+				if (dlog) {
+					printf("\n-------------");
+					printf("\n closest_r = %d", closest_r);
+				}
 
 				// find the first square in this cube:
 				int index = i;
@@ -823,13 +829,15 @@ void rotate_and_project_squares() {
 				highlight_y = world_squares.items[index].coords[0].y;
 				highlight_z = world_squares.items[index].coords[0].z;
 				central_cube_index = index;
-				draw_squares.items[i].colour = pack_colour_to_uint32(1, red);
+				draw_squares.items[lil].colour = pack_colour_to_uint32(1, blue);
+				lil = i;
 			}
 		}
 
 		int r = sqrt((x1 * x1) + (y1 * y1) + (z1 * z1));
 		draw_squares.items[i].r = r;
 	}
+	draw_squares.items[lil].colour = pack_colour_to_uint32(1, red);
 	draw_squares.count = world_squares.count;
 }
 
@@ -841,15 +849,13 @@ void handle_input()
 	}
 	else {
 		if (mouse_was_clicked) {
+			dlog = (dlog ? 0 : 1);
 			using_texture = 0;
 			Vec3 pos = {0};
 			pos.x = world_squares.items[central_cube_index].coords[0].x;
 			pos.y = world_squares.items[central_cube_index].coords[0].y;
 			pos.z = world_squares.items[central_cube_index].coords[0].z;
 			add_cube(pos, red);
-			printf("\n-------------------");
-			printf("\ncentral cube index: %d", central_cube_index);
-			printf("\n-------------------");
 			using_texture = 1;
 			clicked_once = 1;
 		}
