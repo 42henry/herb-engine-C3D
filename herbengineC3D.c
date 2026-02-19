@@ -700,10 +700,7 @@ void add_cube(Vec3 top_left, Colour_t colour) {
 }
 
 void remove_cube(Vec3 top_left_coord) {
-	// find the cube closest to the centre of the screen, closest to the player
-	// go through the first coord of each cube, rotate and project it, take note of how close it is to the centre of the screen and player, if it is the closest so far, save it's index and closeness
-
-	// then go through and remove that cube
+	// remove the highlighted cube
 
 	// number of squares in a cube = TEXTURE_WIDTH * TEXTURE_WIDTH * 6
 	int num_of_squares = TEXTURE_WIDTH * TEXTURE_WIDTH * 6;
@@ -731,8 +728,7 @@ void remove_cube(Vec3 top_left_coord) {
 }
 
 void rotate_and_project_squares() {
-	int closest_x = WIDTH;
-	int closest_y = HEIGHT;
+	int closest_r = 99999999;
 	for (int i = 0; i < world_squares.count; i++) {
 
 		// distance to camera = r
@@ -788,31 +784,36 @@ void rotate_and_project_squares() {
 			draw_squares.items[i].colour = world_squares.items[i].colour;
 		}
 
+		// check if the square just drawn surrounds 0,0
+		int top_left_x = draw_squares.items[i].coords[0].x;
+		int bottom_right_x = draw_squares.items[i].coords[2].x;
+
+		int top_left_y = draw_squares.items[i].coords[0].y;
+		int bottom_right_y = draw_squares.items[i].coords[2].y;
+		if (top_left_x < WIDTH / 2 && bottom_right_x > WIDTH / 2 && top_left_y < HEIGHT / 2 && bottom_right_y > HEIGHT / 2) {
+			// if it is, check that square.r is closest r
+			if (draw_squares.items[i].r < closest_r) {
+				closest_r = draw_squares.items[i].r;
+
+				// find the first square in this cube:
+				int index = i;
+				int min = i - TEXTURE_WIDTH * TEXTURE_WIDTH * 6;
+				for (index; index--; index > min) {
+					if (world_squares.items[index].r == 1) {
+						break;
+					}
+				}
+				highlight_x = world_squares.items[index].coords[0].x;
+				highlight_y = world_squares.items[index].coords[0].y;
+				highlight_z = world_squares.items[index].coords[0].z;
+				central_cube_index = index;
+			}
+		}
+
 		int r = sqrt((x1 * x1) + (y1 * y1) + (z1 * z1));
 		draw_squares.items[i].r = r;
-		draw_squares.count = world_squares.count;
-
-		// check if this cube is the central/closest to player:
-		if (! clicked_once) {
-			continue;
-		}
-		if (world_squares.items[i].r != 1) {
-			continue;
-		}
-		// check the cube is near the centre of the screen:
-		int x = abs((WIDTH / 2) - draw_squares.items[i].coords[0].x);
-		int y = abs((HEIGHT / 2) - draw_squares.items[i].coords[0].y);
-		if ((x < closest_x) && (y < closest_y)) {
-			closest_x = x;
-			closest_y = y;
-			central_cube_index = i;	
-
-			highlight_x = world_squares.items[i].coords[0].x;
-			highlight_y = world_squares.items[i].coords[0].y;
-			highlight_z = world_squares.items[i].coords[0].z;
-		}
-
 	}
+	draw_squares.count = world_squares.count;
 }
 
 void handle_input()
