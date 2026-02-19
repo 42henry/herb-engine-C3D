@@ -98,6 +98,7 @@ static void fill_square(Square_t *square);
 static int test_fill_square();
 static void add_cube(Vec3 top_left, Colour_t colour);
 static void remove_cube(int index);
+static void place_cube(int index);
 
 static void rotate_and_project_squares();
 static void draw_all_squares();
@@ -124,7 +125,9 @@ static float x_rotation = 0;
 static float y_rotation = 0;
 static Vec2 mouse = {0};
 static int mouse_left_click = 0;
+static int mouse_was_left_clicked = 0;
 static int mouse_right_click = 0;
+static int mouse_was_right_clicked = 0;
 static int mouse_defined = 0;
 static int keys[256] = {0};
 static unsigned char w, a, s, d, shift, space, control, escape;
@@ -140,7 +143,6 @@ static int using_texture = 0;
 
 static int hold_mouse = 1;
 static float mouse_sensitivity = 0.005f;
-static int mouse_was_clicked = 0;
 
 struct timespec last, now;
 
@@ -152,6 +154,7 @@ static int dlog = 0;
 
 void init_stuff() {
 	srand(time(NULL));
+	cube_highlighted = -1;
 	mouse_sensitivity = 0.005f;
 	// create grass texture
 	// * 3 for top bottom side
@@ -713,9 +716,50 @@ void remove_cube(int index) {
 	return;
 }
 
+void place_cube(int index) {
+	Vec3 pos = {0};
+	pos.x = world_squares.items[index].coords[0].x;
+	pos.y = world_squares.items[index].coords[0].y;
+	pos.z = world_squares.items[index].coords[0].z;
+	switch (cube_highlighted) {
+		// front
+		case 0: {
+			pos.z -= CUBE_WIDTH;
+			break;
+		}
+		// back
+		case 1: {
+			pos.z += CUBE_WIDTH;
+			break;
+		}
+		// left
+		case 2: {
+		    pos.x -= CUBE_WIDTH;
+			break;
+		}
+		// right
+		case 3: {
+		    pos.x += CUBE_WIDTH;
+			break;
+		}
+		// top
+		case 4: {
+		    pos.y += CUBE_WIDTH;
+			break;
+		}
+		// bottom
+		case 5: {
+		    pos.y -= CUBE_WIDTH;
+			break;
+		}
+	}
+	add_cube(pos, red);
+	return;
+}
+
 void rotate_and_project_squares() {
 	int closest_r = 99999999;
-	cube_highlighted = 0;
+	cube_highlighted = -1;
 	for (int i = 0; i < world_squares.count; i++) {
 
 		// distance to camera = r
@@ -807,8 +851,17 @@ void rotate_and_project_squares() {
 						break;
 					}
 				}
+				cube_highlighted = 0;
+				int face_index = i - index;
+				int squares_per_face = TEXTURE_WIDTH * TEXTURE_WIDTH;
+				// 0 = front
+				// 1 = back
+				// 2 = right
+				// 3 = left
+				// 4 = top
+				// 5 = bottom
+				cube_highlighted = face_index / squares_per_face;
 				central_cube_index = index;
-				cube_highlighted = 1;
 			}
 		}
 	}
@@ -819,16 +872,27 @@ void handle_input()
 {
 	if (mouse_left_click) {
 		hold_mouse = 1;
-		mouse_was_clicked = 1;
+		mouse_was_left_clicked = 1;
 	}
 	else {
-		if (mouse_was_clicked) {
-			if (cube_highlighted) {
+		if (mouse_was_left_clicked) {
+			if (cube_highlighted > -1) {
 				remove_cube(central_cube_index);
 			}
 			dlog = (dlog ? 0 : 1);
 		}
-		mouse_was_clicked = 0;
+		mouse_was_left_clicked = 0;
+	}
+	if (mouse_right_click) {
+		mouse_was_right_clicked = 1;
+	}
+	else {
+		if (mouse_was_right_clicked) {
+			if (cube_highlighted > -1) {
+				place_cube(central_cube_index);
+			}
+		}
+		mouse_was_right_clicked = 0;
 	}
 	if (hold_mouse) {
 		int dx = mouse.x - (WIDTH / 2);

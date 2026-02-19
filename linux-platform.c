@@ -86,7 +86,7 @@ int main() {
 					if (button_type == 1) {
 						mouse_left_click = 1;
 					}
-					else if (button_type == 2) {
+					else if (button_type == 3) {
 						mouse_right_click = 1;
 					}
 					break;
