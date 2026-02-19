@@ -7,10 +7,11 @@
 #include <assert.h>
 #include <time.h>
 
+//TODO: make it so you can destroy squares - maybe use the r value in world squares to mark the start/end of one cube!
+        // need to make a reverse project and rotate function to find where in world coords the mouse is pointing at
+//TODO: make it so you can place cubes - find the closest unused top left coord, and add a cube!
 //TODO: improve collisions
 //TODO: make movement velocity based
-//TODO: make it so you can destroy squares - maybe use the r value in world squares to mark the start/end of one cube!
-//TODO: make it so you can place cubes - find the closest unused top left coord, and add a cube!
 //TODO: terrain generation
 //TODO: make it work on windows - need to get keys/keycodes correct, and use timespec to set frame rate similarly, and get mouse.x and y and left click and right click etc
 
@@ -90,6 +91,7 @@ static void draw_line(Vec3 start, Vec3 end, Colour_t colour);
 static void fill_square(Square_t *square);
 static int test_fill_square();
 static void add_cube(Vec3 top_left, Colour_t colour);
+static void remove_cube(Vec3 top_left_coord);
 
 static void rotate_and_project_squares();
 static void draw_all_squares();
@@ -134,6 +136,8 @@ static int hold_mouse = 1;
 static float mouse_sensitivity = 0.005f;
 
 struct timespec last, now;
+
+static int mouse_was_clicked = 0;
 
 void init_stuff() {
 	srand(time(NULL));
@@ -197,7 +201,6 @@ void init_stuff() {
 	for (int i = -5; i < 5; i++) {
 		add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10}, c);
 		add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10 + (2 * CUBE_WIDTH)}, c);
-		add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10 + (CUBE_WIDTH)}, c);
 		add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10 + (CUBE_WIDTH)}, c);
 	}
 
@@ -549,7 +552,12 @@ void add_cube(Vec3 top_left, Colour_t colour) {
 				square.colour = pack_colour_to_uint32(1, colour);
 			}
 
-			world_squares.items[world_squares.count++] = square;
+			// set r to 1 to signift the start of a cube
+			world_squares.items[world_squares.count] = square;
+			if (i == 0) {
+				world_squares.items[world_squares.count].r = 1;
+			}
+			world_squares.count++;
 		}
 	}
 	// back
@@ -662,6 +670,32 @@ void add_cube(Vec3 top_left, Colour_t colour) {
 	return;
 }
 
+void remove_cube(Vec3 top_left_coord) {
+	// number of squares in a cube = TEXTURE_WIDTH * TEXTURE_WIDTH * 6
+	int num_of_squares = TEXTURE_WIDTH * TEXTURE_WIDTH * 6;
+
+	// find the cube
+	for (int i = 0; i < world_squares.count; i += num_of_squares) {
+		// find a square coord that matches
+		if (world_squares.items[i].coords[0].x == top_left_coord.x && world_squares.items[i].coords[0].y == top_left_coord.y && world_squares.items[i].coords[0].z == top_left_coord.z) {
+			// check that square is the first in a cube
+			if (world_squares.items[i].r) {
+				// need to move along by num_of_squares to remove a cube
+				int count = i;
+				for (int j = i + num_of_squares; j < world_squares.count; j++) {
+					world_squares.items[count] = world_squares.items[j];
+					count++;	
+				}
+				if (world_squares.count >= num_of_squares) {
+					world_squares.count -= num_of_squares;
+				}
+				return;
+			}
+		}
+	}
+
+}
+
 void rotate_and_project_squares() {
 	// rotate
 	for (int i = 0; i < world_squares.count; i++) {
@@ -730,6 +764,13 @@ void handle_input()
 {
 	if (mouse_left_click) {
 		hold_mouse = 1;
+		mouse_was_clicked = 1;
+	}
+	else {
+		if (mouse_was_clicked) {
+			remove_cube((Vec3){50, 150, 10});
+		}
+		mouse_was_clicked = 0;
 	}
 	if (hold_mouse) {
 		int dx = mouse.x - (WIDTH / 2);
@@ -786,40 +827,24 @@ void handle_input()
     camera_pos.z += z;
 	
 	// collisions:
-	for (int i = 0; i < world_squares.count; i++) {
-		int x1 = 0;
-		int y1 = 0;
-		int z1 = 0;
-		for (int j = 0; j < 4; j++) {
-			x1 += world_squares.items[i].coords[j].x;	
-			y1 += world_squares.items[i].coords[j].y;	
-			z1 += world_squares.items[i].coords[j].z;	
-		}
-		x1 /= 4;
-		y1 /= 4;
-		z1 /= 4;
-		int collision_dist = CUBE_WIDTH / 2;
-		if ((abs(camera_pos.x - x1) < collision_dist) && (abs(camera_pos.y - y1) < collision_dist) && (abs(camera_pos.z - z1) < collision_dist)){
-			camera_pos.x -= x;
-			//if (! ((abs(camera_pos.x - x1) < collision_dist) && (abs(camera_pos.y - y1) < collision_dist) && (abs(camera_pos.z - z1) < collision_dist))){
-				//camera_pos.y += y;
-				//camera_pos.z += z;
-				//return;
-			//}
-			camera_pos.y -= y;
-			//if (! ((abs(camera_pos.x - x1) < collision_dist) && (abs(camera_pos.y - y1) < collision_dist) && (abs(camera_pos.z - z1) < collision_dist))){
-				//camera_pos.x += x;
-				//camera_pos.z += z;
-				//return;
-			//}
-			camera_pos.z -= z;
-			//if (! ((abs(camera_pos.x - x1) < collision_dist) && (abs(camera_pos.y - y1) < collision_dist) && (abs(camera_pos.z - z1) < collision_dist))){
-				//camera_pos.x += x;
-				//camera_pos.y += y;
-				//return;
-			//}
-		} 
-	}
+	//for (cube) {
+		// x1 = top left
+		//int x1 = world_squares.items[i].coords[0].x;
+		//int y1 = world_squares.items[i].coords[0].x;
+		//int z1 = world_squares.items[i].coords[0].x;
+
+		// x2 = bottom right
+		//int x2 = x1.x + CUBE_WIDTH;	
+		//int y2 = y1.y - CUBE_WIDTH;	
+		//int z2 = z1.z + CUBE_WIDTH;	
+
+		// if camera_pos is within these coords:
+		// find which face the camera_pos crossed
+		// by checking camera_pos.x - x and camera_pos.x with the left and right planes
+		// by checking camera_pos.y - y and camera_pos.y with the top and bottom planes
+		// by checking camera_pos.z - z and camera_pos.z with the front and back planes
+		// whichever it was, undo that axis specific movement and return;
+	//}
 }
 
 void draw_all_squares() {
