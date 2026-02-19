@@ -7,14 +7,18 @@
 #include <assert.h>
 #include <time.h>
 
-// TODO: make it so we always know what cube is under the cursor
-// TODO: make it so we can destroy that cube on click
 // TODO: make it so we can add to that cube with right click
+// when we find which cube is highlihgted, store which side we looking at
+// do this by comparing the current i to the start i of the cube, if it's in a certain range, we know which side of the cube we're looking at
 
 //TODO: improve collisions
+
 //TODO: make movement velocity based
 
+//TODO: highlight the cube under cursor
+
 //TODO: terrain generation
+
 //TODO: make it work on windows - need to get keys/keycodes correct, and use timespec to set frame rate similarly, and get mouse.x and y and left click and right click etc
 
 #define WIDTH  3500
@@ -136,10 +140,9 @@ static int using_texture = 0;
 
 static int hold_mouse = 1;
 static float mouse_sensitivity = 0.005f;
+static int mouse_was_clicked = 0;
 
 struct timespec last, now;
-
-static int mouse_was_clicked = 0;
 
 static int central_cube_index;
 
@@ -245,17 +248,17 @@ void update_pixels() {
 	draw_all_squares();
 
 	Square_t centre = {0};
-	centre.coords[0].x = WIDTH / 2 - 20;
-	centre.coords[0].y = HEIGHT / 2 - 20;
+	centre.coords[0].x = WIDTH / 2 - 10;
+	centre.coords[0].y = HEIGHT / 2 - 10;
 	centre.coords[0].z = 1;
-	centre.coords[1].x = WIDTH / 2 + 20;
-	centre.coords[1].y = HEIGHT / 2 - 20;
+	centre.coords[1].x = WIDTH / 2 + 10;
+	centre.coords[1].y = HEIGHT / 2 - 10;
 	centre.coords[1].z = 1;
-	centre.coords[2].x = WIDTH / 2 + 20;
-	centre.coords[2].y = HEIGHT / 2 + 20;
+	centre.coords[2].x = WIDTH / 2 + 10;
+	centre.coords[2].y = HEIGHT / 2 + 10;
 	centre.coords[2].z = 1;
-	centre.coords[3].x = WIDTH / 2 - 20;
-	centre.coords[3].y = HEIGHT / 2 + 20;
+	centre.coords[3].x = WIDTH / 2 - 10;
+	centre.coords[3].y = HEIGHT / 2 + 10;
 	centre.coords[3].z = 1;
 
 	centre.colour = pack_colour_to_uint32(1, red);
@@ -772,7 +775,6 @@ void rotate_and_project_squares() {
 		draw_squares.items[i].r = r;
 
 		// check if the square just drawn surrounds 0,0
-		// dont know what is top left of square yet...
 		int top_left_x = WIDTH;
 		int bottom_right_x = -WIDTH;
 
