@@ -7,11 +7,13 @@
 #include <assert.h>
 #include <time.h>
 
-//TODO: make it so you can destroy squares - maybe use the r value in world squares to mark the start/end of one cube!
-        // need to make a reverse project and rotate function to find where in world coords the mouse is pointing at
-//TODO: make it so you can place cubes - find the closest unused top left coord, and add a cube!
+// TODO: make it so we always know what cube is under the cursor
+// TODO: make it so we can destroy that cube on click
+// TODO: make it so we can add to that cube with right click
+
 //TODO: improve collisions
 //TODO: make movement velocity based
+
 //TODO: terrain generation
 //TODO: make it work on windows - need to get keys/keycodes correct, and use timespec to set frame rate similarly, and get mouse.x and y and left click and right click etc
 
@@ -139,6 +141,13 @@ struct timespec last, now;
 
 static int mouse_was_clicked = 0;
 
+static int central_cube_index;
+static int clicked_once = 0;
+
+static int highlight_x = 0;
+static int highlight_y = 0;
+static int highlight_z = 0;
+
 void init_stuff() {
 	srand(time(NULL));
 	mouse_sensitivity = 0.005f;
@@ -196,13 +205,16 @@ void init_stuff() {
 	draw_squares.items = malloc(MAX_SQUARES * sizeof(Square_t));
 
 	add_cube((Vec3){50, 150, 10}, red);
+	add_cube((Vec3){100 + 50, 150, 10}, red);
+	add_cube((Vec3){200 + 50, 150, 10}, red);
+	add_cube((Vec3){300 + 50, 150, 10}, red);
 
-	Colour_t c = blue;
-	for (int i = -5; i < 5; i++) {
-		add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10}, c);
-		add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10 + (2 * CUBE_WIDTH)}, c);
-		add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10 + (CUBE_WIDTH)}, c);
-	}
+	//Colour_t c = blue;
+	//for (int i = -5; i < 5; i++) {
+		//add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10}, c);
+		//add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10 + (2 * CUBE_WIDTH)}, c);
+		//add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10 + (CUBE_WIDTH)}, c);
+	//}
 
 	return;
 }
@@ -232,6 +244,24 @@ void update_pixels() {
 	qsort(draw_squares.items, draw_squares.count, sizeof(Square_t), compare_squares);
 
 	draw_all_squares();
+
+	Square_t centre = {0};
+	centre.coords[0].x = WIDTH / 2 - 20;
+	centre.coords[0].y = HEIGHT / 2 - 20;
+	centre.coords[0].z = 1;
+	centre.coords[1].x = WIDTH / 2 + 20;
+	centre.coords[1].y = HEIGHT / 2 - 20;
+	centre.coords[1].z = 1;
+	centre.coords[2].x = WIDTH / 2 + 20;
+	centre.coords[2].y = HEIGHT / 2 + 20;
+	centre.coords[2].z = 1;
+	centre.coords[3].x = WIDTH / 2 - 20;
+	centre.coords[3].y = HEIGHT / 2 + 20;
+	centre.coords[3].z = 1;
+
+	centre.colour = pack_colour_to_uint32(1, red);
+
+	fill_square(&centre);
 
 	return;
 }
@@ -318,7 +348,6 @@ void draw_line(Vec3 start, Vec3 end, Colour_t colour) {
 }
 
 void fill_square(Square_t *square) {
-
 	int smallest_y = HEIGHT + 1;
 	int smallest_y_index = 0;
 	int largest_y = -1;
@@ -552,9 +581,9 @@ void add_cube(Vec3 top_left, Colour_t colour) {
 				square.colour = pack_colour_to_uint32(1, colour);
 			}
 
-			// set r to 1 to signift the start of a cube
+			// set r to 1 to signify the start of a cube
 			world_squares.items[world_squares.count] = square;
-			if (i == 0) {
+			if (i == 0 && j == 0) {
 				world_squares.items[world_squares.count].r = 1;
 			}
 			world_squares.count++;
@@ -671,6 +700,11 @@ void add_cube(Vec3 top_left, Colour_t colour) {
 }
 
 void remove_cube(Vec3 top_left_coord) {
+	// find the cube closest to the centre of the screen, closest to the player
+	// go through the first coord of each cube, rotate and project it, take note of how close it is to the centre of the screen and player, if it is the closest so far, save it's index and closeness
+
+	// then go through and remove that cube
+
 	// number of squares in a cube = TEXTURE_WIDTH * TEXTURE_WIDTH * 6
 	int num_of_squares = TEXTURE_WIDTH * TEXTURE_WIDTH * 6;
 
@@ -697,7 +731,8 @@ void remove_cube(Vec3 top_left_coord) {
 }
 
 void rotate_and_project_squares() {
-	// rotate
+	int closest_x = WIDTH;
+	int closest_y = HEIGHT;
 	for (int i = 0; i < world_squares.count; i++) {
 
 		// distance to camera = r
@@ -755,9 +790,29 @@ void rotate_and_project_squares() {
 
 		int r = sqrt((x1 * x1) + (y1 * y1) + (z1 * z1));
 		draw_squares.items[i].r = r;
+		draw_squares.count = world_squares.count;
+
+		// check if this cube is the central/closest to player:
+		if (! clicked_once) {
+			continue;
+		}
+		if (world_squares.items[i].r != 1) {
+			continue;
+		}
+		// check the cube is near the centre of the screen:
+		int x = abs((WIDTH / 2) - draw_squares.items[i].coords[0].x);
+		int y = abs((HEIGHT / 2) - draw_squares.items[i].coords[0].y);
+		if ((x < closest_x) && (y < closest_y)) {
+			closest_x = x;
+			closest_y = y;
+			central_cube_index = i;	
+
+			highlight_x = world_squares.items[i].coords[0].x;
+			highlight_y = world_squares.items[i].coords[0].y;
+			highlight_z = world_squares.items[i].coords[0].z;
+		}
 
 	}
-	draw_squares.count = world_squares.count;
 }
 
 void handle_input()
@@ -768,7 +823,17 @@ void handle_input()
 	}
 	else {
 		if (mouse_was_clicked) {
-			remove_cube((Vec3){50, 150, 10});
+			using_texture = 0;
+			Vec3 pos = {0};
+			pos.x = world_squares.items[central_cube_index].coords[0].x;
+			pos.y = world_squares.items[central_cube_index].coords[0].y;
+			pos.z = world_squares.items[central_cube_index].coords[0].z;
+			add_cube(pos, red);
+			printf("\n-------------------");
+			printf("\ncentral cube index: %d", central_cube_index);
+			printf("\n-------------------");
+			using_texture = 1;
+			clicked_once = 1;
 		}
 		mouse_was_clicked = 0;
 	}
