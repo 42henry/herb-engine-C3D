@@ -209,12 +209,12 @@ void init_stuff() {
 	add_cube((Vec3){200 + 50, 150, 10}, red);
 	add_cube((Vec3){300 + 50, 150, 10}, red);
 
-	//Colour_t c = blue;
-	//for (int i = -5; i < 5; i++) {
-		//add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10}, c);
-		//add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10 + (2 * CUBE_WIDTH)}, c);
-		//add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10 + (CUBE_WIDTH)}, c);
-	//}
+	Colour_t c = blue;
+	for (int i = -5; i < 5; i++) {
+		add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10}, c);
+		add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10 + (2 * CUBE_WIDTH)}, c);
+		add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10 + (CUBE_WIDTH)}, c);
+	}
 
 	return;
 }
@@ -245,23 +245,23 @@ void update_pixels() {
 
 	draw_all_squares();
 
-	Square_t centre = {0};
-	centre.coords[0].x = WIDTH / 2 - 20;
-	centre.coords[0].y = HEIGHT / 2 - 20;
-	centre.coords[0].z = 1;
-	centre.coords[1].x = WIDTH / 2 + 20;
-	centre.coords[1].y = HEIGHT / 2 - 20;
-	centre.coords[1].z = 1;
-	centre.coords[2].x = WIDTH / 2 + 20;
-	centre.coords[2].y = HEIGHT / 2 + 20;
-	centre.coords[2].z = 1;
-	centre.coords[3].x = WIDTH / 2 - 20;
-	centre.coords[3].y = HEIGHT / 2 + 20;
-	centre.coords[3].z = 1;
-
-	centre.colour = pack_colour_to_uint32(1, red);
-
-	fill_square(&centre);
+	//Square_t centre = {0};
+	//centre.coords[0].x = WIDTH / 2 - 20;
+	//centre.coords[0].y = HEIGHT / 2 - 20;
+	//centre.coords[0].z = 1;
+	//centre.coords[1].x = WIDTH / 2 + 20;
+	//centre.coords[1].y = HEIGHT / 2 - 20;
+	//centre.coords[1].z = 1;
+	//centre.coords[2].x = WIDTH / 2 + 20;
+	//centre.coords[2].y = HEIGHT / 2 + 20;
+	//centre.coords[2].z = 1;
+	//centre.coords[3].x = WIDTH / 2 - 20;
+	//centre.coords[3].y = HEIGHT / 2 + 20;
+	//centre.coords[3].z = 1;
+//
+	//centre.colour = pack_colour_to_uint32(1, red);
+//
+	//fill_square(&centre);
 
 	return;
 }
@@ -785,11 +785,27 @@ void rotate_and_project_squares() {
 		}
 
 		// check if the square just drawn surrounds 0,0
-		int top_left_x = draw_squares.items[i].coords[0].x;
-		int bottom_right_x = draw_squares.items[i].coords[2].x;
+		// dont know what is top left of square yet...
+		int top_left_x = WIDTH;
+		int bottom_right_x = -WIDTH;
 
-		int top_left_y = draw_squares.items[i].coords[0].y;
-		int bottom_right_y = draw_squares.items[i].coords[2].y;
+		int top_left_y = HEIGHT;
+		int bottom_right_y = -HEIGHT;
+		for (int j = 0; j < 4; j++) {
+			if (draw_squares.items[i].coords[j].x < top_left_x) {
+				top_left_x = draw_squares.items[i].coords[j].x;
+			}	
+			if (draw_squares.items[i].coords[j].x > bottom_right_x) {
+				bottom_right_x = draw_squares.items[i].coords[j].x;
+			}	
+			if (draw_squares.items[i].coords[j].y < top_left_y) {
+				top_left_y = draw_squares.items[i].coords[j].y;
+			}	
+			if (draw_squares.items[i].coords[j].y > bottom_right_y) {
+				bottom_right_y = draw_squares.items[i].coords[j].y;
+			}	
+		}
+
 		if (top_left_x < WIDTH / 2 && bottom_right_x > WIDTH / 2 && top_left_y < HEIGHT / 2 && bottom_right_y > HEIGHT / 2) {
 			// if it is, check that square.r is closest r
 			if (draw_squares.items[i].r < closest_r) {
@@ -807,6 +823,7 @@ void rotate_and_project_squares() {
 				highlight_y = world_squares.items[index].coords[0].y;
 				highlight_z = world_squares.items[index].coords[0].z;
 				central_cube_index = index;
+				draw_squares.items[i].colour = pack_colour_to_uint32(1, red);
 			}
 		}
 
