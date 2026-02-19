@@ -148,7 +148,6 @@ static int highlight_x = 0;
 static int highlight_y = 0;
 static int highlight_z = 0;
 
-static int lil = 0;
 static int dlog = 0;
 
 void init_stuff() {
@@ -248,23 +247,23 @@ void update_pixels() {
 
 	draw_all_squares();
 
-	//Square_t centre = {0};
-	//centre.coords[0].x = WIDTH / 2 - 20;
-	//centre.coords[0].y = HEIGHT / 2 - 20;
-	//centre.coords[0].z = 1;
-	//centre.coords[1].x = WIDTH / 2 + 20;
-	//centre.coords[1].y = HEIGHT / 2 - 20;
-	//centre.coords[1].z = 1;
-	//centre.coords[2].x = WIDTH / 2 + 20;
-	//centre.coords[2].y = HEIGHT / 2 + 20;
-	//centre.coords[2].z = 1;
-	//centre.coords[3].x = WIDTH / 2 - 20;
-	//centre.coords[3].y = HEIGHT / 2 + 20;
-	//centre.coords[3].z = 1;
-//
-	//centre.colour = pack_colour_to_uint32(1, red);
-//
-	//fill_square(&centre);
+	Square_t centre = {0};
+	centre.coords[0].x = WIDTH / 2 - 20;
+	centre.coords[0].y = HEIGHT / 2 - 20;
+	centre.coords[0].z = 1;
+	centre.coords[1].x = WIDTH / 2 + 20;
+	centre.coords[1].y = HEIGHT / 2 - 20;
+	centre.coords[1].z = 1;
+	centre.coords[2].x = WIDTH / 2 + 20;
+	centre.coords[2].y = HEIGHT / 2 + 20;
+	centre.coords[2].z = 1;
+	centre.coords[3].x = WIDTH / 2 - 20;
+	centre.coords[3].y = HEIGHT / 2 + 20;
+	centre.coords[3].z = 1;
+
+	centre.colour = pack_colour_to_uint32(1, red);
+
+	fill_square(&centre);
 
 	return;
 }
@@ -787,6 +786,9 @@ void rotate_and_project_squares() {
 			draw_squares.items[i].colour = world_squares.items[i].colour;
 		}
 
+		int r = sqrt((x1 * x1) + (y1 * y1) + (z1 * z1));
+		draw_squares.items[i].r = r;
+
 		// check if the square just drawn surrounds 0,0
 		// dont know what is top left of square yet...
 		int top_left_x = WIDTH;
@@ -812,10 +814,6 @@ void rotate_and_project_squares() {
 			// if it is, check that square.r is closest r
 			if (draw_squares.items[i].r < closest_r) {
 				closest_r = draw_squares.items[i].r;
-				if (dlog) {
-					printf("\n-------------");
-					printf("\n closest_r = %d", closest_r);
-				}
 
 				// find the first square in this cube:
 				int index = i;
@@ -829,15 +827,10 @@ void rotate_and_project_squares() {
 				highlight_y = world_squares.items[index].coords[0].y;
 				highlight_z = world_squares.items[index].coords[0].z;
 				central_cube_index = index;
-				draw_squares.items[lil].colour = pack_colour_to_uint32(1, blue);
-				lil = i;
 			}
 		}
 
-		int r = sqrt((x1 * x1) + (y1 * y1) + (z1 * z1));
-		draw_squares.items[i].r = r;
 	}
-	draw_squares.items[lil].colour = pack_colour_to_uint32(1, red);
 	draw_squares.count = world_squares.count;
 }
 
