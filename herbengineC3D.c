@@ -7,10 +7,6 @@
 #include <assert.h>
 #include <time.h>
 
-// TODO: make it so we can add to that cube with right click
-// when we find which cube is highlihgted, store which side we looking at
-// do this by comparing the current i to the start i of the cube, if it's in a certain range, we know which side of the cube we're looking at
-
 //TODO: improve collisions
 
 //TODO: make movement velocity based
