@@ -7,8 +7,6 @@
 #include <assert.h>
 #include <time.h>
 
-//TODO: make movement and gravity velocity based
-
 //TODO: other blocks and terrain generation
 
 //TODO: simple hotbar to place different blocks
@@ -18,6 +16,8 @@
 //TODO: imrpove highlight the cube under cursor
 
 //TODO: chunks ?
+
+//TODO: make movement and gravity velocity based
 
 //TODO: clean the code, especially collisions and rotate_and_project()
 
@@ -157,6 +157,7 @@ static int cube_highlighted = 0;
 static int dlog = 0;
 
 static int gravity = -10;
+static int jump = 0;
 
 void init_stuff() {
 	srand(time(NULL));
@@ -941,7 +942,9 @@ void handle_input()
         z += speed * sin(x_rotation);
 	}
     if (keys[space]) {
-        y += 20;
+		if (! jump) {
+			jump = 2.5 * CUBE_WIDTH;
+		}
 	}
     if (keys[shift]) {
         y += - speed;
@@ -952,6 +955,13 @@ void handle_input()
 
     // gravity:
 	y += gravity;
+	y += jump / 10;
+	if (jump > 0) {
+		jump -= 10;
+	}
+	else {
+		jump = 0;
+	}
 
     camera_pos.x += x;
 	
