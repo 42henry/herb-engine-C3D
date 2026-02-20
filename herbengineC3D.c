@@ -9,19 +9,19 @@
 
 //TODO: improve collisions
 
-//TODO: don't draw if every z of square is < 0
+//TODO: don't draw if !every! z of square is < 0
 
 //TODO: make movement velocity based
 
 //TODO: highlight the cube under cursor
-
-//TODO: debug placing/destroying blocks - use a wired mouse
 
 //TODO: terrain generation
 
 //TODO: clean the code, especially rotate_and_project()
 
 //TODO: make it work on windows - need to get keys/keycodes correct, and use timespec to set frame rate similarly, and get mouse.x and y and left click and right click etc
+
+//TODO: don't draw squares that are behind other squares
 
 #define WIDTH  3500
 #define HEIGHT 1500
