@@ -9,6 +9,8 @@
 
 //TODO: improve collisions
 
+//TODO: don't draw if every z of square is < 0
+
 //TODO: make movement velocity based
 
 //TODO: highlight the cube under cursor
@@ -30,7 +32,7 @@
 #define WIDTH_IN_CM ((WIDTH) / (CM_TO_PIXELS))
 
 #define CUBE_WIDTH (10 * CM_TO_PIXELS)
-#define MAX_SQUARES 20000
+#define MAX_SQUARES 100000
 
 #define TEXTURE_WIDTH 5
 
@@ -213,12 +215,12 @@ void init_stuff() {
 	add_cube((Vec3){100 + 50, 150, 10}, red);
 	add_cube((Vec3){200 + 50, 150, 10}, red);
 	add_cube((Vec3){300 + 50, 150, 10}, red);
-//
-	//Colour_t c = blue;
-	//for (int i = -5; i < 5; i++) {
-		//add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10}, c);
-		//add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10 + (2 * CUBE_WIDTH)}, c);
-		//add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10 + (CUBE_WIDTH)}, c);
+
+	Colour_t c = blue;
+	//for (int i = -5; i < 20; i++) {
+		//for (int j = 0; j < 20; j++) {
+			//add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10 + (j * CUBE_WIDTH)}, c);
+		//}
 	//}
 
 	return;
@@ -838,7 +840,7 @@ void rotate_and_project_squares() {
 			}	
 		}
 
-		if (top_left_x < WIDTH / 2 && bottom_right_x > WIDTH / 2 && top_left_y < HEIGHT / 2 && bottom_right_y > HEIGHT / 2) {
+		if (top_left_x <= WIDTH / 2 && bottom_right_x >= WIDTH / 2 && top_left_y <= HEIGHT / 2 && bottom_right_y >= HEIGHT / 2) {
 			// if it is, check that square.r is closest r
 			if (draw_squares.items[i].r < closest_r) {
 				closest_r = draw_squares.items[i].r;
