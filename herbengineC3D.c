@@ -870,11 +870,33 @@ void rotate_and_project_squares() {
 				// 5 = bottom
 				cube_highlighted = face_index / squares_per_face;
 				central_cube_index = index;
-				draw_squares.items[i].colour = pack_colour_to_uint32(1, red);
 			}
 		}
 	}
 	draw_squares.count = world_squares.count;
+	
+	if (cube_highlighted > -1) {
+		// highlight square under cursor:
+		int squares_per_cube = TEXTURE_WIDTH * TEXTURE_WIDTH * 6;
+		// TODO: make that ^ a global const
+		for (int i = central_cube_index; i < central_cube_index + squares_per_cube; i++) {
+			Colour_t colour = unpack_colour_from_uint32(draw_squares.items[i].colour);
+			colour.r = (colour.r + 50);
+			if (colour.r > 255) {
+				colour.r = 255;
+			}
+			colour.g = (colour.g + 50);
+			if (colour.g > 255) {
+				colour.g = 255;
+			}
+			colour.b = (colour.b + 50);
+			if (colour.b > 255) {
+				colour.b = 255;
+			}
+			printf("\ncolour is: %d, %d, %d", colour.r, colour.g, colour.b);
+			draw_squares.items[i].colour = pack_colour_to_uint32(1, colour);
+		}
+	}
 }
 
 void handle_input()
