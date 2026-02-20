@@ -13,8 +13,6 @@
 
 //TODO: don't draw if !every! z of square is < 0
 
-//TODO: imrpove highlight the cube under cursor
-
 //TODO: chunks ?
 
 //TODO: make movement and gravity velocity based
@@ -848,7 +846,8 @@ void rotate_and_project_squares() {
 
 		if (top_left_x <= WIDTH / 2 && bottom_right_x >= WIDTH / 2 && top_left_y <= HEIGHT / 2 && bottom_right_y >= HEIGHT / 2) {
 			// if it is, check that square.r is closest r
-			if (draw_squares.items[i].r < closest_r) {
+			// also check that the z value is positive!!!
+			if (draw_squares.items[i].r < closest_r && draw_squares.items[i].coords[0].z) {
 				closest_r = draw_squares.items[i].r;
 
 				// find the first square in this cube:
@@ -881,19 +880,18 @@ void rotate_and_project_squares() {
 		// TODO: make that ^ a global const
 		for (int i = central_cube_index; i < central_cube_index + squares_per_cube; i++) {
 			Colour_t colour = unpack_colour_from_uint32(draw_squares.items[i].colour);
-			colour.r = (colour.r + 50);
-			if (colour.r > 255) {
+			colour.r = (colour.r + 100);
+			if (colour.r < 100) {
 				colour.r = 255;
 			}
-			colour.g = (colour.g + 50);
-			if (colour.g > 255) {
+			colour.g = (colour.g + 100);
+			if (colour.g < 100) {
 				colour.g = 255;
 			}
-			colour.b = (colour.b + 50);
-			if (colour.b > 255) {
+			colour.b = (colour.b + 100);
+			if (colour.b < 100) {
 				colour.b = 255;
 			}
-			printf("\ncolour is: %d, %d, %d", colour.r, colour.g, colour.b);
 			draw_squares.items[i].colour = pack_colour_to_uint32(1, colour);
 		}
 	}
