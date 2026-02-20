@@ -961,13 +961,113 @@ void handle_input()
 		// x2 = bottom right back
 		int x2 = x1 + CUBE_WIDTH;	
 		int y2 = y1 - CUBE_WIDTH;	
-		int z2 = z1 + CUBE_WIDTH;	
+		int z2 = z1 + CUBE_WIDTH;
 
 		// let's start by saying the player is cube
 		int player_width = CUBE_WIDTH / 2;
 		int player_height = CUBE_WIDTH / 2;
 
-		// how can we check that two cubes overlap?
+		// player_x1 = top left front
+		int player_x1 = camera_pos.x - player_width;
+		int player_y1 = camera_pos.y + player_width;
+		int player_z1 = camera_pos.z - player_width;
+
+		// player_x1 = bottom right back
+		int player_x2 = camera_pos.x + player_width;
+		int player_y2 = camera_pos.y - player_width;
+		int player_z2 = camera_pos.z + player_width;
+
+		int collision_count = 0;
+		if ((player_x1 > x1 && player_x1 < x2) || (player_x2 > x1 && player_x2 < x2)) {
+			// xs overlap
+			collision_count++;
+		}
+		if ((player_y1 < y1 && player_y1 > y2) || (player_y2 < y1 && player_y2 > y2)) {
+			// ys overlap
+			collision_count++;
+		}
+		if ((player_z1 > z1 && player_z1 < z2) || (player_z2 > z1 && player_z2 < z2)) {
+			// zs overlap
+			collision_count++;
+		}
+		if (collision_count >= 3) {
+			// there has to be a better way to do this, I just can't think of it right now
+
+			// undo x movement to see if we still collide
+			player_x1 -= x;
+			player_x2 -= x;
+			collision_count = 0;
+			if ((player_x1 > x1 && player_x1 < x2) || (player_x2 > x1 && player_x2 < x2)) {
+				// xs overlap
+				collision_count++;
+			}
+			if ((player_y1 < y1 && player_y1 > y2) || (player_y2 < y1 && player_y2 > y2)) {
+				// ys overlap
+				collision_count++;
+			}
+			if ((player_z1 > z1 && player_z1 < z2) || (player_z2 > z1 && player_z2 < z2)) {
+				// zs overlap
+				collision_count++;
+			}
+			if (collision_count >= 3) {
+				player_x1 += x;
+				player_x2 += x;
+			}
+			else {
+				camera_pos.x -= x;
+				return;
+			}
+
+			// undo y movement to see if we still collide
+			player_y1 -= y;
+			player_y2 -= y;
+			collision_count = 0;
+			if ((player_x1 > x1 && player_x1 < x2) || (player_x2 > x1 && player_x2 < x2)) {
+				// xs overlap
+				collision_count++;
+			}
+			if ((player_y1 < y1 && player_y1 > y2) || (player_y2 < y1 && player_y2 > y2)) {
+				// ys overlap
+				collision_count++;
+			}
+			if ((player_z1 > z1 && player_z1 < z2) || (player_z2 > z1 && player_z2 < z2)) {
+				// zs overlap
+				collision_count++;
+			}
+			if (collision_count >= 3) {
+				player_y1 += y;
+				player_y2 += y;
+			}
+			else {
+				camera_pos.y -= y;
+				return;
+			}
+
+			// undo y movement to see if we still collide
+			player_z1 -= z;
+			player_z2 -= z;
+			collision_count = 0;
+			if ((player_x1 > x1 && player_x1 < x2) || (player_x2 > x1 && player_x2 < x2)) {
+				// xs overlap
+				collision_count++;
+			}
+			if ((player_y1 < y1 && player_y1 > y2) || (player_y2 < y1 && player_y2 > y2)) {
+				// ys overlap
+				collision_count++;
+			}
+			if ((player_z1 > z1 && player_z1 < z2) || (player_z2 > z1 && player_z2 < z2)) {
+				// zs overlap
+				collision_count++;
+			}
+			if (collision_count >= 3) {
+				player_z1 += z;
+				player_z2 += z;
+			}
+			else {
+				camera_pos.z -= z;
+				return;
+			}
+		}
 	}
 }
 
