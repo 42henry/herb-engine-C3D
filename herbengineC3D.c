@@ -963,116 +963,11 @@ void handle_input()
 		int y2 = y1 - CUBE_WIDTH;	
 		int z2 = z1 + CUBE_WIDTH;	
 
-		// for each corner of the camera_pos extended by a collision_dist (player size), is that inside the cube:
-		// there's gotta be a better way to do this......
+		// let's start by saying the player is cube
 		int player_width = CUBE_WIDTH / 2;
-		int player_height = CUBE_WIDTH * 1.5;
-		for (int i = 0; i < 8; i++) {
-			int player_x = camera_pos.x;
-			int player_y = camera_pos.y;
-			int player_z = camera_pos.z;
-			switch (i) {
-				case 0: {
-				    // top left front
-					player_x -= player_width / 2;
-					player_y -= player_height / 2;
-					player_z -= player_width / 2;
-					break;
-				}
-				case 1: {
-				    // top right front
-					player_x += player_width / 2;
-					player_y -= player_height / 2;
-					player_z -= player_width / 2;
-					break;
-				}
-				case 2: {
-				    // bottom left front
-					player_x -= player_width / 2;
-					player_y += player_height / 2;
-					player_z -= player_width / 2;
-					break;
-				}
-				case 3: {
-				    // bottom right front
-					player_x += player_width / 2;
-					player_y += player_height / 2;
-					player_z -= player_width / 2;
-					break;
-				}
-				case 4: {
-				    // top left back
-					player_x -= player_width / 2;
-					player_y -= player_height / 2;
-					player_z += player_width / 2;
-					break;
-				}
-				case 5: {
-				    // top right back
-					player_x += player_width / 2;
-					player_y -= player_height / 2;
-					player_z += player_width / 2;
-					break;
-				}
-				case 6: {
-				    // bottom left back
-					player_x -= player_width / 2;
-					player_y += player_height / 2;
-					player_z += player_width / 2;
-					break;
-				}
-				case 7: {
-				    // bottom right back
-					player_x += player_width / 2;
-					player_y += player_height / 2;
-					player_z += player_width / 2;
-					break;
-				}
-			}
-			if (player_x > x1 &&
-				player_x < x2 &&
-				player_y < y1 &&
-				player_y > y2 &&
-				player_z > z1 &&
-				player_z < z2
-				) {
+		int player_height = CUBE_WIDTH / 2;
 
-				player_x -= x;
-
-				if (! (player_x > x1 &&
-					player_x < x2 &&
-					player_y < y1 &&
-					player_y > y2 &&
-					player_z > z1 &&
-					player_z < z2
-					)) {
-					camera_pos.x -= x;
-				}
-				player_x += x;
-				player_y -= y;
-				if (! (player_x > x1 &&
-					player_x < x2 &&
-					player_y < y1 &&
-					player_y > y2 &&
-					player_z > z1 &&
-					player_z < z2
-					)) {
-					camera_pos.y -= y;
-				}
-				player_y += y;
-				player_z -= z;
-				if (! (player_x > x1 &&
-					player_x < x2 &&
-					player_y < y1 &&
-					player_y > y2 &&
-					player_z > z1 &&
-					player_z < z2
-					)) {
-					camera_pos.z -= z;
-				}
-				player_z += z;
-			}
-		}
+		// how can we check that two cubes overlap?
 	}
 }
 
