@@ -19,11 +19,13 @@ Work done so far:
  - a rotate and project function that takes an x y and z and rotates it about the camera, and projects it by z
  - a texture map, which takes each square, and colours it pixel by pixel from a given texture
  - sort each square by their distance to the camera
+ - simple cubicy collisions
 
 Next steps:
- - collisions - not sure how to do this yet
  - velocity based movement
  - terrain generation - not sure how to do this yet
+ - hotbar / other blocks we can build with
+ - chunks?
  - make it platform generic
 
 Future ideas:
