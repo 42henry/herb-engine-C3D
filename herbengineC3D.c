@@ -9,13 +9,13 @@
 
 //TODO: make movement and gravity velocity based
 
-//TODO: don't draw if !every! z of square is < 0
-
-//TODO: imrpove highlight the cube under cursor
-
 //TODO: other blocks and terrain generation
 
 //TODO: simple hotbar to place different blocks
+
+//TODO: don't draw if !every! z of square is < 0
+
+//TODO: imrpove highlight the cube under cursor
 
 //TODO: chunks ?
 
