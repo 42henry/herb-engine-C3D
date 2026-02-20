@@ -7,17 +7,19 @@
 #include <assert.h>
 #include <time.h>
 
-//TODO: improve collisions
+//TODO: make movement and gravity velocity based
 
 //TODO: don't draw if !every! z of square is < 0
 
-//TODO: make movement velocity based
+//TODO: imrpove highlight the cube under cursor
 
-//TODO: highlight the cube under cursor
+//TODO: other blocks and terrain generation
 
-//TODO: terrain generation
+//TODO: simple hotbar to place different blocks
 
-//TODO: clean the code, especially rotate_and_project()
+//TODO: chunks ?
+
+//TODO: clean the code, especially collisions and rotate_and_project()
 
 //TODO: make it work on windows - need to get keys/keycodes correct, and use timespec to set frame rate similarly, and get mouse.x and y and left click and right click etc
 
@@ -154,6 +156,8 @@ static int cube_highlighted = 0;
 
 static int dlog = 0;
 
+static int gravity = -10;
+
 void init_stuff() {
 	srand(time(NULL));
 	cube_highlighted = -1;
@@ -211,6 +215,7 @@ void init_stuff() {
 	world_squares.items = malloc(MAX_SQUARES * sizeof(Square_t));
 	draw_squares.items = malloc(MAX_SQUARES * sizeof(Square_t));
 
+	add_cube((Vec3){-50, 150, 10}, red);
 	add_cube((Vec3){50, 150, 10}, red);
 	add_cube((Vec3){100 + 50, 150, 10}, red);
 	add_cube((Vec3){200 + 50, 150, 10}, red);
@@ -946,7 +951,7 @@ void handle_input()
 	}
 
     // gravity:
-	//y -= 10;
+	y += gravity;
 
     camera_pos.x += x;
 	
