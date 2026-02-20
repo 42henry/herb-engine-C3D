@@ -253,20 +253,20 @@ void update_pixels() {
 	draw_all_squares();
 
 	Square_t centre = {0};
-	centre.coords[0].x = WIDTH / 2 - 10;
-	centre.coords[0].y = HEIGHT / 2 - 10;
+	centre.coords[0].x = WIDTH / 2 - 3;
+	centre.coords[0].y = HEIGHT / 2 - 3;
 	centre.coords[0].z = 1;
-	centre.coords[1].x = WIDTH / 2 + 10;
-	centre.coords[1].y = HEIGHT / 2 - 10;
+	centre.coords[1].x = WIDTH / 2 + 3;
+	centre.coords[1].y = HEIGHT / 2 - 3;
 	centre.coords[1].z = 1;
-	centre.coords[2].x = WIDTH / 2 + 10;
-	centre.coords[2].y = HEIGHT / 2 + 10;
+	centre.coords[2].x = WIDTH / 2 + 3;
+	centre.coords[2].y = HEIGHT / 2 + 3;
 	centre.coords[2].z = 1;
-	centre.coords[3].x = WIDTH / 2 - 10;
-	centre.coords[3].y = HEIGHT / 2 + 10;
+	centre.coords[3].x = WIDTH / 2 - 3;
+	centre.coords[3].y = HEIGHT / 2 + 3;
 	centre.coords[3].z = 1;
 
-	centre.colour = pack_colour_to_uint32(1, red);
+	centre.colour = pack_colour_to_uint32(1, (Colour_t){255, 255, 255});
 
 	fill_square(&centre);
 
@@ -864,6 +864,7 @@ void rotate_and_project_squares() {
 				// 5 = bottom
 				cube_highlighted = face_index / squares_per_face;
 				central_cube_index = index;
+				draw_squares.items[i].colour = pack_colour_to_uint32(1, red);
 			}
 		}
 	}
@@ -917,6 +918,7 @@ void handle_input()
 	else {
 		speed = walk_speed;
 	}
+	// TODO: add y here too
     if (keys[w]) {
         x += - speed * sin(x_rotation);
         z += speed * cos(x_rotation);
@@ -947,9 +949,8 @@ void handle_input()
 	//y -= 10;
 
     camera_pos.x += x;
-    camera_pos.y += y;
-    camera_pos.z += z;
 	
+	// check collisions:
 	// collisions:
 	int n = TEXTURE_WIDTH * TEXTURE_WIDTH * 6;
 	for (int i = 0; i < world_squares.count; i += n) {
@@ -977,98 +978,132 @@ void handle_input()
 		int player_y2 = camera_pos.y - player_width;
 		int player_z2 = camera_pos.z + player_width;
 
-		int collision_count = 0;
-		if ((player_x1 > x1 && player_x1 < x2) || (player_x2 > x1 && player_x2 < x2)) {
+		// TODO: keep track of which ones were previous collisions
+		int x_collision = 0;
+		int y_collision = 0;
+		int z_collision = 0;
+		if ((player_x1 >= x1 && player_x1 <= x2) || (player_x2 >= x1 && player_x2 <= x2)) {
 			// xs overlap
-			collision_count++;
+			x_collision = 1;
 		}
-		if ((player_y1 < y1 && player_y1 > y2) || (player_y2 < y1 && player_y2 > y2)) {
+		if ((player_y1 <= y1 && player_y1 >= y2) || (player_y2 <= y1 && player_y2 >= y2)) {
 			// ys overlap
-			collision_count++;
+			y_collision = 1;
 		}
-		if ((player_z1 > z1 && player_z1 < z2) || (player_z2 > z1 && player_z2 < z2)) {
+		if ((player_z1 >= z1 && player_z1 <= z2) || (player_z2 >= z1 && player_z2 <= z2)) {
 			// zs overlap
-			collision_count++;
+			z_collision = 1;
 		}
-		if (collision_count >= 3) {
-			// there has to be a better way to do this, I just can't think of it right now
-
-			// undo x movement to see if we still collide
-			player_x1 -= x;
-			player_x2 -= x;
-			collision_count = 0;
-			if ((player_x1 > x1 && player_x1 < x2) || (player_x2 > x1 && player_x2 < x2)) {
-				// xs overlap
-				collision_count++;
-			}
-			if ((player_y1 < y1 && player_y1 > y2) || (player_y2 < y1 && player_y2 > y2)) {
-				// ys overlap
-				collision_count++;
-			}
-			if ((player_z1 > z1 && player_z1 < z2) || (player_z2 > z1 && player_z2 < z2)) {
-				// zs overlap
-				collision_count++;
-			}
-			if (collision_count >= 3) {
-				player_x1 += x;
-				player_x2 += x;
-			}
-			else {
-				camera_pos.x -= x;
-				return;
-			}
-
-			// undo y movement to see if we still collide
-			player_y1 -= y;
-			player_y2 -= y;
-			collision_count = 0;
-			if ((player_x1 > x1 && player_x1 < x2) || (player_x2 > x1 && player_x2 < x2)) {
-				// xs overlap
-				collision_count++;
-			}
-			if ((player_y1 < y1 && player_y1 > y2) || (player_y2 < y1 && player_y2 > y2)) {
-				// ys overlap
-				collision_count++;
-			}
-			if ((player_z1 > z1 && player_z1 < z2) || (player_z2 > z1 && player_z2 < z2)) {
-				// zs overlap
-				collision_count++;
-			}
-			if (collision_count >= 3) {
-				player_y1 += y;
-				player_y2 += y;
-			}
-			else {
-				camera_pos.y -= y;
-				return;
-			}
-
-			// undo y movement to see if we still collide
-			player_z1 -= z;
-			player_z2 -= z;
-			collision_count = 0;
-			if ((player_x1 > x1 && player_x1 < x2) || (player_x2 > x1 && player_x2 < x2)) {
-				// xs overlap
-				collision_count++;
-			}
-			if ((player_y1 < y1 && player_y1 > y2) || (player_y2 < y1 && player_y2 > y2)) {
-				// ys overlap
-				collision_count++;
-			}
-			if ((player_z1 > z1 && player_z1 < z2) || (player_z2 > z1 && player_z2 < z2)) {
-				// zs overlap
-				collision_count++;
-			}
-			if (collision_count >= 3) {
-				player_z1 += z;
-				player_z2 += z;
-			}
-			else {
-				camera_pos.z -= z;
-				return;
-			}
+		if (x_collision && y_collision && z_collision) {
+			camera_pos.x -= x;
+			break;
 		}
 	}
+
+    camera_pos.y += y;
+
+	// check collisions:
+	// collisions:
+	n = TEXTURE_WIDTH * TEXTURE_WIDTH * 6;
+	for (int i = 0; i < world_squares.count; i += n) {
+		// x1 = top left front
+		int x1 = world_squares.items[i].coords[0].x;
+		int y1 = world_squares.items[i].coords[0].y;
+		int z1 = world_squares.items[i].coords[0].z;
+
+		// x2 = bottom right back
+		int x2 = x1 + CUBE_WIDTH;	
+		int y2 = y1 - CUBE_WIDTH;	
+		int z2 = z1 + CUBE_WIDTH;
+
+		// let's start by saying the player is cube
+		int player_width = CUBE_WIDTH / 2;
+		int player_height = CUBE_WIDTH / 2;
+
+		// player_x1 = top left front
+		int player_x1 = camera_pos.x - player_width;
+		int player_y1 = camera_pos.y + player_width;
+		int player_z1 = camera_pos.z - player_width;
+
+		// player_x1 = bottom right back
+		int player_x2 = camera_pos.x + player_width;
+		int player_y2 = camera_pos.y - player_width;
+		int player_z2 = camera_pos.z + player_width;
+
+		// TODO: keep track of which ones were previous collisions
+		int x_collision = 0;
+		int y_collision = 0;
+		int z_collision = 0;
+		if ((player_x1 >= x1 && player_x1 <= x2) || (player_x2 >= x1 && player_x2 <= x2)) {
+			// xs overlap
+			x_collision = 1;
+		}
+		if ((player_y1 <= y1 && player_y1 >= y2) || (player_y2 <= y1 && player_y2 >= y2)) {
+			// ys overlap
+			y_collision = 1;
+		}
+		if ((player_z1 >= z1 && player_z1 <= z2) || (player_z2 >= z1 && player_z2 <= z2)) {
+			// zs overlap
+			z_collision = 1;
+		}
+		if (x_collision && y_collision && z_collision) {
+			camera_pos.y -= y;
+			break;
+		}
+	}
+
+    camera_pos.z += z;
+
+	// check collisions:
+	// collisions:
+	n = TEXTURE_WIDTH * TEXTURE_WIDTH * 6;
+	for (int i = 0; i < world_squares.count; i += n) {
+		// x1 = top left front
+		int x1 = world_squares.items[i].coords[0].x;
+		int y1 = world_squares.items[i].coords[0].y;
+		int z1 = world_squares.items[i].coords[0].z;
+
+		// x2 = bottom right back
+		int x2 = x1 + CUBE_WIDTH;	
+		int y2 = y1 - CUBE_WIDTH;	
+		int z2 = z1 + CUBE_WIDTH;
+
+		// let's start by saying the player is cube
+		int player_width = CUBE_WIDTH / 2;
+		int player_height = CUBE_WIDTH / 2;
+
+		// player_x1 = top left front
+		int player_x1 = camera_pos.x - player_width;
+		int player_y1 = camera_pos.y + player_width;
+		int player_z1 = camera_pos.z - player_width;
+
+		// player_x1 = bottom right back
+		int player_x2 = camera_pos.x + player_width;
+		int player_y2 = camera_pos.y - player_width;
+		int player_z2 = camera_pos.z + player_width;
+
+		// TODO: keep track of which ones were previous collisions
+		int x_collision = 0;
+		int y_collision = 0;
+		int z_collision = 0;
+		if ((player_x1 >= x1 && player_x1 <= x2) || (player_x2 >= x1 && player_x2 <= x2)) {
+			// xs overlap
+			x_collision = 1;
+		}
+		if ((player_y1 <= y1 && player_y1 >= y2) || (player_y2 <= y1 && player_y2 >= y2)) {
+			// ys overlap
+			y_collision = 1;
+		}
+		if ((player_z1 >= z1 && player_z1 <= z2) || (player_z2 >= z1 && player_z2 <= z2)) {
+			// zs overlap
+			z_collision = 1;
+		}
+		if (x_collision && y_collision && z_collision) {
+			camera_pos.z -= z;
+			break;
+		}
+	}
+
 }
 
 void draw_all_squares() {
