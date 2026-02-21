@@ -7,17 +7,19 @@
 #include <assert.h>
 #include <time.h>
 
-//TODO: other blocks and terrain generation
+//TODO: clean the code, especially collisions and rotate_and_project()
 
 //TODO: simple hotbar to place different blocks
+
+//TODO: other blocks and terrain generation
+
+//TODO: don't place a block if it causes a collision
 
 //TODO: don't draw if !every! z of square is < 0
 
 //TODO: chunks ?
 
 //TODO: make movement and gravity velocity based
-
-//TODO: clean the code, especially collisions and rotate_and_project()
 
 //TODO: make it work on windows - need to get keys/keycodes correct, and use timespec to set frame rate similarly, and get mouse.x and y and left click and right click etc
 
@@ -35,6 +37,8 @@
 #define MAX_SQUARES 100000
 
 #define TEXTURE_WIDTH 5
+
+#define SQUARES_PER_CUBE (TEXTURE_WIDTH * TEXTURE_WIDTH * 6)
 
 #define TARGET_FPS 60
 #define FRAME_TIME_NS (1000000000 / TARGET_FPS)
@@ -98,9 +102,9 @@ static void clear_screen(Colour_t colour);
 static void draw_line(Vec3 start, Vec3 end, Colour_t colour);
 static void fill_square(Square_t *square);
 static int test_fill_square();
-static void add_cube(Vec3 top_left, Colour_t colour);
+static void add_cube(Vec3 top_left, Texture_t *texture);
 static void remove_cube(int index);
-static void place_cube(int index);
+static void place_cube(int index, Texture_t *texture);
 
 static void rotate_and_project_squares();
 static void draw_all_squares();
@@ -111,6 +115,10 @@ int compare_squares(const void *one, const void *two);
 
 void writePPM(const char *filename, Texture_t *img);
 Texture_t* readPPM(const char *filename);
+
+void rect(Vec3 top_left, int width, int height, Colour_t colour);
+void draw_cursor();
+void draw_hotbar();
 
 static Vec3 camera_pos = {0};
 static int speed = 0;
@@ -141,7 +149,7 @@ static Colour_t blue = {0, 0, 255};
 static Colour_t texture[TEXTURE_WIDTH * TEXTURE_WIDTH] = {0};
 
 Texture_t *grass_texture = NULL;
-static int using_texture = 0;
+Texture_t *stone_texture = NULL;
 
 static int hold_mouse = 1;
 static float mouse_sensitivity = 0.005f;
@@ -157,6 +165,9 @@ static int dlog = 0;
 static int gravity = -10;
 static int jump = 0;
 
+static int hotbar_selection = 0;
+static Squares_t hotbar_squares = {0};
+
 void init_stuff() {
 	srand(time(NULL));
 	cube_highlighted = -1;
@@ -165,9 +176,6 @@ void init_stuff() {
 	// * 3 for top bottom side
     int w = TEXTURE_WIDTH * 3, h = TEXTURE_WIDTH;
     Texture_t myImg = {w, h, malloc(w * h * 3)};
-
-    Colour_t dark_green = {10, 180, 20};
-    Colour_t brown = {150, 75, 10};
 
 	// top
 	int i = 0;
@@ -190,12 +198,23 @@ void init_stuff() {
 
     writePPM("grass.ppm", &myImg);
 
-    free(myImg.data);
-
 	grass_texture = readPPM("grass.ppm");
 	assert(grass_texture != NULL);
 
-	using_texture = 1;
+	// create stone texture
+
+	// top bottom side
+	i = 0;
+	for (i; i < TEXTURE_WIDTH * TEXTURE_WIDTH * 3; i++) {
+		myImg.data[i] = (Colour_t){75 + (rand()  % 12), 75 + (rand()  % 13), 75 + (rand()  % 5), };
+	}
+
+    writePPM("stone.ppm", &myImg);
+
+    free(myImg.data);
+
+	stone_texture = readPPM("stone.ppm");
+	assert(stone_texture != NULL);
 
 	hold_mouse = 1;
 
@@ -214,18 +233,26 @@ void init_stuff() {
 	world_squares.items = malloc(MAX_SQUARES * sizeof(Square_t));
 	draw_squares.items = malloc(MAX_SQUARES * sizeof(Square_t));
 
-	add_cube((Vec3){-50, 150, 10}, red);
-	add_cube((Vec3){50, 150, 10}, red);
-	add_cube((Vec3){100 + 50, 150, 10}, red);
-	add_cube((Vec3){200 + 50, 150, 10}, red);
-	add_cube((Vec3){300 + 50, 150, 10}, red);
+	// 9 hotbar slots
+	hotbar_squares.items = malloc(9 * SQUARES_PER_CUBE * sizeof(Square_t));
+	
+	// TODO:
+	// need to seperate out the rotate and project function so we can do it here
+	// need to seperate out the add cube function so we can do it here
+	// so we can have lil cubes of each texture in the hotbar
+
+	add_cube((Vec3){-50, 150, 10}, grass_texture);
+	add_cube((Vec3){50, 150, 10}, grass_texture);
+	add_cube((Vec3){100 + 50, 150, 10}, grass_texture);
+	add_cube((Vec3){200 + 50, 150, 10}, stone_texture);
+	add_cube((Vec3){300 + 50, 150, 10}, stone_texture);
 
 	Colour_t c = blue;
-	//for (int i = -5; i < 20; i++) {
-		//for (int j = 0; j < 20; j++) {
-			//add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10 + (j * CUBE_WIDTH)}, c);
-		//}
-	//}
+	for (int i = -5; i < 5; i++) {
+		for (int j = 0; j < 5; j++) {
+			add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10 + (j * CUBE_WIDTH)}, grass_texture);
+		}
+	}
 
 	return;
 }
@@ -256,23 +283,8 @@ void update_pixels() {
 
 	draw_all_squares();
 
-	Square_t centre = {0};
-	centre.coords[0].x = WIDTH / 2 - 3;
-	centre.coords[0].y = HEIGHT / 2 - 3;
-	centre.coords[0].z = 1;
-	centre.coords[1].x = WIDTH / 2 + 3;
-	centre.coords[1].y = HEIGHT / 2 - 3;
-	centre.coords[1].z = 1;
-	centre.coords[2].x = WIDTH / 2 + 3;
-	centre.coords[2].y = HEIGHT / 2 + 3;
-	centre.coords[2].z = 1;
-	centre.coords[3].x = WIDTH / 2 - 3;
-	centre.coords[3].y = HEIGHT / 2 + 3;
-	centre.coords[3].z = 1;
-
-	centre.colour = pack_colour_to_uint32(1, (Colour_t){255, 255, 255});
-
-	fill_square(&centre);
+	draw_cursor();
+	draw_hotbar();
 
 	return;
 }
@@ -534,6 +546,30 @@ int test_fill_square() {
 	return 1;
 }
 
+void rect(Vec3 top_left, int width, int height, Colour_t colour) {
+	Square_t square = {0};
+	square.coords[0].x = top_left.x;
+	square.coords[0].y = top_left.y;
+	square.coords[0].z = 10;
+
+	square.coords[1].x = top_left.x + width;
+	square.coords[1].y = top_left.y;
+	square.coords[1].z = 10;
+
+	square.coords[2].x = top_left.x + width;
+	square.coords[2].y = top_left.y + height;
+	square.coords[2].z = 10;
+
+	square.coords[3].x = top_left.x;
+	square.coords[3].y = top_left.y + height;
+	square.coords[3].z = 10;
+
+	// TODO: get rid of the 1 in this func below
+	square.colour = pack_colour_to_uint32(1, colour);
+
+	fill_square(&square);
+}
+
 void debug_log(char *str) {
 	printf("\n%s", str);
 }
@@ -565,7 +601,7 @@ int line_goes_right(Line_t line) {
 	return (change_in_x > 0);
 }
 
-void add_cube(Vec3 top_left, Colour_t colour) {
+void add_cube(Vec3 top_left, Texture_t *texture) {
 	int x = top_left.x;
 	int y = top_left.y;
 	int z = top_left.z;
@@ -583,14 +619,9 @@ void add_cube(Vec3 top_left, Colour_t colour) {
 			square.coords[2] = (Vec3) {x + ((i + 1) * len), y - ((j + 1) * len), z};
 			square.coords[3] = (Vec3) {x + (i * len), y - ((j + 1) * len), z};
 
-			if (using_texture) {
-				// 2, as the side face textures are the 2nd square of the texture image
-				Colour_t c = grass_texture->data[2 * texture_side + j * TEXTURE_WIDTH + i];
-				square.colour = pack_colour_to_uint32(1, c);
-			}
-			else {
-				square.colour = pack_colour_to_uint32(1, colour);
-			}
+			// 2, as the side face textures are the 2nd square of the texture image
+			Colour_t c = texture->data[2 * texture_side + j * TEXTURE_WIDTH + i];
+			square.colour = pack_colour_to_uint32(1, c);
 
 			// set r to 1 to signify the start of a cube
 			world_squares.items[world_squares.count] = square;
@@ -610,13 +641,8 @@ void add_cube(Vec3 top_left, Colour_t colour) {
 			square.coords[2] = (Vec3) {x + ((i + 1) * len), y - ((j + 1) * len), z + CUBE_WIDTH};
 			square.coords[3] = (Vec3) {x + (i * len), y - ((j + 1) * len), z + CUBE_WIDTH};
 
-			if (using_texture) {
-				Colour_t c = grass_texture->data[2 * texture_side + j * TEXTURE_WIDTH + i];
-				square.colour = pack_colour_to_uint32(1, c);
-			}
-			else {
-				square.colour = pack_colour_to_uint32(1, colour);
-			}
+			Colour_t c = texture->data[2 * texture_side + j * TEXTURE_WIDTH + i];
+			square.colour = pack_colour_to_uint32(1, c);
 
 			world_squares.items[world_squares.count++] = square;
 		}
@@ -631,13 +657,8 @@ void add_cube(Vec3 top_left, Colour_t colour) {
 			square.coords[2] = (Vec3) {x, y - ((j + 1) * len), z + ((i + 1) * len)};
 			square.coords[3] = (Vec3) {x, y - ((j + 1) * len), z + (i * len)};
 
-			if (using_texture) {
-				Colour_t c = grass_texture->data[2 * texture_side + j * TEXTURE_WIDTH + i];
-				square.colour = pack_colour_to_uint32(1, c);
-			}
-			else {
-				square.colour = pack_colour_to_uint32(1, colour);
-			}
+			Colour_t c = texture->data[2 * texture_side + j * TEXTURE_WIDTH + i];
+			square.colour = pack_colour_to_uint32(1, c);
 
 			world_squares.items[world_squares.count++] = square;
 		}
@@ -652,13 +673,8 @@ void add_cube(Vec3 top_left, Colour_t colour) {
 			square.coords[2] = (Vec3) {x + CUBE_WIDTH, y - ((j + 1) * len), z + ((i + 1) * len)};
 			square.coords[3] = (Vec3) {x + CUBE_WIDTH, y - ((j + 1) * len), z + (i * len)};
 
-			if (using_texture) {
-				Colour_t c = grass_texture->data[2 * texture_side + j * TEXTURE_WIDTH + i];
-				square.colour = pack_colour_to_uint32(1, c);
-			}
-			else {
-				square.colour = pack_colour_to_uint32(1, colour);
-			}
+			Colour_t c = texture->data[2 * texture_side + j * TEXTURE_WIDTH + i];
+			square.colour = pack_colour_to_uint32(1, c);
 
 			world_squares.items[world_squares.count++] = square;
 		}
@@ -673,14 +689,9 @@ void add_cube(Vec3 top_left, Colour_t colour) {
 			square.coords[2] = (Vec3) {x + ((i + 1) * len), y, z + ((j + 1) * len)};
 			square.coords[3] = (Vec3) {x + (i * len), y, z + ((j + 1) * len)};
 
-			if (using_texture) {
-				// 0, as the top face textures are the first square of the texture image
-				Colour_t c = grass_texture->data[j * TEXTURE_WIDTH + i];
-				square.colour = pack_colour_to_uint32(1, c);
-			}
-			else {
-				square.colour = pack_colour_to_uint32(1, colour);
-			}
+			// 0 as that is the top texture
+			Colour_t c = texture->data[j * TEXTURE_WIDTH + i];
+			square.colour = pack_colour_to_uint32(1, c);
 
 			world_squares.items[world_squares.count++] = square;
 		}
@@ -695,14 +706,9 @@ void add_cube(Vec3 top_left, Colour_t colour) {
 			square.coords[2] = (Vec3) {x + ((i + 1) * len), y - CUBE_WIDTH, z + ((j + 1) * len)};
 			square.coords[3] = (Vec3) {x + (i * len), y - CUBE_WIDTH, z + ((j + 1) * len)};
 
-			if (using_texture) {
-				// 1, as the top face textures are the first square of the texture image
-				Colour_t c = grass_texture->data[1 * texture_side + j * TEXTURE_WIDTH + i];
-				square.colour = pack_colour_to_uint32(1, c);
-			}
-			else {
-				square.colour = pack_colour_to_uint32(1, colour);
-			}
+			// 1, as the top face textures are the first square of the texture image
+			Colour_t c = texture->data[1 * texture_side + j * TEXTURE_WIDTH + i];
+			square.colour = pack_colour_to_uint32(1, c);
 
 			world_squares.items[world_squares.count++] = square;
 		}
@@ -722,7 +728,7 @@ void remove_cube(int index) {
 	return;
 }
 
-void place_cube(int index) {
+void place_cube(int index, Texture_t *texture) {
 	Vec3 pos = {0};
 	pos.x = world_squares.items[index].coords[0].x;
 	pos.y = world_squares.items[index].coords[0].y;
@@ -759,7 +765,7 @@ void place_cube(int index) {
 			break;
 		}
 	}
-	add_cube(pos, red);
+	add_cube(pos, texture);
 	return;
 }
 
@@ -918,7 +924,7 @@ void handle_input()
 	else {
 		if (mouse_was_right_clicked) {
 			if (cube_highlighted > -1) {
-				place_cube(central_cube_index);
+				place_cube(central_cube_index, grass_texture);
 			}
 		}
 		mouse_was_right_clicked = 0;
@@ -1217,4 +1223,47 @@ Texture_t* readPPM(const char *filename) {
 
     fclose(fp);
     return img;
+}
+
+void draw_hotbar() {
+	int small_height = HEIGHT * 0.01;
+
+	int hotbar_y = HEIGHT - 5 * small_height;
+	int hotbar_x = WIDTH / 8;
+	int hotbar_width = WIDTH - 2 * (WIDTH / 8); 
+	int hotbar_height = HEIGHT / 10;
+
+    rect((Vec3){hotbar_x, hotbar_y, 1}, hotbar_width, small_height, (Colour_t){255, 255, 255});
+	hotbar_y -= hotbar_height;
+    rect((Vec3){hotbar_x, hotbar_y, 1}, hotbar_width, small_height, (Colour_t){255, 255, 255});
+
+    rect((Vec3){hotbar_x, hotbar_y, 1}, small_height, hotbar_height, (Colour_t){255, 255, 255});
+	hotbar_x += hotbar_width;
+    rect((Vec3){hotbar_x, hotbar_y, 1}, small_height, hotbar_height, (Colour_t){255, 255, 255});
+}
+
+void draw_cursor() {
+	Colour_t colour = get_pixel_colour((Vec2){WIDTH / 2, HEIGHT / 2});
+	if (colour.r > 127) {
+		colour.r = 0;
+	}
+	else {
+		colour.r = 255;
+	}
+	if (colour.g > 127) {
+		colour.g = 0;
+	}
+	else {
+		colour.g = 255;
+	}
+	if (colour.b > 127) {
+		colour.b = 0;
+	}
+	else {
+		colour.b = 255;
+	}
+	int h = 30;
+	int w = 6;
+	rect((Vec3){WIDTH / 2 - (w / 2), HEIGHT / 2 - (h / 2), 1}, w, h, colour);
+	rect((Vec3){WIDTH / 2 - (h / 2), HEIGHT / 2 - (w / 2), 1}, h, w, colour);
 }
