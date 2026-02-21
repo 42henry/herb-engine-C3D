@@ -989,6 +989,8 @@ void handle_input()
 		jump = 0;
 	}
 
+	camera_pos.y -= CUBE_WIDTH;
+
     camera_pos.x += x;
 	
 	// check collisions:
@@ -1144,6 +1146,7 @@ void handle_input()
 			break;
 		}
 	}
+	camera_pos.y += CUBE_WIDTH;
 
 }
 
