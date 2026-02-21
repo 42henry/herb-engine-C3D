@@ -20,6 +20,7 @@
 //TODO: chunks ?
 
 //TODO: make movement and gravity velocity based
+//TODO: make jumping only possible when on ground
 
 //TODO: make it work on windows - need to get keys/keycodes correct, and use timespec to set frame rate similarly, and get mouse.x and y and left click and right click etc
 
