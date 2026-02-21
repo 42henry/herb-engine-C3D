@@ -1,9 +1,11 @@
 # herb-engine-C3D
 
 Playground for 3D rendering from scratch
-I know nothing about graphics, and have used gpt to help write the x11 or winapi parts of the code,
-all I want is an array of pixels, that I can update each frame with my own functions,
+I know nothing about graphics, all I want is an array of pixels,
+that I can update each frame with my own functions,
 this is my attempt to make a 3D game like minecraft!
+I have used gpt to help write the x11 or winapi parts of the code,
+so I can just have my array of pixels that I update each frame.
 
 Interesting to note - so far whatever I've done has recreated the style of PS1 graphics, whereby the vertices wobble slightly!
 
