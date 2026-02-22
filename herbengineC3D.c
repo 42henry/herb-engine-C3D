@@ -7,15 +7,7 @@
 #include <assert.h>
 #include <time.h>
 
-//TODO: simple hotbar to place different blocks
-
 //TODO: other blocks and terrain generation
-
-//TODO: don't place a block if it causes a collision
-
-//TODO: don't draw if !every! z of square is < 0
-
-//TODO: chunks ?
 
 //TODO: make movement and gravity velocity based
 //TODO: make jumping only possible when on ground
@@ -116,6 +108,7 @@ static void render_squares();
 static void render_hotbar();
 static void render_hand();
 static void rotate_and_project_squares(vec3_t *pos, vec3_t *new_pos);
+static void rotate_and_project_squares_by_rot_value(vec3_t *pos, vec3_t *new_pos, float x_rot, float y_rot);
 
 // cubes/squares handling
 static void add_cube_squares_to_array(vec3_t top_left, texture_t *texture, squares_t *array);
@@ -686,13 +679,14 @@ void draw_hotbar() {
 	x += w;
     draw_rect((vec3_t){x, y, 1}, small_height, h, (colour_t){255, 255, 255});
 
+	int magic_num = 300;
 	switch(hotbar_selection) {
 		case 0: {
-			draw_rect((vec3_t){hotbar_x, hotbar_y, 1}, 100, 100, green);
+			draw_rect((vec3_t){hotbar_x + 100, hotbar_y - hotbar_height, 1}, magic_num, hotbar_height, (colour_t){255, 255, 255});
 			break;
 		}
 		case 1: {
-			draw_rect((vec3_t){hotbar_x + 100, hotbar_y, 1}, 100, 100, green);
+			draw_rect((vec3_t){hotbar_x + magic_num + 100, hotbar_y - hotbar_height, 1}, magic_num, hotbar_height, (colour_t){255, 255, 255});
 			break;
 		}
 	}
@@ -956,6 +950,46 @@ void place_cube(int index, texture_t *texture) {
 			break;
 		}
 	}
+	int x1 = pos.x;
+	int y1 = pos.y;
+	int z1 = pos.z;
+
+	// x2 = bottom right back
+	int x2 = x1 + CUBE_WIDTH;	
+	int y2 = y1 - CUBE_WIDTH;	
+	int z2 = z1 + CUBE_WIDTH;
+
+	camera_pos.y -= CUBE_WIDTH;
+	// player_x1 = top left front
+	int player_x1 = camera_pos.x - player_width;
+	int player_y1 = camera_pos.y + player_width;
+	int player_z1 = camera_pos.z - player_width;
+
+	// player_x1 = bottom right back
+	int player_x2 = camera_pos.x + player_width;
+	int player_y2 = camera_pos.y - player_width;
+	int player_z2 = camera_pos.z + player_width;
+
+	int x_collision = 0;
+	int y_collision = 0;
+	int z_collision = 0;
+	if ((player_x1 >= x1 && player_x1 <= x2) || (player_x2 >= x1 && player_x2 <= x2)) {
+		// xs overlap
+		x_collision = 1;
+	}
+	if ((player_y1 <= y1 && player_y1 >= y2) || (player_y2 <= y1 && player_y2 >= y2)) {
+		// ys overlap
+		y_collision = 1;
+	}
+	if ((player_z1 >= z1 && player_z1 <= z2) || (player_z2 >= z1 && player_z2 <= z2)) {
+		// zs overlap
+		z_collision = 1;
+	}
+	camera_pos.y += CUBE_WIDTH;
+	if (x_collision && y_collision && z_collision) {
+		return;
+	}
+
 	add_cube_squares_to_array(pos, texture, &world_squares);
 	return;
 }
@@ -1299,7 +1333,7 @@ void render_hand() {
 			vec3_t new_pos = {0};
 
 			// TODO: make this function take an x and y angle in so the hand always renders correctly, same for hotbar!
-			rotate_and_project_squares(&pos, &new_pos);
+			rotate_and_project_squares_by_rot_value(&pos, &new_pos, 0, 0);
 
 			hand_squares.items[i].coords[j].x = new_pos.x;
 			hand_squares.items[i].coords[j].y = new_pos.y;
@@ -1313,4 +1347,31 @@ void render_hand() {
 
 	// sort the squares based on their distance to the camera
 	qsort(hand_squares.items, hand_squares.count, sizeof(square_t), compare_squares);
+}
+
+void rotate_and_project_squares_by_rot_value(vec3_t *pos, vec3_t *new_pos, float x_rot, float y_rot) {
+
+	// rotate
+	new_pos->x = (pos->z * sin(x_rot) + pos->x * cos(x_rot));
+	int z2 = (pos->z * cos(x_rot) - pos->x * sin(x_rot));
+
+	new_pos->y = (z2 * sin(y_rot) + pos->y * cos(y_rot));
+	new_pos->z = (z2 * cos(y_rot) - pos->y * sin(y_rot));
+	if (new_pos->z == 0) {
+		new_pos->z = 1;
+	}
+
+	// project
+	float percent_size = ((float)(WIDTH_IN_CM * FOV) / new_pos->z);
+	if (new_pos->z > 0) {
+		new_pos->x *= percent_size;
+		new_pos->y *= percent_size;
+	}
+	else {
+		new_pos->z = 0;
+	}
+
+	// convert from standard grid to screen grid
+	new_pos->x = new_pos->x + WIDTH / 2;
+	new_pos->y = -new_pos->y + HEIGHT / 2;
 }
