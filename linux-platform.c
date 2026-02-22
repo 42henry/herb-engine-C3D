@@ -60,6 +60,15 @@ int main() {
     space = XKeysymToKeycode(display, XK_space);
     control = XKeysymToKeycode(display, XK_Control_L);
     escape = XKeysymToKeycode(display, XK_Escape);
+    one     = XKeysymToKeycode(display, XK_1);
+    two     = XKeysymToKeycode(display, XK_2);
+    three     = XKeysymToKeycode(display, XK_3);
+    four     = XKeysymToKeycode(display, XK_4);
+    five     = XKeysymToKeycode(display, XK_5);
+    six     = XKeysymToKeycode(display, XK_6);
+    seven     = XKeysymToKeycode(display, XK_7);
+    eight     = XKeysymToKeycode(display, XK_8);
+    nine     = XKeysymToKeycode(display, XK_9);
 
 	clock_gettime(CLOCK_MONOTONIC, &last);
 

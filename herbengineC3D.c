@@ -178,6 +178,7 @@ static int mouse_defined = 0;
 
 static int keys[256] = {0};
 static unsigned char w, a, s, d, shift, space, control, escape;
+static unsigned char one, two, three, four, five, six, seven, eight, nine;
 
 static int gravity = -10;
 static int jump = 0;
@@ -685,6 +686,17 @@ void draw_hotbar() {
 	x += w;
     draw_rect((vec3_t){x, y, 1}, small_height, h, (colour_t){255, 255, 255});
 
+	switch(hotbar_selection) {
+		case 0: {
+			draw_rect((vec3_t){hotbar_x, hotbar_y, 1}, 100, 100, green);
+			break;
+		}
+		case 1: {
+			draw_rect((vec3_t){hotbar_x + 100, hotbar_y, 1}, 100, 100, green);
+			break;
+		}
+	}
+
 	for (int i = 0; i < hotbar_squares.count; i++) {
 		fill_square(&hotbar_squares.items[i]);
 	}
@@ -1030,6 +1042,18 @@ void handle_input()
 	
 	camera_pos.y += CUBE_WIDTH;
 
+	if (keys[one]) {
+		hotbar_selection = 0;
+		hand_squares.count = 0;
+		add_cube_squares_to_array((vec3_t){0, -50, 1}, grass_texture, &hand_squares);
+		render_hand();
+	}
+	if (keys[two]) {
+		hotbar_selection = 1;
+		hand_squares.count = 0;
+		add_cube_squares_to_array((vec3_t){0, -50, 1}, stone_texture, &hand_squares);
+		render_hand();
+	}
 }
 
 void handle_mouse() {
@@ -1052,7 +1076,16 @@ void handle_mouse() {
 	else {
 		if (mouse_was_right_clicked) {
 			if (cube_highlighted > -1) {
-				place_cube(central_cube_index, grass_texture);
+				switch (hotbar_selection) {
+					case 0: {
+						place_cube(central_cube_index, grass_texture);
+						break;
+					}
+					case 1: {
+						place_cube(central_cube_index, stone_texture);
+						break;
+					}
+				}
 			}
 		}
 		mouse_was_right_clicked = 0;
@@ -1223,25 +1256,6 @@ void render_hotbar() {
 			hotbar_squares.items[i].coords[j].z = new_pos.z;
 		}
 
-		// TODO: this doesn't look good
-		// highlight selection
-		if (count == hotbar_selection) {
-			colour_t colour = unpack_colour_from_uint32(hotbar_squares.items[i].colour);
-			colour.r = (colour.r + 100);
-			if (colour.r < 100) {
-				colour.r = 255;
-			}
-			colour.g = (colour.g + 100);
-			if (colour.g < 100) {
-				colour.g = 255;
-			}
-			colour.b = (colour.b + 100);
-			if (colour.b < 100) {
-				colour.b = 255;
-			}
-			hotbar_squares.items[i].colour = pack_colour_to_uint32(&colour);
-		}
-
 		// calc distance to camera
 		int r = sqrt((x1 * x1) + (y1 * y1) + (z1 * z1));
 		hotbar_squares.items[i].r = r;
@@ -1283,6 +1297,8 @@ void render_hand() {
 			}
 
 			vec3_t new_pos = {0};
+
+			// TODO: make this function take an x and y angle in so the hand always renders correctly, same for hotbar!
 			rotate_and_project_squares(&pos, &new_pos);
 
 			hand_squares.items[i].coords[j].x = new_pos.x;
