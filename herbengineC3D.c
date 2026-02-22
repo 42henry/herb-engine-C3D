@@ -142,6 +142,7 @@ static int hotbar_x = 0;
 static int hotbar_width = 0; 
 static int hotbar_height = 0;
 static int hotbar_selection = 0;
+static colour_t hotbar_colour = {0};
 
 static squares_t hand_squares = {0};
 
@@ -183,6 +184,8 @@ static colour_t blue = {0, 0, 255};
 static colour_t texture[SQUARES_PER_FACE] = {0};
 texture_t *grass_texture = NULL;
 texture_t *stone_texture = NULL;
+texture_t *wood_texture = NULL;
+texture_t *leaf_texture = NULL;
 
 struct timespec last, now;
 
@@ -225,7 +228,6 @@ void init_stuff() {
 	assert(grass_texture != NULL);
 
 	// create stone texture
-
 	// top bottom side
 	i = 0;
 	for (i; i < SQUARES_PER_FACE * 3; i++) {
@@ -234,10 +236,43 @@ void init_stuff() {
 
     writePPM("stone.ppm", &myImg);
 
-    free(myImg.data);
-
 	stone_texture = readPPM("stone.ppm");
 	assert(stone_texture != NULL);
+
+	// create wood texture
+	// * 3 for top bottom side of cube
+	// top
+	i = 0;
+	for (i; i < SQUARES_PER_FACE; i++) {
+		myImg.data[i] = (colour_t){200 + (rand() % 50), 180 + (rand() % 50), 150 + (rand() % 50), };
+	}
+	// bottom
+	for (i; i < 2 * SQUARES_PER_FACE; i++) {
+		myImg.data[i] = (colour_t){200 + (rand() % 50), 180 + (rand() % 50), 150 + (rand() % 50), };
+	}
+	// side
+	for (i; i < 3 * SQUARES_PER_FACE; i++) {
+		myImg.data[i] = (colour_t){90 + (rand() % 10), 60 + (rand() % 10), 50 + (rand() % 20), };
+	}
+
+    writePPM("wood.ppm", &myImg);
+
+	wood_texture = readPPM("wood.ppm");
+	assert(wood_texture != NULL);
+
+	// create leaf texture
+	// top bottom side
+	i = 0;
+	for (i; i < SQUARES_PER_FACE * 3; i++) {
+		myImg.data[i] = (colour_t){5 - (rand()  % 5), 95 - (rand()  % 20), 7 - (rand()  % 7), };
+	}
+
+    writePPM("leaf.ppm", &myImg);
+
+    free(myImg.data);
+
+	leaf_texture = readPPM("leaf.ppm");
+	assert(leaf_texture != NULL);
 
 	// set initial values
 	world_squares.items = malloc(MAX_SQUARES * sizeof(square_t));
@@ -269,11 +304,16 @@ void init_stuff() {
 	hotbar_width = WIDTH - 2 * (WIDTH / 6); 
 	hotbar_height = HEIGHT * 0.2;
 	hotbar_selection = 0;
+	hotbar_colour.r = 50;
+	hotbar_colour.g = 50;
+	hotbar_colour.b = 50;
 
 	// 9 hotbar slots
 	hotbar_squares.items = malloc(9 * SQUARES_PER_CUBE * sizeof(square_t));
 	add_cube_squares_to_array((vec3_t){-200, -100, 400}, grass_texture, &hotbar_squares);
 	add_cube_squares_to_array((vec3_t){-200, -100, 400}, stone_texture, &hotbar_squares);
+	add_cube_squares_to_array((vec3_t){-200, -100, 400}, wood_texture, &hotbar_squares);
+	add_cube_squares_to_array((vec3_t){-200, -100, 400}, leaf_texture, &hotbar_squares);
 	render_hotbar();
 
 	// hand
@@ -282,18 +322,32 @@ void init_stuff() {
 	render_hand();
 
 	// setup the world:
-	add_cube_squares_to_array((vec3_t){-50, 150, 10}, grass_texture, &world_squares);
-	add_cube_squares_to_array((vec3_t){50, 150, 10}, grass_texture, &world_squares);
-	add_cube_squares_to_array((vec3_t){100 + 50, 150, 10}, grass_texture, &world_squares);
-	add_cube_squares_to_array((vec3_t){200 + 50, 150, 10}, stone_texture, &world_squares);
-	add_cube_squares_to_array((vec3_t){300 + 50, 150, 10}, stone_texture, &world_squares);
-
 	colour_t c = blue;
-	for (int i = -5; i < 5; i++) {
-		for (int j = 0; j < 5; j++) {
+	for (int i = -5; i < 8; i++) {
+		for (int j = 0; j < 8; j++) {
 			add_cube_squares_to_array((vec3_t){50 + (i * CUBE_WIDTH), 50, 10 + (j * CUBE_WIDTH)}, grass_texture, &world_squares);
 		}
 	}
+
+	// tree
+	add_cube_squares_to_array((vec3_t){350, 150, 310}, wood_texture, &world_squares);
+	add_cube_squares_to_array((vec3_t){350, 250, 310}, wood_texture, &world_squares);
+	add_cube_squares_to_array((vec3_t){350, 350, 310}, wood_texture, &world_squares);
+	add_cube_squares_to_array((vec3_t){350, 450, 310}, wood_texture, &world_squares);
+
+	add_cube_squares_to_array((vec3_t){250, 450, 310}, leaf_texture, &world_squares);
+	add_cube_squares_to_array((vec3_t){350, 450, 210}, leaf_texture, &world_squares);
+	add_cube_squares_to_array((vec3_t){350, 450, 410}, leaf_texture, &world_squares);
+	add_cube_squares_to_array((vec3_t){450, 450, 310}, leaf_texture, &world_squares);
+
+	add_cube_squares_to_array((vec3_t){250, 350, 310}, leaf_texture, &world_squares);
+	add_cube_squares_to_array((vec3_t){350, 350, 210}, leaf_texture, &world_squares);
+	add_cube_squares_to_array((vec3_t){350, 350, 410}, leaf_texture, &world_squares);
+	add_cube_squares_to_array((vec3_t){450, 350, 310}, leaf_texture, &world_squares);
+	add_cube_squares_to_array((vec3_t){450, 350, 410}, leaf_texture, &world_squares);
+	add_cube_squares_to_array((vec3_t){450, 350, 210}, leaf_texture, &world_squares);
+	add_cube_squares_to_array((vec3_t){250, 350, 410}, leaf_texture, &world_squares);
+	add_cube_squares_to_array((vec3_t){250, 350, 210}, leaf_texture, &world_squares);
 
 	return;
 }
@@ -671,22 +725,30 @@ void draw_hotbar() {
 
 	int w = hotbar_width;
 	int h = hotbar_height;
-    draw_rect((vec3_t){x, y, 1}, w, small_height, (colour_t){255, 255, 255});
+    draw_rect((vec3_t){x, y, 1}, w, small_height, hotbar_colour);
 	y -= h;
-    draw_rect((vec3_t){x, y, 1}, w, small_height, (colour_t){255, 255, 255});
+    draw_rect((vec3_t){x, y, 1}, w, small_height, hotbar_colour);
 
-    draw_rect((vec3_t){x, y, 1}, small_height, h, (colour_t){255, 255, 255});
+    draw_rect((vec3_t){x, y, 1}, small_height, h, hotbar_colour);
 	x += w;
-    draw_rect((vec3_t){x, y, 1}, small_height, h, (colour_t){255, 255, 255});
+    draw_rect((vec3_t){x, y, 1}, small_height, h, hotbar_colour);
 
 	int magic_num = 300;
 	switch(hotbar_selection) {
 		case 0: {
-			draw_rect((vec3_t){hotbar_x + 100, hotbar_y - hotbar_height, 1}, magic_num, hotbar_height, (colour_t){255, 255, 255});
+			draw_rect((vec3_t){hotbar_x + 100, hotbar_y - hotbar_height, 1}, magic_num, hotbar_height, hotbar_colour);
 			break;
 		}
 		case 1: {
-			draw_rect((vec3_t){hotbar_x + magic_num + 100, hotbar_y - hotbar_height, 1}, magic_num, hotbar_height, (colour_t){255, 255, 255});
+			draw_rect((vec3_t){hotbar_x + magic_num + 100, hotbar_y - hotbar_height, 1}, magic_num, hotbar_height, hotbar_colour);
+			break;
+		}
+		case 2: {
+			draw_rect((vec3_t){hotbar_x + 2 * magic_num + 100, hotbar_y - hotbar_height, 1}, magic_num, hotbar_height, hotbar_colour);
+			break;
+		}
+		case 3: {
+			draw_rect((vec3_t){hotbar_x + 3 * magic_num + 100, hotbar_y - hotbar_height, 1}, magic_num, hotbar_height, hotbar_colour);
 			break;
 		}
 	}
@@ -1088,6 +1150,18 @@ void handle_input()
 		add_cube_squares_to_array((vec3_t){0, -50, 1}, stone_texture, &hand_squares);
 		render_hand();
 	}
+	if (keys[three]) {
+		hotbar_selection = 2;
+		hand_squares.count = 0;
+		add_cube_squares_to_array((vec3_t){0, -50, 1}, wood_texture, &hand_squares);
+		render_hand();
+	}
+	if (keys[four]) {
+		hotbar_selection = 3;
+		hand_squares.count = 0;
+		add_cube_squares_to_array((vec3_t){0, -50, 1}, leaf_texture, &hand_squares);
+		render_hand();
+	}
 }
 
 void handle_mouse() {
@@ -1117,6 +1191,14 @@ void handle_mouse() {
 					}
 					case 1: {
 						place_cube(central_cube_index, stone_texture);
+						break;
+					}
+					case 2: {
+						place_cube(central_cube_index, wood_texture);
+						break;
+					}
+					case 3: {
+						place_cube(central_cube_index, leaf_texture);
 						break;
 					}
 				}
