@@ -7,8 +7,6 @@
 #include <assert.h>
 #include <time.h>
 
-//TODO: clean the code, especially collisions and rotate_and_project()
-
 //TODO: simple hotbar to place different blocks
 
 //TODO: other blocks and terrain generation
@@ -26,174 +24,194 @@
 
 //TODO: don't draw squares that are behind other squares
 
+//TODO: optimise by lowering resolution somehow?
+
+/* ----------------------- defines --------------------- */
+
 #define WIDTH  3500
 #define HEIGHT 1500
 
-#define CM_TO_PIXELS 10
-
 #define FOV 2
+
+#define CM_TO_PIXELS 10
 #define WIDTH_IN_CM ((WIDTH) / (CM_TO_PIXELS))
 
-#define CUBE_WIDTH (10 * CM_TO_PIXELS)
 #define MAX_SQUARES 100000
 
+#define CUBE_WIDTH (10 * CM_TO_PIXELS)
 #define TEXTURE_WIDTH 5
 
+#define SQUARES_PER_FACE (TEXTURE_WIDTH * TEXTURE_WIDTH)
 #define SQUARES_PER_CUBE (TEXTURE_WIDTH * TEXTURE_WIDTH * 6)
 
 #define TARGET_FPS 60
 #define FRAME_TIME_NS (1000000000 / TARGET_FPS)
 
+/* ----------------------- structs --------------------- */
+
+typedef struct {
+	int x;
+	int y;
+} vec2_t;
+
 typedef struct {
 	int x;
 	int y;
 	int z;	
-} Vec3;
+} vec3_t;
 
 typedef struct {
-	int x;
-	int y;
-} Vec2;
+	vec3_t coords[4];	
+	uint32_t colour;
+	int r; // distance from camera
+} square_t;
 
 typedef struct {
-	Vec3 start;
-	Vec3 end;
-} Line_t;
+	square_t *items;
+	int count;
+} squares_t;
 
 typedef struct {
 	unsigned char r;
 	unsigned char g;
 	unsigned char b;
-} Colour_t;
+} colour_t;
 
 typedef struct {
     int width, height;
-    Colour_t *data;
-} Texture_t;
+    colour_t *data;
+} texture_t;
 
-typedef struct {
-	Vec3 coords[4];	
-	uint32_t colour;
-	int r; // distance from camera
-} Square_t;
-
-typedef struct {
-	Square_t *items;
-	int count;
-} Squares_t;
-
-static uint32_t *pixels = NULL;
+/* ----------------------- local functions --------------------- */
 
 static void init_stuff();
-static void cleanup();
-static void debug_log(char *str);
-
-static int get_line_intercept(Line_t line);
-static float get_line_gradient(Line_t line);
-static int line_goes_right(Line_t line);
-static int line_goes_down(Line_t line);
 
 static void update();
 static void update_pixels();
-static uint32_t pack_colour_to_uint32(int a, Colour_t colour);
-static Colour_t unpack_colour_from_uint32(uint32_t packed_colour);
-static void set_pixel(Vec2 coord, uint32_t colour);
-static Colour_t get_pixel_colour(Vec2 coord);
-static void clear_screen(Colour_t colour);
-static void draw_line(Vec3 start, Vec3 end, Colour_t colour);
-static void fill_square(Square_t *square);
-static int test_fill_square();
-static void add_cube(Vec3 top_left, Texture_t *texture);
-static void remove_cube(int index);
-static void place_cube(int index, Texture_t *texture);
 
-static void rotate_and_project_squares();
+static void cleanup();
+
+static void debug_log(char *str);
+
+// maths
+static uint32_t pack_colour_to_uint32(colour_t *colour);
+static colour_t unpack_colour_from_uint32(uint32_t packed_colour);
+
+// drawing
+static void clear_screen(colour_t colour);
+static void draw_rect(vec3_t top_left, int width, int height, colour_t colour);
+static void fill_square(square_t *square);
+static int test_fill_square();
 static void draw_all_squares();
 
+static void draw_cursor();
+static void draw_hotbar();
+
+static void set_pixel(vec2_t coord, uint32_t colour);
+static colour_t get_pixel_colour(vec2_t coord);
+
+// rendering
+static void render_squares();
+static void rotate_and_project_squares(vec3_t *pos, vec3_t *new_pos);
+
+// cubes/squares handling
+static void add_cube_squares_to_array(vec3_t top_left, texture_t *texture, squares_t *array);
+static void remove_cube(int index);
+static void place_cube(int index, texture_t *texture);
+static int compare_squares(const void *one, const void *two);
+
+// input
 static void handle_input();
+static void handle_mouse();
 
-int compare_squares(const void *one, const void *two);
+static void writePPM(const char *filename, texture_t *img);
+static texture_t* readPPM(const char *filename);
 
-void writePPM(const char *filename, Texture_t *img);
-Texture_t* readPPM(const char *filename);
+// physics
+static int collided();
 
-void rect(Vec3 top_left, int width, int height, Colour_t colour);
-void draw_cursor();
-void draw_hotbar();
+/* ----------------------- local variables --------------------- */
 
-static Vec3 camera_pos = {0};
+static uint32_t *pixels = NULL;
+
+static squares_t world_squares = {0};
+static squares_t draw_squares = {0};
+static int central_cube_index;
+static int cube_highlighted = 0;
+
+static squares_t hotbar_squares = {0};
+static int hotbar_selection = 0;
+
+static vec3_t camera_pos = {0};
+
+static int player_width = CUBE_WIDTH / 2;
+static int player_height = CUBE_WIDTH / 2;
+
 static int speed = 0;
 static int walk_speed = 0;
 static int sprint_speed = 0;
 
-static Squares_t world_squares = {0};
-static Squares_t draw_squares = {0};
 static int paused = 0;
 static int frame = 0;
 static int toggle = 0;
 
+static vec2_t mouse = {0};
+static float mouse_sensitivity = 0.005f;
 static float x_rotation = 0;
 static float y_rotation = 0;
-static Vec2 mouse = {0};
 static int mouse_left_click = 0;
 static int mouse_was_left_clicked = 0;
 static int mouse_right_click = 0;
 static int mouse_was_right_clicked = 0;
+static int hold_mouse = 1;
 static int mouse_defined = 0;
+
 static int keys[256] = {0};
 static unsigned char w, a, s, d, shift, space, control, escape;
-
-static Colour_t red = {255, 0, 0};
-static Colour_t green = {0, 255, 0};
-static Colour_t blue = {0, 0, 255};
-
-static Colour_t texture[TEXTURE_WIDTH * TEXTURE_WIDTH] = {0};
-
-Texture_t *grass_texture = NULL;
-Texture_t *stone_texture = NULL;
-
-static int hold_mouse = 1;
-static float mouse_sensitivity = 0.005f;
-
-struct timespec last, now;
-
-static int central_cube_index;
-
-static int cube_highlighted = 0;
-
-static int dlog = 0;
 
 static int gravity = -10;
 static int jump = 0;
 
-static int hotbar_selection = 0;
-static Squares_t hotbar_squares = {0};
+static colour_t red = {255, 0, 0};
+static colour_t green = {0, 255, 0};
+static colour_t blue = {0, 0, 255};
+
+static colour_t texture[SQUARES_PER_FACE] = {0};
+texture_t *grass_texture = NULL;
+texture_t *stone_texture = NULL;
+
+struct timespec last, now;
+
+static int dlog = 0;
 
 void init_stuff() {
+
 	srand(time(NULL));
-	cube_highlighted = -1;
-	mouse_sensitivity = 0.005f;
+
+	// tests
+	assert(test_fill_square());
+
 	// create grass texture
-	// * 3 for top bottom side
+	// * 3 for top bottom side of cube
     int w = TEXTURE_WIDTH * 3, h = TEXTURE_WIDTH;
-    Texture_t myImg = {w, h, malloc(w * h * 3)};
+    texture_t myImg = {w, h, malloc(w * h * 3)};
 
 	// top
 	int i = 0;
-	for (i; i < TEXTURE_WIDTH * TEXTURE_WIDTH; i++) {
-		myImg.data[i] = (Colour_t){10 + (rand() % 50), 180 + (rand() % 50), 20 + (rand() % 50), };
+	for (i; i < SQUARES_PER_FACE; i++) {
+		myImg.data[i] = (colour_t){10 + (rand() % 50), 180 + (rand() % 50), 20 + (rand() % 50), };
 	}
 	// bottom
-	for (i; i < 2 * TEXTURE_WIDTH * TEXTURE_WIDTH; i++) {
-		myImg.data[i] = (Colour_t){150 + (rand() % 50), 75 + (rand() % 50), 10 + (rand() % 50), };
+	for (i; i < 2 * SQUARES_PER_FACE; i++) {
+		myImg.data[i] = (colour_t){150 + (rand() % 50), 75 + (rand() % 50), 10 + (rand() % 50), };
 	}
 	// side
-	for (i; i < 3 * TEXTURE_WIDTH * TEXTURE_WIDTH; i++) {
-		if (i < 2.5 * TEXTURE_WIDTH * TEXTURE_WIDTH) {
-			myImg.data[i] = (Colour_t){10 + (rand() % 50), 180 + (rand() % 50), 20 + (rand() % 50), };
+	for (i; i < 3 * SQUARES_PER_FACE; i++) {
+		if (i < 2.5 * SQUARES_PER_FACE) {
+			myImg.data[i] = (colour_t){10 + (rand() % 50), 180 + (rand() % 50), 20 + (rand() % 50), };
 		}
 		else {
-			myImg.data[i] = (Colour_t){150 + (rand() % 50), 75 + (rand() % 50), 10 + (rand() % 50), };
+			myImg.data[i] = (colour_t){150 + (rand() % 50), 75 + (rand() % 50), 10 + (rand() % 50), };
 		}
 	}
 
@@ -206,8 +224,8 @@ void init_stuff() {
 
 	// top bottom side
 	i = 0;
-	for (i; i < TEXTURE_WIDTH * TEXTURE_WIDTH * 3; i++) {
-		myImg.data[i] = (Colour_t){75 + (rand()  % 12), 75 + (rand()  % 13), 75 + (rand()  % 5), };
+	for (i; i < SQUARES_PER_FACE * 3; i++) {
+		myImg.data[i] = (colour_t){75 + (rand()  % 12), 75 + (rand()  % 13), 75 + (rand()  % 5), };
 	}
 
     writePPM("stone.ppm", &myImg);
@@ -217,54 +235,59 @@ void init_stuff() {
 	stone_texture = readPPM("stone.ppm");
 	assert(stone_texture != NULL);
 
-	hold_mouse = 1;
+	// set initial values
+	world_squares.items = malloc(MAX_SQUARES * sizeof(square_t));
+	draw_squares.items = malloc(MAX_SQUARES * sizeof(square_t));
+	cube_highlighted = -1;
 
 	camera_pos.x = 0;
 	camera_pos.y = 300;
 	camera_pos.z = 100;
+
+	player_width = CUBE_WIDTH / 2;
+	player_height = CUBE_WIDTH / 2;
+
+	hold_mouse = 1;
+	mouse_sensitivity = 0.005f;
+
 	speed = 10;
 	walk_speed = speed;
 	sprint_speed = 20;
+	gravity = -10;
 
 	red.r = 255;
 	green.g = 255;
 	blue.b = 255;
-	assert(test_fill_square());
-
-	world_squares.items = malloc(MAX_SQUARES * sizeof(Square_t));
-	draw_squares.items = malloc(MAX_SQUARES * sizeof(Square_t));
 
 	// 9 hotbar slots
-	hotbar_squares.items = malloc(9 * SQUARES_PER_CUBE * sizeof(Square_t));
+	hotbar_squares.items = malloc(9 * SQUARES_PER_CUBE * sizeof(square_t));
 	
 	// TODO:
 	// need to seperate out the rotate and project function so we can do it here
 	// need to seperate out the add cube function so we can do it here
 	// so we can have lil cubes of each texture in the hotbar
 
-	add_cube((Vec3){-50, 150, 10}, grass_texture);
-	add_cube((Vec3){50, 150, 10}, grass_texture);
-	add_cube((Vec3){100 + 50, 150, 10}, grass_texture);
-	add_cube((Vec3){200 + 50, 150, 10}, stone_texture);
-	add_cube((Vec3){300 + 50, 150, 10}, stone_texture);
+	// setup the world:
+	add_cube_squares_to_array((vec3_t){-50, 150, 10}, grass_texture, &world_squares);
+	add_cube_squares_to_array((vec3_t){50, 150, 10}, grass_texture, &world_squares);
+	add_cube_squares_to_array((vec3_t){100 + 50, 150, 10}, grass_texture, &world_squares);
+	add_cube_squares_to_array((vec3_t){200 + 50, 150, 10}, stone_texture, &world_squares);
+	add_cube_squares_to_array((vec3_t){300 + 50, 150, 10}, stone_texture, &world_squares);
 
-	Colour_t c = blue;
+	colour_t c = blue;
 	for (int i = -5; i < 5; i++) {
 		for (int j = 0; j < 5; j++) {
-			add_cube((Vec3){50 + (i * CUBE_WIDTH), 50, 10 + (j * CUBE_WIDTH)}, grass_texture);
+			add_cube_squares_to_array((vec3_t){50 + (i * CUBE_WIDTH), 50, 10 + (j * CUBE_WIDTH)}, grass_texture, &world_squares);
 		}
 	}
 
 	return;
 }
 
-void cleanup() {
-	free(world_squares.items);
-	free(draw_squares.items);
-    free(pixels);
-}
-
 void update() {
+	if (paused) {
+		return;
+	}
 	frame++;
 
 	handle_input();
@@ -273,14 +296,10 @@ void update() {
 }
 
 void update_pixels() {
-	if (paused) {
-		return;
-	}
-    clear_screen((Colour_t){50, 180, 255});
 
-	rotate_and_project_squares();
+    clear_screen((colour_t){50, 180, 255});
 
-	qsort(draw_squares.items, draw_squares.count, sizeof(Square_t), compare_squares);
+	render_squares();
 
 	draw_all_squares();
 
@@ -290,8 +309,136 @@ void update_pixels() {
 	return;
 }
 
-void clear_screen(Colour_t colour) {
-	uint32_t c = pack_colour_to_uint32(1, colour);
+uint32_t pack_colour_to_uint32(colour_t *colour) {
+    return (1 << 24 | colour->r << 16) | (colour->g << 8) | colour->b;
+}
+
+colour_t unpack_colour_from_uint32(uint32_t packed_colour) {
+	colour_t colour = {0};
+	colour.r = (packed_colour >> 16) & 255;
+	colour.g = (packed_colour >> 8) & 255;
+	colour.b = packed_colour & 255;
+    return colour;
+}
+
+void add_cube_squares_to_array(vec3_t top_left, texture_t *texture, squares_t *array) {
+	// take a top left front coord of a cube, convert it to texture mapped squares, and add it to an array
+	int x = top_left.x;
+	int y = top_left.y;
+	int z = top_left.z;
+
+	int len = CUBE_WIDTH / TEXTURE_WIDTH;
+
+	int texture_side = SQUARES_PER_FACE;
+
+	// front
+	for (int i = 0; i < TEXTURE_WIDTH; i++) {
+		for (int j = 0; j < TEXTURE_WIDTH; j++) {
+			square_t square = {0};
+			square.coords[0] = (vec3_t) {x + (i * len), y - (j * len), z};
+			square.coords[1] = (vec3_t) {x + ((i + 1) * len), y - (j * len), z};
+			square.coords[2] = (vec3_t) {x + ((i + 1) * len), y - ((j + 1) * len), z};
+			square.coords[3] = (vec3_t) {x + (i * len), y - ((j + 1) * len), z};
+
+			// 2, as the side face textures are the 2nd square of the texture image
+			colour_t c = texture->data[2 * texture_side + j * TEXTURE_WIDTH + i];
+			square.colour = pack_colour_to_uint32(&c);
+
+			// set r to 1 to signify the start of a cube
+			array->items[array->count] = square;
+			if (i == 0 && j == 0) {
+				array->items[array->count].r = 1;
+			}
+			array->count++;
+		}
+	}
+	// back
+	for (int i = 0; i < TEXTURE_WIDTH; i++) {
+		for (int j = 0; j < TEXTURE_WIDTH; j++) {
+			square_t square = {0};
+
+			square.coords[0] = (vec3_t) {x + (i * len), y - (j * len), z + CUBE_WIDTH};
+			square.coords[1] = (vec3_t) {x + ((i + 1) * len), y - (j * len), z + CUBE_WIDTH};
+			square.coords[2] = (vec3_t) {x + ((i + 1) * len), y - ((j + 1) * len), z + CUBE_WIDTH};
+			square.coords[3] = (vec3_t) {x + (i * len), y - ((j + 1) * len), z + CUBE_WIDTH};
+
+			colour_t c = texture->data[2 * texture_side + j * TEXTURE_WIDTH + i];
+			square.colour = pack_colour_to_uint32(&c);
+
+			array->items[array->count++] = square;
+		}
+	}
+	// left
+	for (int i = 0; i < TEXTURE_WIDTH; i++) {
+		for (int j = 0; j < TEXTURE_WIDTH; j++) {
+			square_t square = {0};
+
+			square.coords[0] = (vec3_t) {x, y - (j * len), z + (i * len)};
+			square.coords[1] = (vec3_t) {x, y - (j * len), z + ((i + 1) * len)};
+			square.coords[2] = (vec3_t) {x, y - ((j + 1) * len), z + ((i + 1) * len)};
+			square.coords[3] = (vec3_t) {x, y - ((j + 1) * len), z + (i * len)};
+
+			colour_t c = texture->data[2 * texture_side + j * TEXTURE_WIDTH + i];
+			square.colour = pack_colour_to_uint32(&c);
+
+			array->items[array->count++] = square;
+		}
+	}
+	// right
+	for (int i = 0; i < TEXTURE_WIDTH; i++) {
+		for (int j = 0; j < TEXTURE_WIDTH; j++) {
+			square_t square = {0};
+
+			square.coords[0] = (vec3_t) {x + CUBE_WIDTH, y - (j * len), z + (i * len)};
+			square.coords[1] = (vec3_t) {x + CUBE_WIDTH, y - (j * len), z + ((i + 1) * len)};
+			square.coords[2] = (vec3_t) {x + CUBE_WIDTH, y - ((j + 1) * len), z + ((i + 1) * len)};
+			square.coords[3] = (vec3_t) {x + CUBE_WIDTH, y - ((j + 1) * len), z + (i * len)};
+
+			colour_t c = texture->data[2 * texture_side + j * TEXTURE_WIDTH + i];
+			square.colour = pack_colour_to_uint32(&c);
+
+			array->items[array->count++] = square;
+		}
+	}
+	// top
+	for (int i = 0; i < TEXTURE_WIDTH; i++) {
+		for (int j = 0; j < TEXTURE_WIDTH; j++) {
+			square_t square = {0};
+
+			square.coords[0] = (vec3_t) {x + (i * len), y, z + (j * len)};
+			square.coords[1] = (vec3_t) {x + ((i + 1) * len), y, z + (j * len)};
+			square.coords[2] = (vec3_t) {x + ((i + 1) * len), y, z + ((j + 1) * len)};
+			square.coords[3] = (vec3_t) {x + (i * len), y, z + ((j + 1) * len)};
+
+			// 0 as that is the top texture
+			colour_t c = texture->data[j * TEXTURE_WIDTH + i];
+			square.colour = pack_colour_to_uint32(&c);
+
+			array->items[array->count++] = square;
+		}
+	}
+	// bottom
+	for (int i = 0; i < TEXTURE_WIDTH; i++) {
+		for (int j = 0; j < TEXTURE_WIDTH; j++) {
+			square_t square = {0};
+
+			square.coords[0] = (vec3_t) {x + (i * len), y - CUBE_WIDTH, z + (j * len)};
+			square.coords[1] = (vec3_t) {x + ((i + 1) * len), y - CUBE_WIDTH, z + (j * len)};
+			square.coords[2] = (vec3_t) {x + ((i + 1) * len), y - CUBE_WIDTH, z + ((j + 1) * len)};
+			square.coords[3] = (vec3_t) {x + (i * len), y - CUBE_WIDTH, z + ((j + 1) * len)};
+
+			// 1, as the top face textures are the first square of the texture image
+			colour_t c = texture->data[1 * texture_side + j * TEXTURE_WIDTH + i];
+			square.colour = pack_colour_to_uint32(&c);
+
+			array->items[array->count++] = square;
+		}
+	}
+	return;
+}
+
+void clear_screen(colour_t colour) {
+	uint32_t c = pack_colour_to_uint32(&colour);
 	for (int x = 0; x < WIDTH; x++) {
 		for (int y = 0; y < HEIGHT; y++) {
 			pixels[y * WIDTH + x] = c;
@@ -300,29 +447,227 @@ void clear_screen(Colour_t colour) {
 	return;
 }
 
-uint32_t pack_colour_to_uint32(int a, Colour_t colour) {
-    return (a << 24 | colour.r << 16) | (colour.g << 8) | colour.b;
-}
+void render_squares() {
 
-Colour_t unpack_colour_from_uint32(uint32_t packed_colour) {
-	Colour_t colour = {0};
-	colour.r = (packed_colour >> 16) & 255;
-	colour.g = (packed_colour >> 8) & 255;
-	colour.b = packed_colour & 255;
-    return colour;
-}
+	int closest_r = 99999999;
+	cube_highlighted = -1;
 
-void set_pixel(Vec2 coord, uint32_t colour) {
-	if ((coord.y < HEIGHT) && (coord.x < WIDTH)) {
-		if ((coord.y * WIDTH + coord.x) < (WIDTH * HEIGHT)) {
-			pixels[coord.y * WIDTH + coord.x] = colour;
-			return;
+	for (int i = 0; i < world_squares.count; i++) {
+
+		// used	for distance to camera
+		int x1 = 0;
+		int y1 = 0;
+		int z1 = 0;
+
+		for (int j = 0; j < 4; j++) {
+			vec3_t pos = {0};
+			pos.x = world_squares.items[i].coords[j].x;
+			pos.y = world_squares.items[i].coords[j].y;
+			pos.z = world_squares.items[i].coords[j].z;
+			pos.x -= camera_pos.x;
+			pos.y -= camera_pos.y;
+			pos.z -= camera_pos.z;
+
+			// top left front coord
+			if (j == 0) {
+				x1 += pos.x;
+				y1 += pos.y;
+				z1 += pos.z;
+			}
+			// bottom right back coord
+			if (j == 2) {
+				x1 += pos.x;
+				x1 /= 2;
+				y1 += pos.y;
+				y1 /= 2;
+				z1 += pos.z;
+				z1 /= 2;
+			}
+
+			vec3_t new_pos = {0};
+			rotate_and_project_squares(&pos, &new_pos);
+
+			draw_squares.items[i].coords[j].x = new_pos.x;
+			draw_squares.items[i].coords[j].y = new_pos.y;
+			draw_squares.items[i].coords[j].z = new_pos.z;
+			draw_squares.items[i].colour = world_squares.items[i].colour;
+		}
+
+		// calc distance to camera
+		int r = sqrt((x1 * x1) + (y1 * y1) + (z1 * z1));
+		draw_squares.items[i].r = r;
+
+		// check if the square just drawn surrounds 0,0
+		int top_left_x = WIDTH;
+		int bottom_right_x = -WIDTH;
+
+		int top_left_y = HEIGHT;
+		int bottom_right_y = -HEIGHT;
+
+		for (int j = 0; j < 4; j++) {
+			if (draw_squares.items[i].coords[j].x < top_left_x) {
+				top_left_x = draw_squares.items[i].coords[j].x;
+			}	
+			if (draw_squares.items[i].coords[j].x > bottom_right_x) {
+				bottom_right_x = draw_squares.items[i].coords[j].x;
+			}	
+			if (draw_squares.items[i].coords[j].y < top_left_y) {
+				top_left_y = draw_squares.items[i].coords[j].y;
+			}	
+			if (draw_squares.items[i].coords[j].y > bottom_right_y) { bottom_right_y = draw_squares.items[i].coords[j].y;
+			}	
+		}
+
+		if (top_left_x <= WIDTH / 2 && bottom_right_x >= WIDTH / 2 && top_left_y <= HEIGHT / 2 && bottom_right_y >= HEIGHT / 2) {
+			// if it is, check that square.r is closest r
+			// also check that the z value is positive!!!
+			if (draw_squares.items[i].r < closest_r && draw_squares.items[i].coords[0].z) {
+				closest_r = draw_squares.items[i].r;
+
+				// find the first square in this cube:
+				int index = i;
+				int min = i - SQUARES_PER_CUBE;
+				for (index; index--; index > min) {
+					if (world_squares.items[index].r == 1) {
+						break;
+					}
+				}
+
+				// find the face we have highlighted
+				cube_highlighted = 0;
+				int face_index = i - index;
+				// 0 = front
+				// 1 = back
+				// 2 = right
+				// 3 = left
+				// 4 = top
+				// 5 = bottom
+				cube_highlighted = face_index / SQUARES_PER_FACE;
+				central_cube_index = index;
+			}
 		}
 	}
-	return;
+
+	if (cube_highlighted > -1) {
+		// highlight square under cursor:
+		for (int i = central_cube_index; i < central_cube_index + SQUARES_PER_CUBE; i++) {
+			colour_t colour = unpack_colour_from_uint32(draw_squares.items[i].colour);
+			colour.r = (colour.r + 100);
+			if (colour.r < 100) {
+				colour.r = 255;
+			}
+			colour.g = (colour.g + 100);
+			if (colour.g < 100) {
+				colour.g = 255;
+			}
+			colour.b = (colour.b + 100);
+			if (colour.b < 100) {
+				colour.b = 255;
+			}
+			draw_squares.items[i].colour = pack_colour_to_uint32(&colour);
+		}
+	}
+
+	draw_squares.count = world_squares.count;
+
+	// sort the squares based on their distance to the camera
+	qsort(draw_squares.items, draw_squares.count, sizeof(square_t), compare_squares);
 }
 
-Colour_t get_pixel_colour(Vec2 coord) {
+int compare_squares(const void *one, const void *two) {
+	const square_t *square_one = one;
+	const square_t *square_two = two;
+
+	int r1 = square_one->r;
+	int r2 = square_two->r;
+
+	if (r1 > r2) {
+		return -1;
+	}
+	if (r1 < r2) {
+		return 1;
+	}
+
+	return 0;
+}
+
+void rotate_and_project_squares(vec3_t *pos, vec3_t *new_pos) {
+
+	// rotate
+	new_pos->x = (pos->z * sin(x_rotation) + pos->x * cos(x_rotation));
+	int z2 = (pos->z * cos(x_rotation) - pos->x * sin(x_rotation));
+
+	new_pos->y = (z2 * sin(y_rotation) + pos->y * cos(y_rotation));
+	new_pos->z = (z2 * cos(y_rotation) - pos->y * sin(y_rotation));
+	if (new_pos->z == 0) {
+		new_pos->z = 1;
+	}
+
+	// project
+	float percent_size = ((float)(WIDTH_IN_CM * FOV) / new_pos->z);
+	if (new_pos->z > 0) {
+		new_pos->x *= percent_size;
+		new_pos->y *= percent_size;
+	}
+	else {
+		new_pos->z = 0;
+	}
+
+	// convert from standard grid to screen grid
+	new_pos->x = new_pos->x + WIDTH / 2;
+	new_pos->y = -new_pos->y + HEIGHT / 2;
+}
+
+void draw_all_squares() {
+	for (int i = 0; i < draw_squares.count; i++) {
+		fill_square(&draw_squares.items[i]);
+	}
+}
+
+void draw_cursor() {
+	colour_t colour = get_pixel_colour((vec2_t){WIDTH / 2, HEIGHT / 2});
+	if (colour.r > 127) {
+		colour.r = 0;
+	}
+	else {
+		colour.r = 255;
+	}
+	if (colour.g > 127) {
+		colour.g = 0;
+	}
+	else {
+		colour.g = 255;
+	}
+	if (colour.b > 127) {
+		colour.b = 0;
+	}
+	else {
+		colour.b = 255;
+	}
+	int h = 30;
+	int w = 6;
+	draw_rect((vec3_t){WIDTH / 2 - (w / 2), HEIGHT / 2 - (h / 2), 1}, w, h, colour);
+	draw_rect((vec3_t){WIDTH / 2 - (h / 2), HEIGHT / 2 - (w / 2), 1}, h, w, colour);
+}
+
+void draw_hotbar() {
+	int small_height = HEIGHT * 0.01;
+
+	int hotbar_y = HEIGHT - 5 * small_height;
+	int hotbar_x = WIDTH / 8;
+	int hotbar_width = WIDTH - 2 * (WIDTH / 8); 
+	int hotbar_height = HEIGHT / 10;
+
+    draw_rect((vec3_t){hotbar_x, hotbar_y, 1}, hotbar_width, small_height, (colour_t){255, 255, 255});
+	hotbar_y -= hotbar_height;
+    draw_rect((vec3_t){hotbar_x, hotbar_y, 1}, hotbar_width, small_height, (colour_t){255, 255, 255});
+
+    draw_rect((vec3_t){hotbar_x, hotbar_y, 1}, small_height, hotbar_height, (colour_t){255, 255, 255});
+	hotbar_x += hotbar_width;
+    draw_rect((vec3_t){hotbar_x, hotbar_y, 1}, small_height, hotbar_height, (colour_t){255, 255, 255});
+}
+
+colour_t get_pixel_colour(vec2_t coord) {
 	uint32_t packed_colour = 0;
 	if ((coord.y < HEIGHT) && (coord.x < WIDTH)) {
 		if ((coord.y * WIDTH + coord.x) < (WIDTH * HEIGHT)) {
@@ -334,44 +679,7 @@ Colour_t get_pixel_colour(Vec2 coord) {
 	return unpack_colour_from_uint32(packed_colour);
 }
 
-void draw_line(Vec3 start, Vec3 end, Colour_t colour) {
-	Line_t line = {start, end};
-
-	float m = get_line_gradient(line);
-	int c = get_line_intercept(line);
-
-	if (abs(m) >= 1) {
-		if (line_goes_down(line)) {
-			for (int y = line.start.y; y <= line.end.y; y++) {
-				int x = (y - c) / m;
-				set_pixel((Vec2){x, y}, pack_colour_to_uint32(1, colour));
-			}
-		}
-		else {
-			for (int y = line.start.y; y >= line.end.y; y--) {
-				int x = (y - c) / m;
-				set_pixel((Vec2){x, y}, pack_colour_to_uint32(1, colour));
-			}
-		}
-	}
-	else {
-		if (line_goes_right(line)) {
-			for (int x = line.start.x; x <= line.end.x; x++) {
-				int y = (m * x) + c;
-				set_pixel((Vec2){x, y}, pack_colour_to_uint32(1, colour));
-			}
-		}
-		else {
-			for (int x = line.start.x; x >= line.end.x; x--) {
-				int y = (m * x) + c;
-				set_pixel((Vec2){x, y}, pack_colour_to_uint32(1, colour));
-			}
-		}
-	}
-	return;
-}
-
-void fill_square(Square_t *square) {
+void fill_square(square_t *square) {
 	int smallest_y = HEIGHT + 1;
 	int smallest_y_index = 0;
 	int largest_y = -1;
@@ -547,8 +855,8 @@ int test_fill_square() {
 	return 1;
 }
 
-void rect(Vec3 top_left, int width, int height, Colour_t colour) {
-	Square_t square = {0};
+void draw_rect(vec3_t top_left, int width, int height, colour_t colour) {
+	square_t square = {0};
 	square.coords[0].x = top_left.x;
 	square.coords[0].y = top_left.y;
 	square.coords[0].z = 10;
@@ -565,172 +873,13 @@ void rect(Vec3 top_left, int width, int height, Colour_t colour) {
 	square.coords[3].y = top_left.y + height;
 	square.coords[3].z = 10;
 
-	// TODO: get rid of the 1 in this func below
-	square.colour = pack_colour_to_uint32(1, colour);
+	square.colour = pack_colour_to_uint32(&colour);
 
 	fill_square(&square);
 }
 
-void debug_log(char *str) {
-	printf("\n%s", str);
-}
-
-float get_line_gradient(Line_t line) {
-	int change_in_y = line.end.y - line.start.y;
-	int change_in_x = line.end.x - line.start.x;
-
-	if (change_in_x == 0){
-		float m = WIDTH * 10;	
-		return m;
-	}
-	float m = (float)change_in_y / (float)change_in_x;
-	return m;
-}
-
-int get_line_intercept(Line_t line) {
-	int c = line.start.y - (get_line_gradient(line) * line.start.x);
-	return c;
-}
-
-int line_goes_down(Line_t line) {
-	int change_in_y = line.end.y - line.start.y;
-	return (change_in_y > 0);
-}
-
-int line_goes_right(Line_t line) {
-	int change_in_x = line.end.x - line.start.x;
-	return (change_in_x > 0);
-}
-
-void add_cube(Vec3 top_left, Texture_t *texture) {
-	int x = top_left.x;
-	int y = top_left.y;
-	int z = top_left.z;
-
-	int len = CUBE_WIDTH / TEXTURE_WIDTH;
-
-	int texture_side = TEXTURE_WIDTH * TEXTURE_WIDTH;
-
-	// front
-	for (int i = 0; i < TEXTURE_WIDTH; i++) {
-		for (int j = 0; j < TEXTURE_WIDTH; j++) {
-			Square_t square = {0};
-			square.coords[0] = (Vec3) {x + (i * len), y - (j * len), z};
-			square.coords[1] = (Vec3) {x + ((i + 1) * len), y - (j * len), z};
-			square.coords[2] = (Vec3) {x + ((i + 1) * len), y - ((j + 1) * len), z};
-			square.coords[3] = (Vec3) {x + (i * len), y - ((j + 1) * len), z};
-
-			// 2, as the side face textures are the 2nd square of the texture image
-			Colour_t c = texture->data[2 * texture_side + j * TEXTURE_WIDTH + i];
-			square.colour = pack_colour_to_uint32(1, c);
-
-			// set r to 1 to signify the start of a cube
-			world_squares.items[world_squares.count] = square;
-			if (i == 0 && j == 0) {
-				world_squares.items[world_squares.count].r = 1;
-			}
-			world_squares.count++;
-		}
-	}
-	// back
-	for (int i = 0; i < TEXTURE_WIDTH; i++) {
-		for (int j = 0; j < TEXTURE_WIDTH; j++) {
-			Square_t square = {0};
-
-			square.coords[0] = (Vec3) {x + (i * len), y - (j * len), z + CUBE_WIDTH};
-			square.coords[1] = (Vec3) {x + ((i + 1) * len), y - (j * len), z + CUBE_WIDTH};
-			square.coords[2] = (Vec3) {x + ((i + 1) * len), y - ((j + 1) * len), z + CUBE_WIDTH};
-			square.coords[3] = (Vec3) {x + (i * len), y - ((j + 1) * len), z + CUBE_WIDTH};
-
-			Colour_t c = texture->data[2 * texture_side + j * TEXTURE_WIDTH + i];
-			square.colour = pack_colour_to_uint32(1, c);
-
-			world_squares.items[world_squares.count++] = square;
-		}
-	}
-	// left
-	for (int i = 0; i < TEXTURE_WIDTH; i++) {
-		for (int j = 0; j < TEXTURE_WIDTH; j++) {
-			Square_t square = {0};
-
-			square.coords[0] = (Vec3) {x, y - (j * len), z + (i * len)};
-			square.coords[1] = (Vec3) {x, y - (j * len), z + ((i + 1) * len)};
-			square.coords[2] = (Vec3) {x, y - ((j + 1) * len), z + ((i + 1) * len)};
-			square.coords[3] = (Vec3) {x, y - ((j + 1) * len), z + (i * len)};
-
-			Colour_t c = texture->data[2 * texture_side + j * TEXTURE_WIDTH + i];
-			square.colour = pack_colour_to_uint32(1, c);
-
-			world_squares.items[world_squares.count++] = square;
-		}
-	}
-	// right
-	for (int i = 0; i < TEXTURE_WIDTH; i++) {
-		for (int j = 0; j < TEXTURE_WIDTH; j++) {
-			Square_t square = {0};
-
-			square.coords[0] = (Vec3) {x + CUBE_WIDTH, y - (j * len), z + (i * len)};
-			square.coords[1] = (Vec3) {x + CUBE_WIDTH, y - (j * len), z + ((i + 1) * len)};
-			square.coords[2] = (Vec3) {x + CUBE_WIDTH, y - ((j + 1) * len), z + ((i + 1) * len)};
-			square.coords[3] = (Vec3) {x + CUBE_WIDTH, y - ((j + 1) * len), z + (i * len)};
-
-			Colour_t c = texture->data[2 * texture_side + j * TEXTURE_WIDTH + i];
-			square.colour = pack_colour_to_uint32(1, c);
-
-			world_squares.items[world_squares.count++] = square;
-		}
-	}
-	// top
-	for (int i = 0; i < TEXTURE_WIDTH; i++) {
-		for (int j = 0; j < TEXTURE_WIDTH; j++) {
-			Square_t square = {0};
-
-			square.coords[0] = (Vec3) {x + (i * len), y, z + (j * len)};
-			square.coords[1] = (Vec3) {x + ((i + 1) * len), y, z + (j * len)};
-			square.coords[2] = (Vec3) {x + ((i + 1) * len), y, z + ((j + 1) * len)};
-			square.coords[3] = (Vec3) {x + (i * len), y, z + ((j + 1) * len)};
-
-			// 0 as that is the top texture
-			Colour_t c = texture->data[j * TEXTURE_WIDTH + i];
-			square.colour = pack_colour_to_uint32(1, c);
-
-			world_squares.items[world_squares.count++] = square;
-		}
-	}
-	// bottom
-	for (int i = 0; i < TEXTURE_WIDTH; i++) {
-		for (int j = 0; j < TEXTURE_WIDTH; j++) {
-			Square_t square = {0};
-
-			square.coords[0] = (Vec3) {x + (i * len), y - CUBE_WIDTH, z + (j * len)};
-			square.coords[1] = (Vec3) {x + ((i + 1) * len), y - CUBE_WIDTH, z + (j * len)};
-			square.coords[2] = (Vec3) {x + ((i + 1) * len), y - CUBE_WIDTH, z + ((j + 1) * len)};
-			square.coords[3] = (Vec3) {x + (i * len), y - CUBE_WIDTH, z + ((j + 1) * len)};
-
-			// 1, as the top face textures are the first square of the texture image
-			Colour_t c = texture->data[1 * texture_side + j * TEXTURE_WIDTH + i];
-			square.colour = pack_colour_to_uint32(1, c);
-
-			world_squares.items[world_squares.count++] = square;
-		}
-	}
-	return;
-}
-
-void remove_cube(int index) {
-	int num_of_squares = TEXTURE_WIDTH * TEXTURE_WIDTH * 6;
-
-	int count = index;
-	for (int i = index + num_of_squares; i < world_squares.count; i++) {
-		world_squares.items[count] = world_squares.items[i];
-		count++;	
-	}
-	world_squares.count -= num_of_squares;
-	return;
-}
-
-void place_cube(int index, Texture_t *texture) {
-	Vec3 pos = {0};
+void place_cube(int index, texture_t *texture) {
+	vec3_t pos = {0};
 	pos.x = world_squares.items[index].coords[0].x;
 	pos.y = world_squares.items[index].coords[0].y;
 	pos.z = world_squares.items[index].coords[0].z;
@@ -766,146 +915,95 @@ void place_cube(int index, Texture_t *texture) {
 			break;
 		}
 	}
-	add_cube(pos, texture);
+	add_cube_squares_to_array(pos, texture, &world_squares);
 	return;
 }
 
-void rotate_and_project_squares() {
-	int closest_r = 99999999;
-	cube_highlighted = -1;
-	for (int i = 0; i < world_squares.count; i++) {
+void remove_cube(int index) {
 
-		// distance to camera = r
-		int x1 = 0;
-		int y1 = 0;
-		int z1 = 0;
-
-		for (int j = 0; j < 4; j++) {
-			int x = world_squares.items[i].coords[j].x;
-			int y = world_squares.items[i].coords[j].y;
-			int z = world_squares.items[i].coords[j].z;
-			x -= camera_pos.x;
-			y -= camera_pos.y;
-			z -= camera_pos.z;
-
-			if (j == 0) {
-				x1 += x;
-				y1 += y;
-				z1 += z;
-			}
-			if (j == 2) {
-				x1 += x;
-				x1 /= 2;
-				y1 += y;
-				y1 /= 2;
-				z1 += z;
-				z1 /= 2;
-			}
-
-			int new_x = (z * sin(x_rotation) + x * cos(x_rotation));
-			int z2 = (z * cos(x_rotation) - x * sin(x_rotation));
-
-			int new_y = (z2 * sin(y_rotation) + y * cos(y_rotation));
-			int new_z = (z2 * cos(y_rotation) - y * sin(y_rotation));
-			if (new_z == 0) {
-				new_z = 1;
-			}
-			float percent_size = ((float)(WIDTH_IN_CM * FOV) / new_z);
-			// project
-			if (new_z > 0) {
-				new_x *= percent_size;
-				new_y *= percent_size;
-			}
-			else {
-				new_z = 0;
-			}
-			// convert from standard grid to screen grid
-			new_x = new_x + WIDTH / 2;
-			new_y = -new_y + HEIGHT / 2;
-			draw_squares.items[i].coords[j].x = new_x;
-			draw_squares.items[i].coords[j].y = new_y;
-			draw_squares.items[i].coords[j].z = new_z;
-			draw_squares.items[i].colour = world_squares.items[i].colour;
-		}
-
-		int r = sqrt((x1 * x1) + (y1 * y1) + (z1 * z1));
-		draw_squares.items[i].r = r;
-
-		// check if the square just drawn surrounds 0,0
-		int top_left_x = WIDTH;
-		int bottom_right_x = -WIDTH;
-
-		int top_left_y = HEIGHT;
-		int bottom_right_y = -HEIGHT;
-		for (int j = 0; j < 4; j++) {
-			if (draw_squares.items[i].coords[j].x < top_left_x) {
-				top_left_x = draw_squares.items[i].coords[j].x;
-			}	
-			if (draw_squares.items[i].coords[j].x > bottom_right_x) {
-				bottom_right_x = draw_squares.items[i].coords[j].x;
-			}	
-			if (draw_squares.items[i].coords[j].y < top_left_y) {
-				top_left_y = draw_squares.items[i].coords[j].y;
-			}	
-			if (draw_squares.items[i].coords[j].y > bottom_right_y) { bottom_right_y = draw_squares.items[i].coords[j].y;
-			}	
-		}
-
-		if (top_left_x <= WIDTH / 2 && bottom_right_x >= WIDTH / 2 && top_left_y <= HEIGHT / 2 && bottom_right_y >= HEIGHT / 2) {
-			// if it is, check that square.r is closest r
-			// also check that the z value is positive!!!
-			if (draw_squares.items[i].r < closest_r && draw_squares.items[i].coords[0].z) {
-				closest_r = draw_squares.items[i].r;
-
-				// find the first square in this cube:
-				int index = i;
-				int min = i - TEXTURE_WIDTH * TEXTURE_WIDTH * 6;
-				for (index; index--; index > min) {
-					if (world_squares.items[index].r == 1) {
-						break;
-					}
-				}
-				cube_highlighted = 0;
-				int face_index = i - index;
-				int squares_per_face = TEXTURE_WIDTH * TEXTURE_WIDTH;
-				// 0 = front
-				// 1 = back
-				// 2 = right
-				// 3 = left
-				// 4 = top
-				// 5 = bottom
-				cube_highlighted = face_index / squares_per_face;
-				central_cube_index = index;
-			}
-		}
+	int count = index;
+	for (int i = index + SQUARES_PER_CUBE; i < world_squares.count; i++) {
+		world_squares.items[count] = world_squares.items[i];
+		count++;	
 	}
-	draw_squares.count = world_squares.count;
-	
-	if (cube_highlighted > -1) {
-		// highlight square under cursor:
-		int squares_per_cube = TEXTURE_WIDTH * TEXTURE_WIDTH * 6;
-		// TODO: make that ^ a global const
-		for (int i = central_cube_index; i < central_cube_index + squares_per_cube; i++) {
-			Colour_t colour = unpack_colour_from_uint32(draw_squares.items[i].colour);
-			colour.r = (colour.r + 100);
-			if (colour.r < 100) {
-				colour.r = 255;
-			}
-			colour.g = (colour.g + 100);
-			if (colour.g < 100) {
-				colour.g = 255;
-			}
-			colour.b = (colour.b + 100);
-			if (colour.b < 100) {
-				colour.b = 255;
-			}
-			draw_squares.items[i].colour = pack_colour_to_uint32(1, colour);
-		}
-	}
+	world_squares.count -= SQUARES_PER_CUBE;
+	return;
 }
 
 void handle_input()
 {
+	handle_mouse();
+
+	// handle keys/movement
+	int x = 0;
+	int z = 0;
+	int y = 0;
+	if (keys[control]) {
+        speed = sprint_speed;
+	}
+	else {
+		speed = walk_speed;
+	}
+    if (keys[w]) {
+        x += - speed * sin(x_rotation);
+        z += speed * cos(x_rotation);
+	}
+    if (keys[a]) {
+        x += - speed * cos(x_rotation);
+        z += - speed * sin(x_rotation);
+	}
+    if (keys[s]) {
+        x += speed * sin(x_rotation);
+        z += - speed * cos(x_rotation);
+	}
+    if (keys[d]) {
+        x += speed * cos(x_rotation);
+        z += speed * sin(x_rotation);
+	}
+    if (keys[space]) {
+		if (! jump) {
+			jump = 2.5 * CUBE_WIDTH;
+		}
+	}
+    if (keys[shift]) {
+        y += - speed;
+	}
+	if (keys[escape]) {
+		hold_mouse = 0;
+	}
+
+	y += gravity;
+	y += jump / 10;
+	if (jump > 0) {
+		jump -= 10;
+	}
+	else {
+		jump = 0;
+	}
+
+	// make the player 2 cubes tall:
+	camera_pos.y -= CUBE_WIDTH;
+
+    camera_pos.x += x;
+	if (collided()) {
+		camera_pos.x -= x;
+	}
+
+    camera_pos.y += y;
+	if (collided()) {
+		camera_pos.y -= y;
+	}
+
+    camera_pos.z += z;
+	if (collided()) {
+		camera_pos.z -= z;
+	}
+	
+	camera_pos.y += CUBE_WIDTH;
+
+}
+
+void handle_mouse() {
 	if (mouse_left_click) {
 		hold_mouse = 1;
 		mouse_was_left_clicked = 1;
@@ -942,239 +1040,53 @@ void handle_input()
 		if (y_rotation < -3.141/2) y_rotation = -3.141/2;
 
 	}
-	int x = 0;
-	int z = 0;
-	int y = 0;
-	if (keys[control]) {
-        speed = sprint_speed;
-	}
-	else {
-		speed = walk_speed;
-	}
-	// TODO: add y here too
-    if (keys[w]) {
-        x += - speed * sin(x_rotation);
-        z += speed * cos(x_rotation);
-	}
-    if (keys[a]) {
-        x += - speed * cos(x_rotation);
-        z += - speed * sin(x_rotation);
-	}
-    if (keys[s]) {
-        x += speed * sin(x_rotation);
-        z += - speed * cos(x_rotation);
-	}
-    if (keys[d]) {
-        x += speed * cos(x_rotation);
-        z += speed * sin(x_rotation);
-	}
-    if (keys[space]) {
-		if (! jump) {
-			jump = 2.5 * CUBE_WIDTH;
-		}
-	}
-    if (keys[shift]) {
-        y += - speed;
-	}
-	if (keys[escape]) {
-		hold_mouse = 0;
-	}
-
-    // gravity:
-	y += gravity;
-	y += jump / 10;
-	if (jump > 0) {
-		jump -= 10;
-	}
-	else {
-		jump = 0;
-	}
-
-	camera_pos.y -= CUBE_WIDTH;
-
-    camera_pos.x += x;
-	
-	// check collisions:
-	// collisions:
-	int n = TEXTURE_WIDTH * TEXTURE_WIDTH * 6;
-	for (int i = 0; i < world_squares.count; i += n) {
-		// x1 = top left front
-		int x1 = world_squares.items[i].coords[0].x;
-		int y1 = world_squares.items[i].coords[0].y;
-		int z1 = world_squares.items[i].coords[0].z;
-
-		// x2 = bottom right back
-		int x2 = x1 + CUBE_WIDTH;	
-		int y2 = y1 - CUBE_WIDTH;	
-		int z2 = z1 + CUBE_WIDTH;
-
-		// let's start by saying the player is cube
-		int player_width = CUBE_WIDTH / 2;
-		int player_height = CUBE_WIDTH / 2;
-
-		// player_x1 = top left front
-		int player_x1 = camera_pos.x - player_width;
-		int player_y1 = camera_pos.y + player_width;
-		int player_z1 = camera_pos.z - player_width;
-
-		// player_x1 = bottom right back
-		int player_x2 = camera_pos.x + player_width;
-		int player_y2 = camera_pos.y - player_width;
-		int player_z2 = camera_pos.z + player_width;
-
-		// TODO: keep track of which ones were previous collisions
-		int x_collision = 0;
-		int y_collision = 0;
-		int z_collision = 0;
-		if ((player_x1 >= x1 && player_x1 <= x2) || (player_x2 >= x1 && player_x2 <= x2)) {
-			// xs overlap
-			x_collision = 1;
-		}
-		if ((player_y1 <= y1 && player_y1 >= y2) || (player_y2 <= y1 && player_y2 >= y2)) {
-			// ys overlap
-			y_collision = 1;
-		}
-		if ((player_z1 >= z1 && player_z1 <= z2) || (player_z2 >= z1 && player_z2 <= z2)) {
-			// zs overlap
-			z_collision = 1;
-		}
-		if (x_collision && y_collision && z_collision) {
-			camera_pos.x -= x;
-			break;
-		}
-	}
-
-    camera_pos.y += y;
-
-	// check collisions:
-	// collisions:
-	n = TEXTURE_WIDTH * TEXTURE_WIDTH * 6;
-	for (int i = 0; i < world_squares.count; i += n) {
-		// x1 = top left front
-		int x1 = world_squares.items[i].coords[0].x;
-		int y1 = world_squares.items[i].coords[0].y;
-		int z1 = world_squares.items[i].coords[0].z;
-
-		// x2 = bottom right back
-		int x2 = x1 + CUBE_WIDTH;	
-		int y2 = y1 - CUBE_WIDTH;	
-		int z2 = z1 + CUBE_WIDTH;
-
-		// let's start by saying the player is cube
-		int player_width = CUBE_WIDTH / 2;
-		int player_height = CUBE_WIDTH / 2;
-
-		// player_x1 = top left front
-		int player_x1 = camera_pos.x - player_width;
-		int player_y1 = camera_pos.y + player_width;
-		int player_z1 = camera_pos.z - player_width;
-
-		// player_x1 = bottom right back
-		int player_x2 = camera_pos.x + player_width;
-		int player_y2 = camera_pos.y - player_width;
-		int player_z2 = camera_pos.z + player_width;
-
-		// TODO: keep track of which ones were previous collisions
-		int x_collision = 0;
-		int y_collision = 0;
-		int z_collision = 0;
-		if ((player_x1 >= x1 && player_x1 <= x2) || (player_x2 >= x1 && player_x2 <= x2)) {
-			// xs overlap
-			x_collision = 1;
-		}
-		if ((player_y1 <= y1 && player_y1 >= y2) || (player_y2 <= y1 && player_y2 >= y2)) {
-			// ys overlap
-			y_collision = 1;
-		}
-		if ((player_z1 >= z1 && player_z1 <= z2) || (player_z2 >= z1 && player_z2 <= z2)) {
-			// zs overlap
-			z_collision = 1;
-		}
-		if (x_collision && y_collision && z_collision) {
-			camera_pos.y -= y;
-			break;
-		}
-	}
-
-    camera_pos.z += z;
-
-	// check collisions:
-	// collisions:
-	n = TEXTURE_WIDTH * TEXTURE_WIDTH * 6;
-	for (int i = 0; i < world_squares.count; i += n) {
-		// x1 = top left front
-		int x1 = world_squares.items[i].coords[0].x;
-		int y1 = world_squares.items[i].coords[0].y;
-		int z1 = world_squares.items[i].coords[0].z;
-
-		// x2 = bottom right back
-		int x2 = x1 + CUBE_WIDTH;	
-		int y2 = y1 - CUBE_WIDTH;	
-		int z2 = z1 + CUBE_WIDTH;
-
-		// let's start by saying the player is cube
-		int player_width = CUBE_WIDTH / 2;
-		int player_height = CUBE_WIDTH / 2;
-
-		// player_x1 = top left front
-		int player_x1 = camera_pos.x - player_width;
-		int player_y1 = camera_pos.y + player_width;
-		int player_z1 = camera_pos.z - player_width;
-
-		// player_x1 = bottom right back
-		int player_x2 = camera_pos.x + player_width;
-		int player_y2 = camera_pos.y - player_width;
-		int player_z2 = camera_pos.z + player_width;
-
-		// TODO: keep track of which ones were previous collisions
-		int x_collision = 0;
-		int y_collision = 0;
-		int z_collision = 0;
-		if ((player_x1 >= x1 && player_x1 <= x2) || (player_x2 >= x1 && player_x2 <= x2)) {
-			// xs overlap
-			x_collision = 1;
-		}
-		if ((player_y1 <= y1 && player_y1 >= y2) || (player_y2 <= y1 && player_y2 >= y2)) {
-			// ys overlap
-			y_collision = 1;
-		}
-		if ((player_z1 >= z1 && player_z1 <= z2) || (player_z2 >= z1 && player_z2 <= z2)) {
-			// zs overlap
-			z_collision = 1;
-		}
-		if (x_collision && y_collision && z_collision) {
-			camera_pos.z -= z;
-			break;
-		}
-	}
-	camera_pos.y += CUBE_WIDTH;
-
 }
 
-void draw_all_squares() {
-	for (int i = 0; i < draw_squares.count; i++) {
-		fill_square(&draw_squares.items[i]);
+int collided() {
+	for (int i = 0; i < world_squares.count; i += SQUARES_PER_CUBE) {
+		// x1 = top left front
+		int x1 = world_squares.items[i].coords[0].x;
+		int y1 = world_squares.items[i].coords[0].y;
+		int z1 = world_squares.items[i].coords[0].z;
+
+		// x2 = bottom right back
+		int x2 = x1 + CUBE_WIDTH;	
+		int y2 = y1 - CUBE_WIDTH;	
+		int z2 = z1 + CUBE_WIDTH;
+
+		// player_x1 = top left front
+		int player_x1 = camera_pos.x - player_width;
+		int player_y1 = camera_pos.y + player_width;
+		int player_z1 = camera_pos.z - player_width;
+
+		// player_x1 = bottom right back
+		int player_x2 = camera_pos.x + player_width;
+		int player_y2 = camera_pos.y - player_width;
+		int player_z2 = camera_pos.z + player_width;
+
+		int x_collision = 0;
+		int y_collision = 0;
+		int z_collision = 0;
+		if ((player_x1 >= x1 && player_x1 <= x2) || (player_x2 >= x1 && player_x2 <= x2)) {
+			// xs overlap
+			x_collision = 1;
+		}
+		if ((player_y1 <= y1 && player_y1 >= y2) || (player_y2 <= y1 && player_y2 >= y2)) {
+			// ys overlap
+			y_collision = 1;
+		}
+		if ((player_z1 >= z1 && player_z1 <= z2) || (player_z2 >= z1 && player_z2 <= z2)) {
+			// zs overlap
+			z_collision = 1;
+		}
+		if (x_collision && y_collision && z_collision) {
+			return 1;
+		}
 	}
-}
-
-int compare_squares(const void *one, const void *two) {
-	const Square_t *square_one = one;
-	const Square_t *square_two = two;
-
-	int r1 = square_one->r;
-	int r2 = square_two->r;
-
-	if (r1 > r2) {
-		return -1;
-	}
-	if (r1 < r2) {
-		return 1;
-	}
-
 	return 0;
 }
 
-void writePPM(const char *filename, Texture_t *img) {
+void writePPM(const char *filename, texture_t *img) {
     FILE *fp = fopen(filename, "wb");
     if (!fp) {
 		assert(0);
@@ -1186,7 +1098,7 @@ void writePPM(const char *filename, Texture_t *img) {
     fclose(fp);
 }
 
-Texture_t* readPPM(const char *filename) {
+texture_t* readPPM(const char *filename) {
     FILE *fp = fopen(filename, "rb");
     if (!fp) return NULL;
 
@@ -1210,13 +1122,13 @@ Texture_t* readPPM(const char *filename) {
 
     fgetc(fp);  // consume exactly one byte
 
-    Texture_t *img = malloc(sizeof(Texture_t));
+    texture_t *img = malloc(sizeof(texture_t));
     img->width = width;
     img->height = height;
-    img->data = malloc(width * height * sizeof(Colour_t));
+    img->data = malloc(width * height * sizeof(colour_t));
 
     if (fread(img->data,
-              sizeof(Colour_t),
+              sizeof(colour_t),
               width * height,
               fp) != width * height) {
         free(img->data);
@@ -1229,45 +1141,12 @@ Texture_t* readPPM(const char *filename) {
     return img;
 }
 
-void draw_hotbar() {
-	int small_height = HEIGHT * 0.01;
-
-	int hotbar_y = HEIGHT - 5 * small_height;
-	int hotbar_x = WIDTH / 8;
-	int hotbar_width = WIDTH - 2 * (WIDTH / 8); 
-	int hotbar_height = HEIGHT / 10;
-
-    rect((Vec3){hotbar_x, hotbar_y, 1}, hotbar_width, small_height, (Colour_t){255, 255, 255});
-	hotbar_y -= hotbar_height;
-    rect((Vec3){hotbar_x, hotbar_y, 1}, hotbar_width, small_height, (Colour_t){255, 255, 255});
-
-    rect((Vec3){hotbar_x, hotbar_y, 1}, small_height, hotbar_height, (Colour_t){255, 255, 255});
-	hotbar_x += hotbar_width;
-    rect((Vec3){hotbar_x, hotbar_y, 1}, small_height, hotbar_height, (Colour_t){255, 255, 255});
+void debug_log(char *str) {
+	printf("\n%s", str);
 }
 
-void draw_cursor() {
-	Colour_t colour = get_pixel_colour((Vec2){WIDTH / 2, HEIGHT / 2});
-	if (colour.r > 127) {
-		colour.r = 0;
-	}
-	else {
-		colour.r = 255;
-	}
-	if (colour.g > 127) {
-		colour.g = 0;
-	}
-	else {
-		colour.g = 255;
-	}
-	if (colour.b > 127) {
-		colour.b = 0;
-	}
-	else {
-		colour.b = 255;
-	}
-	int h = 30;
-	int w = 6;
-	rect((Vec3){WIDTH / 2 - (w / 2), HEIGHT / 2 - (h / 2), 1}, w, h, colour);
-	rect((Vec3){WIDTH / 2 - (h / 2), HEIGHT / 2 - (w / 2), 1}, h, w, colour);
+void cleanup() {
+	free(world_squares.items);
+	free(draw_squares.items);
+    free(pixels);
 }
