@@ -31,8 +31,8 @@
 
 /* ----------------------- defines --------------------- */
 
-#define WIDTH  1500
-#define HEIGHT 800
+#define WIDTH  3000
+#define HEIGHT 2000
 
 #define FOV 2
 
@@ -300,7 +300,9 @@ void init_stuff() {
 
 	// set initial values
 	world_cubes.items = malloc(MAX_CUBES * sizeof(cube_t));
+	world_cubes.count = 0;
 	draw_faces.items = malloc(MAX_CUBES * 6 * sizeof(face_t));
+	draw_faces.count = 0;
 	cube_highlighted = -1;
 
 	camera_pos.x = 0;
@@ -333,17 +335,17 @@ void init_stuff() {
 	hotbar_colour.b = 50;
 
 	// 9 hotbar slots
-	hotbar_cubes.items = malloc(9 * SQUARES_PER_CUBE * sizeof(square_t));
-	add_cube_to_cubes_array((vec3_t){-200, -100, 400}, grass_texture, &hotbar_cubes);
-	add_cube_to_cubes_array((vec3_t){-200, -100, 400}, stone_texture, &hotbar_cubes);
-	add_cube_to_cubes_array((vec3_t){-200, -100, 400}, wood_texture, &hotbar_cubes);
-	add_cube_to_cubes_array((vec3_t){-200, -100, 400}, leaf_texture, &hotbar_cubes);
-	render_hotbar();
+	//hotbar_cubes.items = malloc(9 * SQUARES_PER_CUBE * sizeof(square_t));
+	//add_cube_to_cubes_array((vec3_t){-200, -100, 400}, grass_texture, &hotbar_cubes);
+	//add_cube_to_cubes_array((vec3_t){-200, -100, 400}, stone_texture, &hotbar_cubes);
+	//add_cube_to_cubes_array((vec3_t){-200, -100, 400}, wood_texture, &hotbar_cubes);
+	//add_cube_to_cubes_array((vec3_t){-200, -100, 400}, leaf_texture, &hotbar_cubes);
+	//render_hotbar();
 
 	// hand
-	hand_cubes.items = malloc(1 * SQUARES_PER_CUBE * sizeof(square_t));
-	add_cube_to_cubes_array((vec3_t){0, -50, 1}, grass_texture, &hand_cubes);
-	render_hand();
+	//hand_cubes.items = malloc(1 * SQUARES_PER_CUBE * sizeof(square_t));
+	//add_cube_to_cubes_array((vec3_t){0, -50, 1}, grass_texture, &hand_cubes);
+	//render_hand();
 
 	// setup the world:
 	colour_t c = blue;
@@ -428,6 +430,7 @@ void add_cube_to_cubes_array(vec3_t top_left, texture_t *texture, cubes_t *array
 
 	// front
 	face_t front = {0};
+	int count = 0;
 	for (int i = 0; i < TEXTURE_WIDTH; i++) {
 		for (int j = 0; j < TEXTURE_WIDTH; j++) {
 			square_t square = {0};
@@ -440,12 +443,13 @@ void add_cube_to_cubes_array(vec3_t top_left, texture_t *texture, cubes_t *array
 			colour_t c = texture->data[2 * texture_side + j * TEXTURE_WIDTH + i];
 			square.colour = pack_colour_to_uint32(&c);
 
-			front.squares[i + j] = square;
+			front.squares[count++] = square;
 		}
 	}
 
 	// back
 	face_t back = {0};
+	count = 0;
 	for (int i = 0; i < TEXTURE_WIDTH; i++) {
 		for (int j = 0; j < TEXTURE_WIDTH; j++) {
 			square_t square = {0};
@@ -458,12 +462,13 @@ void add_cube_to_cubes_array(vec3_t top_left, texture_t *texture, cubes_t *array
 			colour_t c = texture->data[2 * texture_side + j * TEXTURE_WIDTH + i];
 			square.colour = pack_colour_to_uint32(&c);
 
-			back.squares[i + j] = square;
+			back.squares[count++] = square;
 		}
 	}
 
 	// left
 	face_t left = {0};
+	count = 0;
 	for (int i = 0; i < TEXTURE_WIDTH; i++) {
 		for (int j = 0; j < TEXTURE_WIDTH; j++) {
 			square_t square = {0};
@@ -476,12 +481,13 @@ void add_cube_to_cubes_array(vec3_t top_left, texture_t *texture, cubes_t *array
 			colour_t c = texture->data[2 * texture_side + j * TEXTURE_WIDTH + i];
 			square.colour = pack_colour_to_uint32(&c);
 
-			left.squares[i + j] = square;
+			left.squares[count++] = square;
 		}
 	}
 
 	// right
 	face_t right = {0};
+	count = 0;
 	for (int i = 0; i < TEXTURE_WIDTH; i++) {
 		for (int j = 0; j < TEXTURE_WIDTH; j++) {
 			square_t square = {0};
@@ -494,12 +500,13 @@ void add_cube_to_cubes_array(vec3_t top_left, texture_t *texture, cubes_t *array
 			colour_t c = texture->data[2 * texture_side + j * TEXTURE_WIDTH + i];
 			square.colour = pack_colour_to_uint32(&c);
 
-			right.squares[i + j] = square;
+			right.squares[count++] = square;
 		}
 	}
 
 	// top
 	face_t top = {0};
+	count = 0;
 	for (int i = 0; i < TEXTURE_WIDTH; i++) {
 		for (int j = 0; j < TEXTURE_WIDTH; j++) {
 			square_t square = {0};
@@ -513,12 +520,13 @@ void add_cube_to_cubes_array(vec3_t top_left, texture_t *texture, cubes_t *array
 			colour_t c = texture->data[j * TEXTURE_WIDTH + i];
 			square.colour = pack_colour_to_uint32(&c);
 
-			top.squares[i + j] = square;
+			top.squares[count++] = square;
 		}
 	}
 
 	// bottom
 	face_t bottom = {0};
+	count = 0;
 	for (int i = 0; i < TEXTURE_WIDTH; i++) {
 		for (int j = 0; j < TEXTURE_WIDTH; j++) {
 			square_t square = {0};
@@ -532,7 +540,7 @@ void add_cube_to_cubes_array(vec3_t top_left, texture_t *texture, cubes_t *array
 			colour_t c = texture->data[1 * texture_side + j * TEXTURE_WIDTH + i];
 			square.colour = pack_colour_to_uint32(&c);
 
-			bottom.squares[i + j] = square;
+			bottom.squares[count++] = square;
 		}
 	}
 
@@ -1279,7 +1287,7 @@ void handle_mouse() {
 }
 
 int collided() {
-	for (int i = 0; i < world_cubes.count; i += SQUARES_PER_CUBE) {
+	for (int i = 0; i < world_cubes.count; i++) {
 		// x1 = top left front
 		int x1 = world_cubes.items[i].faces[0].squares[0].coords[0].x;
 		int y1 = world_cubes.items[i].faces[0].squares[0].coords[0].y;
