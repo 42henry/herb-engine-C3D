@@ -7,24 +7,22 @@
 #include <assert.h>
 #include <time.h>
 
-//TODO: only dont draw a square if ALL zs are negative
 
+// new features:
+// chunks
+// terrain
+
+// big fixes:
+// TODO: fix fill squares to accomodate for when the ys of the square are too close
 // TODO: fix setting whether or not a face has a neighbour...
     // this is taking a million years to load the world cos of this
 
-// TODO: fix fill squares to accomodate for when the ys of the square are too close
-
+// small fixes:
 // TODO: fix collisions - you can jump and see into a cube
-
-//TODO: other blocks and terrain generation
-
-//TODO: make movement and gravity velocity based
+//TODO: only dont draw a square if ALL zs are negative
 //TODO: make jumping only possible when on ground
 
-//TODO: make it work on windows - need to get keys/keycodes correct, and use timespec to set frame rate similarly, and get mouse.x and y and left click and right click etc
-
-//TODO: don't draw squares that are behind other squares
-
+// optimisations:
 //TODO: optimise by lowering resolution somehow?
 
 /* ----------------------- defines --------------------- */
@@ -52,6 +50,8 @@
 
 #define TARGET_FPS 60
 #define FRAME_TIME_NS (1000000000 / TARGET_FPS)
+
+#define CHUNKS_PER_CUBE 256
 
 /* ----------------------- structs --------------------- */
 
@@ -107,6 +107,15 @@ typedef struct {
     int width, height;
     colour_t *data;
 } texture_t;
+
+typedef struct {
+	cubes_t cubes;
+} chunk_t;
+
+typedef struct {
+	chunk_t *chunks;
+	int count;
+} chunks_t;
 
 /* ----------------------- local functions --------------------- */
 
