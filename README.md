@@ -19,6 +19,7 @@ Some dev screenshots:
 ![screenshot](pics/screenshot5.png)
 ![screenshot](pics/screenshot6.png)
 ![screenshot](pics/screenshot7.png)
+![screenshot](pics/screenshot8.png)
 
 Work done so far:
  - a fill function that takes 4 points and a colour, and fills the screen with that colour

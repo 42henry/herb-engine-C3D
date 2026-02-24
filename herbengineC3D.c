@@ -21,6 +21,7 @@
 // TODO: fix collisions - you can jump and see into a cube
 //TODO: only dont draw a square if ALL zs are negative
 //TODO: make jumping only possible when on ground
+// TODO: clean hotbar UI
 
 // optimisations:
 //TODO: optimise by lowering resolution somehow?
@@ -29,11 +30,6 @@
 
 #define WIDTH  1920
 #define HEIGHT 1080
-
-#define WINDOW_SCALE 2
-
-#define WINDOW_WIDTH  (WIDTH  * WINDOW_SCALE)
-#define WINDOW_HEIGHT (HEIGHT * WINDOW_SCALE)
 
 #define FOV 2
 
@@ -51,7 +47,7 @@
 #define TARGET_FPS 60
 #define FRAME_TIME_NS (1000000000 / TARGET_FPS)
 
-#define CHUNKS_PER_CUBE 256
+#define CHUNK_WIDTH 20
 
 /* ----------------------- structs --------------------- */
 
@@ -110,6 +106,7 @@ typedef struct {
 
 typedef struct {
 	cubes_t cubes;
+	vec2_t pos;
 } chunk_t;
 
 typedef struct {
@@ -180,6 +177,7 @@ static int central_cube_index;
 static int cube_highlighted = 0;
 
 static cubes_t hotbar_cubes = {0};
+static faces_t hotbar_faces = {0};
 static int small_height = 0;
 static int hotbar_y = 0;
 static int hotbar_x = 0;
@@ -189,6 +187,7 @@ static int hotbar_selection = 0;
 static colour_t hotbar_colour = {0};
 
 static cubes_t hand_cubes = {0};
+static faces_t hand_faces = {0};
 
 static vec3_t camera_pos = {0};
 
@@ -330,7 +329,7 @@ void init_stuff() {
 	camera_pos.z = 100;
 
 	player_width = CUBE_WIDTH / 3;
-	player_height = CUBE_WIDTH / 2;
+	player_height = 4 * player_width;
 
 	hold_mouse = 1;
 	mouse_sensitivity = 0.005f;
@@ -355,17 +354,19 @@ void init_stuff() {
 	hotbar_colour.b = 50;
 
 	// 9 hotbar slots
-	//hotbar_cubes.items = malloc(9 * SQUARES_PER_CUBE * sizeof(square_t));
-	//add_cube_to_cubes_array((vec3_t){-200, -100, 400}, grass_texture, &hotbar_cubes);
-	//add_cube_to_cubes_array((vec3_t){-200, -100, 400}, stone_texture, &hotbar_cubes);
-	//add_cube_to_cubes_array((vec3_t){-200, -100, 400}, wood_texture, &hotbar_cubes);
-	//add_cube_to_cubes_array((vec3_t){-200, -100, 400}, leaf_texture, &hotbar_cubes);
-	//render_hotbar();
+	hotbar_cubes.items = malloc(9 * sizeof(cube_t));
+	hotbar_faces.items = malloc(9 * 6 * sizeof(face_t));
+	add_cube_to_cubes_array((vec3_t){-100, -100, 600}, grass_texture, &hotbar_cubes);
+	add_cube_to_cubes_array((vec3_t){-100, -100, 600}, stone_texture, &hotbar_cubes);
+	add_cube_to_cubes_array((vec3_t){-100, -100, 600}, wood_texture, &hotbar_cubes);
+	add_cube_to_cubes_array((vec3_t){-100, -100, 600}, leaf_texture, &hotbar_cubes);
+	render_hotbar();
 
 	// hand
-	//hand_cubes.items = malloc(1 * SQUARES_PER_CUBE * sizeof(square_t));
-	//add_cube_to_cubes_array((vec3_t){0, -50, 1}, grass_texture, &hand_cubes);
-	//render_hand();
+	hand_cubes.items = malloc(sizeof(cube_t));
+	hand_faces.items = malloc(6 * sizeof(face_t));
+	add_cube_to_cubes_array((vec3_t){200, 200, 200}, grass_texture, &hand_cubes);
+	render_hand();
 
 	// setup the world:
 	for (int i = -5; i < 20; i++) {
@@ -425,8 +426,8 @@ void update_pixels() {
 	draw_all_faces();
 
 	draw_cursor();
-	//draw_hand();
-	//draw_hotbar();
+	draw_hand();
+	draw_hotbar();
 
 	return;
 }
@@ -730,6 +731,11 @@ void render_cubes() {
 			new_face.r = r;
 			new_face.dir = world_cubes.items[i].faces[j].dir;
 
+			float illumination = 1;
+			if (r > 1) {
+			    illumination = (10000 / (r));
+			}
+
 			// for each square of each face of the cube
 			for (int k = 0; k < SQUARES_PER_FACE; k++) {
 
@@ -749,7 +755,12 @@ void render_cubes() {
 					new_square.coords[l].x = new_pos.x;
 					new_square.coords[l].y = new_pos.y;
 					new_square.coords[l].z = new_pos.z;
-					new_square.colour = world_cubes.items[i].faces[j].squares[k].colour;
+					
+				    colour_t c = unpack_colour_from_uint32(world_cubes.items[i].faces[j].squares[k].colour);
+					c.r *= illumination;
+					c.g *= illumination;
+					c.b *= illumination;
+					new_square.colour = pack_colour_to_uint32(&c);
 				}
 
 				new_face.squares[k] = new_square;
@@ -952,14 +963,18 @@ void draw_hotbar() {
 		}
 	}
 
-	for (int i = 0; i < hotbar_cubes.count; i++) {
-		//fill_square(&hotbar_cubes.items[i]);
+	for (int i = 0; i < hotbar_faces.count; i++) {
+		for (int j = 0; j < SQUARES_PER_FACE; j++) {
+			fill_square(&hotbar_faces.items[i].squares[j]);
+		}
 	}
 }
 
 void draw_hand() {
-	for (int i = 0; i < hand_cubes.count; i++) {
-		//fill_square(&hand_cubes.items[i]);
+	for (int i = 0; i < hand_faces.count; i++) {
+		for (int j = 0; j < SQUARES_PER_FACE; j++) {
+			fill_square(&hand_faces.items[i].squares[j]);
+		}
 	}
 }
 
@@ -1233,7 +1248,7 @@ void place_cube(int index, texture_t *texture) {
 	camera_pos.y -= CUBE_WIDTH;
 	// player_x1 = top left front
 	int player_x1 = camera_pos.x - player_width;
-	int player_y1 = camera_pos.y + player_width;
+	int player_y1 = camera_pos.y + player_height;
 	int player_z1 = camera_pos.z - player_width;
 
 	// player_x1 = bottom right back
@@ -1385,28 +1400,29 @@ void handle_input()
 	
 	camera_pos.y += CUBE_WIDTH;
 
+	vec3_t pos = {camera_pos.x + 220, camera_pos.y - 50, camera_pos.z + 50};
 	if (keys[one]) {
 		hotbar_selection = 0;
 		hand_cubes.count = 0;
-		add_cube_to_cubes_array((vec3_t){0, -50, 1}, grass_texture, &hand_cubes);
+		add_cube_to_cubes_array(pos, grass_texture, &hand_cubes);
 		render_hand();
 	}
 	if (keys[two]) {
 		hotbar_selection = 1;
 		hand_cubes.count = 0;
-		add_cube_to_cubes_array((vec3_t){0, -50, 1}, stone_texture, &hand_cubes);
+		add_cube_to_cubes_array(pos, stone_texture, &hand_cubes);
 		render_hand();
 	}
 	if (keys[three]) {
 		hotbar_selection = 2;
 		hand_cubes.count = 0;
-		add_cube_to_cubes_array((vec3_t){0, -50, 1}, wood_texture, &hand_cubes);
+		add_cube_to_cubes_array(pos, wood_texture, &hand_cubes);
 		render_hand();
 	}
 	if (keys[four]) {
 		hotbar_selection = 3;
 		hand_cubes.count = 0;
-		add_cube_to_cubes_array((vec3_t){0, -50, 1}, leaf_texture, &hand_cubes);
+		add_cube_to_cubes_array(pos, leaf_texture, &hand_cubes);
 		render_hand();
 	}
 }
@@ -1481,7 +1497,7 @@ int collided() {
 
 		// player_x1 = top left front
 		int player_x1 = camera_pos.x - player_width;
-		int player_y1 = camera_pos.y + player_width;
+		int player_y1 = camera_pos.y + player_height;
 		int player_z1 = camera_pos.z - player_width;
 
 		// player_x1 = bottom right back
@@ -1578,104 +1594,126 @@ void cleanup() {
 
 void render_hotbar() {
 	// render the hotbar squares:
-	//int count = -1;
-	//for (int i = 0; i < hotbar_cubes.count; i++) {
-		//if (i % SQUARES_PER_CUBE == 0) {
-			//count++;
-		//}
-//
-		//// used	for distance to camera
-		//int x1 = 0;
-		//int y1 = 0;
-		//int z1 = 0;
-//
-		//for (int j = 0; j < 4; j++) {
-			//vec3_t pos = {0};
-			//pos.x = hotbar_cubes.items[i].coords[j].x;
-			//pos.y = hotbar_cubes.items[i].coords[j].y;
-			//pos.z = hotbar_cubes.items[i].coords[j].z;
-//
-			//// top left front coord
-			//if (j == 0) {
-				//x1 += pos.x;
-				//y1 += pos.y;
-				//z1 += pos.z;
-			//}
-			//// bottom right back coord
-			//if (j == 2) {
-				//x1 += pos.x;
-				//x1 /= 2;
-				//y1 += pos.y;
-				//y1 /= 2;
-				//z1 += pos.z;
-				//z1 /= 2;
-			//}
-//
-			//vec3_t new_pos = {0};
-			//rotate_and_project_squares(&pos, &new_pos);
-//
-			//hotbar_cubes.items[i].coords[j].x = new_pos.x - 700 + (300 * count);
-			//hotbar_cubes.items[i].coords[j].y = new_pos.y + 200;
-			//hotbar_cubes.items[i].coords[j].z = new_pos.z;
-		//}
-//
-		//// calc distance to camera
-		//int r = sqrt((x1 * x1) + (y1 * y1) + (z1 * z1));
-		//hotbar_cubes.items[i].r = r;
-	//}
-//
-	//// sort the squares based on their distance to the camera
-	//qsort(hotbar_cubes.items, hotbar_cubes.count, sizeof(square_t), compare_faces);
+	hotbar_faces.count = 0;
+
+	// for each cube
+	for (int i = 0; i < hotbar_cubes.count; i++) {
+
+		for (int j = 0; j < 6; j++) {
+
+			// top left coord
+			int x1 = hotbar_cubes.items[i].faces[j].squares[0].coords[0].x;
+			int y1 = hotbar_cubes.items[i].faces[j].squares[0].coords[0].y;
+			int z1 = hotbar_cubes.items[i].faces[j].squares[0].coords[0].z;
+
+			// bottom right coord
+			x1 += hotbar_cubes.items[i].faces[j].squares[SQUARES_PER_FACE - 1].coords[0].x;
+			y1 += hotbar_cubes.items[i].faces[j].squares[SQUARES_PER_FACE - 1].coords[0].y;
+			z1 += hotbar_cubes.items[i].faces[j].squares[SQUARES_PER_FACE - 1].coords[0].z;
+
+			x1 /= 2;
+			y1 /= 2;
+			z1 /= 2;
+
+			// calc distance to camera
+			int r = sqrt((x1 * x1) + (y1 * y1) + (z1 * z1));
+
+			face_t new_face = {0};
+			new_face.r = r;
+
+			// for each square of each face of the cube
+			for (int k = 0; k < SQUARES_PER_FACE; k++) {
+
+			    square_t new_square = {0};
+				for (int l = 0; l < 4; l++) {
+					vec3_t pos = {0};
+					pos.x = hotbar_cubes.items[i].faces[j].squares[k].coords[l].x - (WIDTH * 0.2) + (WIDTH * 0.13) * i;
+					pos.y = hotbar_cubes.items[i].faces[j].squares[k].coords[l].y + (HEIGHT * 0.2);
+					pos.z = hotbar_cubes.items[i].faces[j].squares[k].coords[l].z;
+					pos.x -= camera_pos.x;
+					pos.y -= camera_pos.y;
+					pos.z -= camera_pos.z;
+
+					vec3_t new_pos = {0};
+					rotate_and_project_squares_by_rot_value(&pos, &new_pos, 0, 0);
+
+					new_square.coords[l].x = new_pos.x;
+					new_square.coords[l].y = new_pos.y;
+					new_square.coords[l].z = new_pos.z;
+					new_square.colour = hotbar_cubes.items[i].faces[j].squares[k].colour;
+				}
+
+				new_face.squares[k] = new_square;
+			}
+
+			hotbar_faces.items[hotbar_faces.count++] = new_face;
+		}
+	}
+
+	// sort the faces based on their distance to the camera
+	qsort(hotbar_faces.items, hotbar_faces.count, sizeof(face_t), compare_faces);
 }
 
 void render_hand() {
-	//// render the hand squares:
-	//for (int i = 0; i < hand_cubes.count; i++) {
-//
-		//// used	for distance to camera
-		//int x1 = 0;
-		//int y1 = 0;
-		//int z1 = 0;
-//
-		//for (int j = 0; j < 4; j++) {
-			//vec3_t pos = {0};
-			//pos.x = hand_cubes.items[i].coords[j].x;
-			//pos.y = hand_cubes.items[i].coords[j].y;
-			//pos.z = hand_cubes.items[i].coords[j].z;
-//
-			//// top left front coord
-			//if (j == 0) {
-				//x1 += pos.x;
-				//y1 += pos.y;
-				//z1 += pos.z;
-			//}
-			//// bottom right back coord
-			//if (j == 2) {
-				//x1 += pos.x;
-				//x1 /= 2;
-				//y1 += pos.y;
-				//y1 /= 2;
-				//z1 += pos.z;
-				//z1 /= 2;
-			//}
-//
-			//vec3_t new_pos = {0};
-//
-			//// TODO: make this function take an x and y angle in so the hand always renders correctly, same for hotbar!
-			//rotate_and_project_squares_by_rot_value(&pos, &new_pos, 0, 0);
-//
-			//hand_cubes.items[i].coords[j].x = new_pos.x;
-			//hand_cubes.items[i].coords[j].y = new_pos.y;
-			//hand_cubes.items[i].coords[j].z = new_pos.z;
-		//}
-//
-		//// calc distance to camera
-		//int r = sqrt((x1 * x1) + (y1 * y1) + (z1 * z1));
-		//hand_cubes.items[i].r = r;
-	//}
-//
-	//// sort the squares based on their distance to the camera
-	//qsort(hand_cubes.items, hand_cubes.count, sizeof(square_t), compare_faces);
+	// render the hand squares:
+	hand_faces.count = 0;
+
+	// for each cube
+	for (int i = 0; i < hand_cubes.count; i++) {
+
+		for (int j = 0; j < 6; j++) {
+
+			// top left coord
+			int x1 = hand_cubes.items[i].faces[j].squares[0].coords[0].x;
+			int y1 = hand_cubes.items[i].faces[j].squares[0].coords[0].y;
+			int z1 = hand_cubes.items[i].faces[j].squares[0].coords[0].z;
+
+			// bottom right coord
+			x1 += hand_cubes.items[i].faces[j].squares[SQUARES_PER_FACE - 1].coords[0].x;
+			y1 += hand_cubes.items[i].faces[j].squares[SQUARES_PER_FACE - 1].coords[0].y;
+			z1 += hand_cubes.items[i].faces[j].squares[SQUARES_PER_FACE - 1].coords[0].z;
+
+			x1 /= 2;
+			y1 /= 2;
+			z1 /= 2;
+
+			// calc distance to camera
+			int r = sqrt((x1 * x1) + (y1 * y1) + (z1 * z1));
+
+			face_t new_face = {0};
+			new_face.r = r;
+
+			// for each square of each face of the cube
+			for (int k = 0; k < SQUARES_PER_FACE; k++) {
+
+			    square_t new_square = {0};
+				for (int l = 0; l < 4; l++) {
+					vec3_t pos = {0};
+					pos.x = hand_cubes.items[i].faces[j].squares[k].coords[l].x;
+					pos.y = hand_cubes.items[i].faces[j].squares[k].coords[l].y;
+					pos.z = hand_cubes.items[i].faces[j].squares[k].coords[l].z;
+					pos.x -= camera_pos.x;
+					pos.y -= camera_pos.y;
+					pos.z -= camera_pos.z;
+
+					vec3_t new_pos = {0};
+					rotate_and_project_squares_by_rot_value(&pos, &new_pos, 0, 0);
+
+					new_square.coords[l].x = new_pos.x;
+					new_square.coords[l].y = new_pos.y;
+					new_square.coords[l].z = new_pos.z;
+					new_square.colour = hand_cubes.items[i].faces[j].squares[k].colour;
+				}
+
+				new_face.squares[k] = new_square;
+			}
+
+			hand_faces.items[hand_faces.count++] = new_face;
+		}
+	}
+
+	// sort the faces based on their distance to the camera
+	qsort(hand_faces.items, hand_faces.count, sizeof(face_t), compare_faces);
 }
 
 void rotate_and_project_squares_by_rot_value(vec3_t *pos, vec3_t *new_pos, float x_rot, float y_rot) {
