@@ -27,9 +27,10 @@ Work done so far:
  - sort each square by their distance to the camera
  - simple cubicy collisions
  - simple hotbar
+ - don't draw back faces, or faces with a neighbouring face
 
 Next steps:
- - group cubes by faces, then don't draw the back 3 faces, or any faces with a neighbour
+ - lower the resolution
  - velocity based movement
  - terrain generation - not sure how to do this yet
  - chunks?
