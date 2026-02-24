@@ -13,8 +13,9 @@ int main() {
 
     // Create a window
     int screen = DefaultScreen(display);
-    Window window = XCreateSimpleWindow(display, RootWindow(display, screen), 0, 0, WIDTH, HEIGHT, 1,
-                                        BlackPixel(display, screen), WhitePixel(display, screen));
+	Window window = XCreateSimpleWindow(display, RootWindow(display, screen), 0, 0,
+                                    WINDOW_WIDTH, WINDOW_HEIGHT, 1,
+                                    BlackPixel(display, screen), BlackPixel(display, screen));
     XMapWindow(display, window);
 
 	// hide the mouse
@@ -146,7 +147,35 @@ int main() {
 		update();
 
 		// --- Render ---
-		XPutImage(display, window, gc, image, 0, 0, 0, 0, WIDTH, HEIGHT);
+		// Get actual window size
+		XWindowAttributes attr;
+		XGetWindowAttributes(display, window, &attr);
+
+		int win_w = attr.width;
+		int win_h = attr.height;
+
+		// Maintain aspect ratio
+		float scale_x = (float)win_w / WIDTH;
+		float scale_y = (float)win_h / HEIGHT;
+		float scale   = scale_x < scale_y ? scale_x : scale_y;
+
+		int draw_w = (int)(WIDTH * scale);
+		int draw_h = (int)(HEIGHT * scale);
+
+		int offset_x = (win_w - draw_w) / 2;
+		int offset_y = (win_h - draw_h) / 2;
+
+		// Clear background (black bars)
+		// XSetForeground(display, gc, BlackPixel(display, screen));
+		// XFillRectangle(display, window, gc, 0, 0, win_w, win_h);
+
+		// Scale + draw
+		XPutImage(display, window, gc,
+				  image,
+				  0, 0,
+				  offset_x, offset_y,
+				  draw_w, draw_h);
+
 		XFlush(display);
 
 		// --- Frame timing ---

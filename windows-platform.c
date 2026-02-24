@@ -10,13 +10,25 @@ HWND hwnd;
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     switch (msg) {
-        case WM_PAINT: {
-            PAINTSTRUCT ps;
-            HDC hdc = BeginPaint(hwnd, &ps);
-            BitBlt(hdc, 0, 0, WIDTH, HEIGHT, memDC, 0, 0, SRCCOPY);
-            EndPaint(hwnd, &ps);
-            return 0;
-        }
+		case WM_PAINT: {
+			PAINTSTRUCT ps;
+			HDC hdc = BeginPaint(hwnd, &ps);
+
+			SetStretchBltMode(hdc, COLORONCOLOR); // sharp pixel scaling
+
+			StretchBlt(
+				hdc,
+				0, 0,
+				WINDOW_WIDTH, WINDOW_HEIGHT,   // destination (window)
+				memDC,
+				0, 0,
+				WIDTH, HEIGHT,                 // source (pixel buffer)
+				SRCCOPY
+			);
+
+			EndPaint(hwnd, &ps);
+			return 0;
+		}
         case WM_KEYDOWN: {
             keys[wParam] = 1;
             return 0;
@@ -61,10 +73,15 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     wc.lpszClassName = "DIBWindow";
     RegisterClass(&wc);
 
-    hwnd = CreateWindowEx(0, wc.lpszClassName, "DigMake",
-        WS_OVERLAPPEDWINDOW,
-        CW_USEDEFAULT, CW_USEDEFAULT, WIDTH, HEIGHT,
-        NULL, NULL, hInstance, NULL);
+	RECT rect = {0, 0, WINDOW_WIDTH, WINDOW_HEIGHT};
+	AdjustWindowRect(&rect, WS_OVERLAPPEDWINDOW, FALSE);
+
+	hwnd = CreateWindowEx(0, wc.lpszClassName, "DigMake",
+		WS_OVERLAPPEDWINDOW,
+		CW_USEDEFAULT, CW_USEDEFAULT,
+		rect.right - rect.left,
+		rect.bottom - rect.top,
+		NULL, NULL, hInstance, NULL);
 
     ShowWindow(hwnd, nCmdShow);
 

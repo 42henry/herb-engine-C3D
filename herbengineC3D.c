@@ -27,8 +27,13 @@
 
 /* ----------------------- defines --------------------- */
 
-#define WIDTH  1920
-#define HEIGHT 1080
+#define WIDTH  960
+#define HEIGHT 540
+
+#define WINDOW_SCALE 2
+
+#define WINDOW_WIDTH  (WIDTH  * WINDOW_SCALE)
+#define WINDOW_HEIGHT (HEIGHT * WINDOW_SCALE)
 
 #define FOV 2
 
