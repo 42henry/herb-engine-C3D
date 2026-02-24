@@ -7,6 +7,9 @@
 #include <assert.h>
 #include <time.h>
 
+// TODO: fix setting whether or not a face has a neighbour...
+    // this is taking a million years to load the world cos of this
+
 // TODO: fix fill squares to accomodate for when the ys of the square are too close
 
 // TODO: fix collisions
@@ -32,7 +35,7 @@
 #define CM_TO_PIXELS 10
 #define WIDTH_IN_CM ((WIDTH) / (CM_TO_PIXELS))
 
-#define MAX_CUBES 100000
+#define MAX_CUBES 1000000
 
 #define CUBE_WIDTH (10 * CM_TO_PIXELS)
 #define TEXTURE_WIDTH 5
@@ -349,16 +352,15 @@ void init_stuff() {
 	//render_hand();
 
 	// setup the world:
-	colour_t c = blue;
-	for (int i = -5; i < 20; i++) {
-		for (int j = 0; j < 20; j++) {
+	for (int i = -5; i < 30; i++) {
+		for (int j = 0; j < 30; j++) {
 			add_cube_to_cubes_array((vec3_t){50 + (i * CUBE_WIDTH), 50, 10 + (j * CUBE_WIDTH)}, grass_texture, &world_cubes);
 		}
 	}
 
-	for (int k = 1; k < 20; k++) {
-		for (int i = -5; i < 20; i++) {
-			for (int j = 0; j < 20; j++) {
+	for (int k = 1; k < 50; k++) {
+		for (int i = -5; i < 30; i++) {
+			for (int j = 0; j < 30; j++) {
 				add_cube_to_cubes_array((vec3_t){50 + (i * CUBE_WIDTH), 50 - (k * CUBE_WIDTH), 10 + (j * CUBE_WIDTH)}, stone_texture, &world_cubes);
 			}
 		}
@@ -640,13 +642,18 @@ void render_cubes() {
 		// only draw faces closest to camera
 
 		// top left coord
-		int x1 = world_cubes.items[i].faces[0].squares[0].coords[0].x - camera_pos.x;
-		int y1 = world_cubes.items[i].faces[0].squares[0].coords[0].y - camera_pos.y;
-		int z1 = world_cubes.items[i].faces[0].squares[0].coords[0].z - camera_pos.z;
+		int x1 = world_cubes.items[i].faces[0].squares[0].coords[0].x;
+		int y1 = world_cubes.items[i].faces[0].squares[0].coords[0].y;
+		int z1 = world_cubes.items[i].faces[0].squares[0].coords[0].z;
+
+		// bottom right coord
+		int x2 = x1 + CUBE_WIDTH;
+		int y2 = y1 - CUBE_WIDTH;
+		int z2 = z1 + CUBE_WIDTH;
 
 		// TODO: account for camera width and height of player
 
-		if (abs(camera_pos.x - x1 + CUBE_WIDTH) < abs(camera_pos.x - x1)) {
+		if (abs(camera_pos.x - x2) < abs(camera_pos.x - x1)) {
 			// draw right side
 			world_cubes.items[i].faces[RIGHT].back_face = 0;
 			world_cubes.items[i].faces[LEFT].back_face = 1;
@@ -656,7 +663,7 @@ void render_cubes() {
 			world_cubes.items[i].faces[LEFT].back_face = 0;
 			world_cubes.items[i].faces[RIGHT].back_face = 1;
 		}
-		if (abs(camera_pos.z - z1 + CUBE_WIDTH) < abs(camera_pos.z - z1)) {
+		if (abs(camera_pos.z - z2) < abs(camera_pos.z - z1)) {
 			// draw back side
 			world_cubes.items[i].faces[BACK].back_face = 0;
 			world_cubes.items[i].faces[FRONT].back_face = 1;
@@ -666,20 +673,23 @@ void render_cubes() {
 			world_cubes.items[i].faces[FRONT].back_face = 0;
 			world_cubes.items[i].faces[BACK].back_face = 1;
 		}
-		if (abs(camera_pos.y - y1 - CUBE_WIDTH) < abs(camera_pos.y - y1)) {
+		if (abs(camera_pos.y - y2) > abs(camera_pos.y - y1)) {
 			// draw bottom side
-			world_cubes.items[i].faces[BOTTOM].back_face = 0;
-			world_cubes.items[i].faces[TOP].back_face = 1;
+			world_cubes.items[i].faces[BOTTOM].back_face = 1;
+			world_cubes.items[i].faces[TOP].back_face = 0;
 		}
 		else {
 			// draw top side
-			world_cubes.items[i].faces[TOP].back_face = 0;
-			world_cubes.items[i].faces[BOTTOM].back_face = 1;
+			world_cubes.items[i].faces[TOP].back_face = 1;
+			world_cubes.items[i].faces[BOTTOM].back_face = 0;
 		}
 
 		for (int j = 0; j < 6; j++) {
 
-			if (world_cubes.items[i].faces[j].neighbour || (! world_cubes.items[i].faces[j].back_face)) {
+			if (world_cubes.items[i].faces[j].neighbour) {
+				continue;
+			}
+			if (world_cubes.items[i].faces[j].back_face) {
 				continue;
 			}
 
@@ -1323,6 +1333,7 @@ void handle_input()
 		if (! jump) {
 			jump = 2.5 * CUBE_WIDTH;
 		}
+		//y += speed;
 	}
     if (keys[shift]) {
         y += - speed;
