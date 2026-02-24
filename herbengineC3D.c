@@ -7,13 +7,9 @@
 #include <assert.h>
 #include <time.h>
 
-//TODO: fix neighbour culling strange issues...
-        // this is actually just issues with the renderer due to using integers!
-        // basically, at larger distances away, when we rotate and project we lose accuracy, and thus skip pixels on the screen!
-        // so we need to find a way to fix this!
-        // probably cast x y z to floats before rotating and projecting, then floor or ceil the results to make sure there are not gaps!
+// TODO: fix fill squares to accomodate for when the ys of the square are too close
 
-//TODO: add back face culling without qsorting the world_cubes permenantly lol
+// TODO: fix collisions
 
 //TODO: other blocks and terrain generation
 
@@ -36,7 +32,7 @@
 #define CM_TO_PIXELS 10
 #define WIDTH_IN_CM ((WIDTH) / (CM_TO_PIXELS))
 
-#define MAX_CUBES 10000
+#define MAX_CUBES 100000
 
 #define CUBE_WIDTH (10 * CM_TO_PIXELS)
 #define TEXTURE_WIDTH 5
@@ -353,9 +349,17 @@ void init_stuff() {
 
 	// setup the world:
 	colour_t c = blue;
-	for (int i = -5; i < 30; i++) {
-		for (int j = 0; j < 30; j++) {
+	for (int i = -5; i < 50; i++) {
+		for (int j = 0; j < 50; j++) {
 			add_cube_to_cubes_array((vec3_t){50 + (i * CUBE_WIDTH), 50, 10 + (j * CUBE_WIDTH)}, grass_texture, &world_cubes);
+		}
+	}
+
+	for (int k = 1; k < 20; k++) {
+		for (int i = -5; i < 50; i++) {
+			for (int j = 0; j < 50; j++) {
+				add_cube_to_cubes_array((vec3_t){50 + (i * CUBE_WIDTH), 50 - (k * CUBE_WIDTH), 10 + (j * CUBE_WIDTH)}, stone_texture, &world_cubes);
+			}
 		}
 	}
 
@@ -631,6 +635,7 @@ void render_cubes() {
 
 	// for each cube
 	for (int i = 0; i < world_cubes.count; i++) {
+		cube_t cube = world_cubes.items[i];
 
 		// for each face of the cube
 		for (int j = 0; j < 6; j++) {
@@ -658,13 +663,13 @@ void render_cubes() {
 	    }
 
 		// sort the faces based on their distance to the camera
-		// qsort(&world_cubes.items[i].faces, 6, sizeof(face_t), compare_faces_reverse);
+		qsort(&cube.faces, 6, sizeof(face_t), compare_faces_reverse);
 
-		for (int j = 0; j < 6; j++) {
+		for (int j = 0; j < 3; j++) {
 
 			int pos_highlight = 0;
 
-			face_t face = world_cubes.items[i].faces[j];
+			face_t face = cube.faces[j];
 
 			if (face.neighbour) {
 				continue;
@@ -955,6 +960,16 @@ void fill_square(square_t *square) {
 	}
 	if (largest_y > HEIGHT) {
 		largest_y = HEIGHT;
+	}
+
+	// TODO: fix this fix
+	if (largest_y - smallest_y < 5) {
+		if (smallest_y > 1) {
+			smallest_y -= 1;
+		}
+		if (largest_y < HEIGHT - 1) {
+			largest_y += 1;
+		}
 	}
 
 	// TODO: could we use y+=2 or smthn instead of y++ here to make it faster?
