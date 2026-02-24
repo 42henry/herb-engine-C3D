@@ -8,7 +8,12 @@
 #include <time.h>
 
 //TODO: fix neighbour culling strange issues...
-//TODO: add back face culling if needed... (try decreasing resolution first)
+        // this is actually just issues with the renderer due to using integers!
+        // basically, at larger distances away, when we rotate and project we lose accuracy, and thus skip pixels on the screen!
+        // so we need to find a way to fix this!
+        // probably cast x y z to floats before rotating and projecting, then floor or ceil the results to make sure there are not gaps!
+
+//TODO: add back face culling without qsorting the world_cubes permenantly lol
 
 //TODO: other blocks and terrain generation
 
@@ -652,7 +657,6 @@ void render_cubes() {
 			world_cubes.items[i].faces[j].r = r;
 	    }
 
-		// TODO: add back face culling if needed, for some reason this didnt work, and it made it slower!
 		// sort the faces based on their distance to the camera
 		// qsort(&world_cubes.items[i].faces, 6, sizeof(face_t), compare_faces_reverse);
 
