@@ -2,20 +2,7 @@
 #include <X11/Xutil.h>
 
 #include "herbengineC3D.c"
-uint32_t *scaled_pixels = malloc(WINDOW_WIDTH * WINDOW_HEIGHT * 4);
 
-XImage *scaled_image = XCreateImage(
-    display,
-    DefaultVisual(display, screen),
-    DefaultDepth(display, screen),
-    ZPixmap,
-    0,
-    (char *)scaled_pixels,
-    WINDOW_WIDTH,
-    WINDOW_HEIGHT,
-    32,
-    0
-);
 int main() {
     // Open X display
     Display *display = XOpenDisplay(NULL);
@@ -26,9 +13,8 @@ int main() {
 
     // Create a window
     int screen = DefaultScreen(display);
-	Window window = XCreateSimpleWindow(display, RootWindow(display, screen), 0, 0,
-                                    WINDOW_WIDTH, WINDOW_HEIGHT, 1,
-                                    BlackPixel(display, screen), BlackPixel(display, screen));
+    Window window = XCreateSimpleWindow(display, RootWindow(display, screen), 0, 0, WIDTH, HEIGHT, 1,
+                                        BlackPixel(display, screen), WhitePixel(display, screen));
     XMapWindow(display, window);
 
 	// hide the mouse
@@ -160,38 +146,7 @@ int main() {
 		update();
 
 		// --- Render ---
-		// --- Nearest neighbor scaling ---
-		float scale_x = (float)WINDOW_WIDTH / WIDTH;
-		float scale_y = (float)WINDOW_HEIGHT / HEIGHT;
-		float scale   = scale_x < scale_y ? scale_x : scale_y;
-
-		int draw_w = WIDTH * scale;
-		int draw_h = HEIGHT * scale;
-
-		int offset_x = (WINDOW_WIDTH - draw_w) / 2;
-		int offset_y = (WINDOW_HEIGHT - draw_h) / 2;
-
-		// Clear screen
-		//memset(scaled_pixels, 0, WINDOW_WIDTH * WINDOW_HEIGHT * 4);
-
-		// Scale pixels
-		for (int y = 0; y < draw_h; y++) {
-			int src_y = y / scale;
-			for (int x = 0; x < draw_w; x++) {
-				int src_x = x / scale;
-
-				scaled_pixels[(y + offset_y) * WINDOW_WIDTH + (x + offset_x)] =
-					pixels[src_y * WIDTH + src_x];
-			}
-		}
-
-		// Draw scaled image
-		XPutImage(display, window, gc,
-				  scaled_image,
-				  0, 0,
-				  0, 0,
-				  WINDOW_WIDTH, WINDOW_HEIGHT);
-
+		XPutImage(display, window, gc, image, 0, 0, 0, 0, WIDTH, HEIGHT);
 		XFlush(display);
 
 		// --- Frame timing ---
