@@ -7,6 +7,7 @@
 #include <assert.h>
 #include <time.h>
 
+// TODO: clean the code!
 
 // new features:
 // chunks - make it infinite
