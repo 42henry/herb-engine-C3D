@@ -7,24 +7,22 @@
 #include <assert.h>
 #include <time.h>
 
-// TODO: clean the code!
-
+//TODO:
 // new features:
 // chunks - make it infinite
 // simple terration - trees and hills
 
 // big fixes:
-// TODO: fix fill squares to accomodate for when the ys of the square are too close
-// TODO: fix setting whether or not a face has a neighbour...
+// fix fill squares to accomodate for when the ys of the square are too close
+// fix setting whether or not a face has a neighbour...
     // this is taking a million years to load the world cos of this
 
 // small fixes:
-//TODO: only dont draw a square if ALL zs are negative
-// TODO: clean hotbar UI
+// only dont draw a square if ALL zs are negative
+// fix hotbar and hand UI
 
 // optimisations:
-//TODO: optimise by lowering resolution somehow?
-//     - could maybe do this in the fill square function!
+// optimise by lowering resolution of the fill square function - see the TODO note
 
 /* ----------------------- defines --------------------- */
 
@@ -33,12 +31,17 @@
 
 #define FOV 2
 
-#define CM_TO_PIXELS 10
-#define WIDTH_IN_CM ((WIDTH) / (CM_TO_PIXELS))
-
 #define MAX_CUBES 1000000
 
-#define CUBE_WIDTH (10 * CM_TO_PIXELS)
+// just a cool gimmick tbh
+#define PS1_STYLE 0
+
+#if PS1_STYLE
+    #define CUBE_WIDTH 25
+#else
+    #define CUBE_WIDTH 1000
+#endif
+
 #define TEXTURE_WIDTH 5
 
 #define SQUARES_PER_FACE (TEXTURE_WIDTH * TEXTURE_WIDTH)
@@ -74,7 +77,7 @@ typedef enum {
 typedef struct {
 	square_t squares[SQUARES_PER_FACE];
 	int r; // distance from camera
-	int dir; // top front left etc
+	int dir; // top, front, or left etc
 	int neighbour;
 	int back_face;
 } face_t;
@@ -143,19 +146,21 @@ static void draw_hand();
 static void set_pixel(vec2_t coord, uint32_t colour);
 static colour_t get_pixel_colour(vec2_t coord);
 
+// textures
+void generate_textures();
+
 // rendering
 static void render_cubes();
 static void render_hotbar();
 static void render_hand();
-static void rotate_and_project_squares(vec3_t *pos, vec3_t *new_pos);
-static void rotate_and_project_squares_by_rot_value(vec3_t *pos, vec3_t *new_pos, float x_rot, float y_rot);
+static void rotate_and_project(vec3_t *pos, vec3_t *new_pos);
+static void rotate_and_project_by_rot_value(vec3_t *pos, vec3_t *new_pos, float x_rot, float y_rot);
 
 // cubes/squares handling
 static void add_cube_to_cubes_array(vec3_t top_left, texture_t *texture, cubes_t *array);
 static void remove_cube(int index);
 static void place_cube(int index, texture_t *texture);
 static int compare_faces(const void *one, const void *two);
-static int compare_faces_reverse(const void *one, const void *two);
 
 // input
 static void handle_input();
@@ -219,6 +224,7 @@ static unsigned char one, two, three, four, five, six, seven, eight, nine;
 
 static int gravity = 0;
 static int jump = 0;
+static int jump_height = 0;
 
 static colour_t red = {0};
 static colour_t green = {0};
@@ -241,81 +247,7 @@ void init_stuff() {
 	// tests
 	assert(test_fill_square());
 
-	// create grass texture
-	// * 3 for top bottom side of cube
-    int w = TEXTURE_WIDTH * 3, h = TEXTURE_WIDTH;
-    texture_t myImg = {w, h, malloc(w * h * 3)};
-
-	// top
-	int i = 0;
-	for (i; i < SQUARES_PER_FACE; i++) {
-		myImg.data[i] = (colour_t){10 + (rand() % 50), 180 + (rand() % 50), 20 + (rand() % 50), };
-	}
-	// bottom
-	for (i; i < 2 * SQUARES_PER_FACE; i++) {
-		myImg.data[i] = (colour_t){150 + (rand() % 50), 75 + (rand() % 50), 10 + (rand() % 50), };
-	}
-	// side
-	for (i; i < 3 * SQUARES_PER_FACE; i++) {
-		if (i < 2.5 * SQUARES_PER_FACE) {
-			myImg.data[i] = (colour_t){10 + (rand() % 50), 180 + (rand() % 50), 20 + (rand() % 50), };
-		}
-		else {
-			myImg.data[i] = (colour_t){150 + (rand() % 50), 75 + (rand() % 50), 10 + (rand() % 50), };
-		}
-	}
-
-    writePPM("grass.ppm", &myImg);
-
-	grass_texture = readPPM("grass.ppm");
-	assert(grass_texture != NULL);
-
-	// create stone texture
-	// top bottom side
-	i = 0;
-	for (i; i < SQUARES_PER_FACE * 3; i++) {
-		myImg.data[i] = (colour_t){75 + (rand()  % 12), 75 + (rand()  % 13), 75 + (rand()  % 5), };
-	}
-
-    writePPM("stone.ppm", &myImg);
-
-	stone_texture = readPPM("stone.ppm");
-	assert(stone_texture != NULL);
-
-	// create wood texture
-	// * 3 for top bottom side of cube
-	// top
-	i = 0;
-	for (i; i < SQUARES_PER_FACE; i++) {
-		myImg.data[i] = (colour_t){200 + (rand() % 50), 180 + (rand() % 50), 150 + (rand() % 50), };
-	}
-	// bottom
-	for (i; i < 2 * SQUARES_PER_FACE; i++) {
-		myImg.data[i] = (colour_t){200 + (rand() % 50), 180 + (rand() % 50), 150 + (rand() % 50), };
-	}
-	// side
-	for (i; i < 3 * SQUARES_PER_FACE; i++) {
-		myImg.data[i] = (colour_t){90 + (rand() % 10), 60 + (rand() % 10), 50 + (rand() % 20), };
-	}
-
-    writePPM("wood.ppm", &myImg);
-
-	wood_texture = readPPM("wood.ppm");
-	assert(wood_texture != NULL);
-
-	// create leaf texture
-	// top bottom side
-	i = 0;
-	for (i; i < SQUARES_PER_FACE * 3; i++) {
-		myImg.data[i] = (colour_t){5 - (rand()  % 5), 95 - (rand()  % 20), 7 - (rand()  % 7), };
-	}
-
-    writePPM("leaf.ppm", &myImg);
-
-    free(myImg.data);
-
-	leaf_texture = readPPM("leaf.ppm");
-	assert(leaf_texture != NULL);
+	generate_textures();
 
 	// set initial values
 	world_cubes.items = malloc(MAX_CUBES * sizeof(cube_t));
@@ -325,8 +257,8 @@ void init_stuff() {
 	cube_highlighted = -1;
 
 	camera_pos.x = 0;
-	camera_pos.y = 300;
-	camera_pos.z = 100;
+	camera_pos.y = 3 * CUBE_WIDTH;
+	camera_pos.z = 1 * CUBE_WIDTH;
 
 	player_width = CUBE_WIDTH / 3;
 	player_height = 4 * player_width;
@@ -334,10 +266,11 @@ void init_stuff() {
 	hold_mouse = 1;
 	mouse_sensitivity = 0.005f;
 
-	speed = 10;
+	speed = CUBE_WIDTH / 9;
 	walk_speed = speed;
-	sprint_speed = 20;
-	gravity = -10;
+	sprint_speed = speed * 1.5;
+	jump_height = 2.5 * CUBE_WIDTH;
+	gravity = - CUBE_WIDTH / 6;
 
 	red.r = 255;
 	green.g = 255;
@@ -356,52 +289,52 @@ void init_stuff() {
 	// 9 hotbar slots
 	hotbar_cubes.items = malloc(9 * sizeof(cube_t));
 	hotbar_faces.items = malloc(9 * 6 * sizeof(face_t));
-	add_cube_to_cubes_array((vec3_t){-100, -100, 600}, grass_texture, &hotbar_cubes);
-	add_cube_to_cubes_array((vec3_t){-100, -100, 600}, stone_texture, &hotbar_cubes);
-	add_cube_to_cubes_array((vec3_t){-100, -100, 600}, wood_texture, &hotbar_cubes);
-	add_cube_to_cubes_array((vec3_t){-100, -100, 600}, leaf_texture, &hotbar_cubes);
+	add_cube_to_cubes_array((vec3_t){-1 * CUBE_WIDTH, -1 * CUBE_WIDTH, 6 * CUBE_WIDTH}, grass_texture, &hotbar_cubes);
+	add_cube_to_cubes_array((vec3_t){-1 * CUBE_WIDTH, -1 * CUBE_WIDTH, 6 * CUBE_WIDTH}, stone_texture, &hotbar_cubes);
+	add_cube_to_cubes_array((vec3_t){-1 * CUBE_WIDTH, -1 * CUBE_WIDTH, 6 * CUBE_WIDTH}, wood_texture, &hotbar_cubes);
+	add_cube_to_cubes_array((vec3_t){-1 * CUBE_WIDTH, -1 * CUBE_WIDTH, 6 * CUBE_WIDTH}, leaf_texture, &hotbar_cubes);
 	render_hotbar();
 
 	// hand
 	hand_cubes.items = malloc(sizeof(cube_t));
 	hand_faces.items = malloc(6 * sizeof(face_t));
-	add_cube_to_cubes_array((vec3_t){200, 200, 200}, grass_texture, &hand_cubes);
+	add_cube_to_cubes_array((vec3_t){2 * CUBE_WIDTH, 2 * CUBE_WIDTH, 2 * CUBE_WIDTH}, grass_texture, &hand_cubes);
 	render_hand();
 
 	// setup the world:
 	for (int i = -5; i < 20; i++) {
 		for (int j = 0; j < 20; j++) {
-			add_cube_to_cubes_array((vec3_t){50 + (i * CUBE_WIDTH), 50, 10 + (j * CUBE_WIDTH)}, grass_texture, &world_cubes);
+			add_cube_to_cubes_array((vec3_t){(i * CUBE_WIDTH), 0, (j * CUBE_WIDTH)}, grass_texture, &world_cubes);
 		}
 	}
 
 	for (int k = 1; k < 20; k++) {
 		for (int i = -5; i < 20; i++) {
 			for (int j = 0; j < 20; j++) {
-				add_cube_to_cubes_array((vec3_t){50 + (i * CUBE_WIDTH), 50 - (k * CUBE_WIDTH), 10 + (j * CUBE_WIDTH)}, stone_texture, &world_cubes);
+				add_cube_to_cubes_array((vec3_t){(i * CUBE_WIDTH), -(k * CUBE_WIDTH), (j * CUBE_WIDTH)}, stone_texture, &world_cubes);
 			}
 		}
 	}
 
 	// tree
-	add_cube_to_cubes_array((vec3_t){350, 150, 310}, wood_texture, &world_cubes);
-	add_cube_to_cubes_array((vec3_t){350, 250, 310}, wood_texture, &world_cubes);
-	add_cube_to_cubes_array((vec3_t){350, 350, 310}, wood_texture, &world_cubes);
-	add_cube_to_cubes_array((vec3_t){350, 450, 310}, wood_texture, &world_cubes);
+	add_cube_to_cubes_array((vec3_t){3 * CUBE_WIDTH, 1 * CUBE_WIDTH, 3 * CUBE_WIDTH}, wood_texture, &world_cubes);
+	add_cube_to_cubes_array((vec3_t){3 * CUBE_WIDTH, 2 * CUBE_WIDTH, 3 * CUBE_WIDTH}, wood_texture, &world_cubes);
+	add_cube_to_cubes_array((vec3_t){3 * CUBE_WIDTH, 3 * CUBE_WIDTH, 3 * CUBE_WIDTH}, wood_texture, &world_cubes);
+	add_cube_to_cubes_array((vec3_t){3 * CUBE_WIDTH, 4 * CUBE_WIDTH, 3 * CUBE_WIDTH}, wood_texture, &world_cubes);
 
-	add_cube_to_cubes_array((vec3_t){250, 450, 310}, leaf_texture, &world_cubes);
-	add_cube_to_cubes_array((vec3_t){350, 450, 210}, leaf_texture, &world_cubes);
-	add_cube_to_cubes_array((vec3_t){350, 450, 410}, leaf_texture, &world_cubes);
-	add_cube_to_cubes_array((vec3_t){450, 450, 310}, leaf_texture, &world_cubes);
+	add_cube_to_cubes_array((vec3_t){2 * CUBE_WIDTH, 4 * CUBE_WIDTH, 3 * CUBE_WIDTH}, leaf_texture, &world_cubes);
+	add_cube_to_cubes_array((vec3_t){3 * CUBE_WIDTH, 4 * CUBE_WIDTH, 2 * CUBE_WIDTH}, leaf_texture, &world_cubes);
+	add_cube_to_cubes_array((vec3_t){3 * CUBE_WIDTH, 4 * CUBE_WIDTH, 4 * CUBE_WIDTH}, leaf_texture, &world_cubes);
+	add_cube_to_cubes_array((vec3_t){4 * CUBE_WIDTH, 4 * CUBE_WIDTH, 3 * CUBE_WIDTH}, leaf_texture, &world_cubes);
 
-	add_cube_to_cubes_array((vec3_t){250, 350, 310}, leaf_texture, &world_cubes);
-	add_cube_to_cubes_array((vec3_t){350, 350, 210}, leaf_texture, &world_cubes);
-	add_cube_to_cubes_array((vec3_t){350, 350, 410}, leaf_texture, &world_cubes);
-	add_cube_to_cubes_array((vec3_t){450, 350, 310}, leaf_texture, &world_cubes);
-	add_cube_to_cubes_array((vec3_t){450, 350, 410}, leaf_texture, &world_cubes);
-	add_cube_to_cubes_array((vec3_t){450, 350, 210}, leaf_texture, &world_cubes);
-	add_cube_to_cubes_array((vec3_t){250, 350, 410}, leaf_texture, &world_cubes);
-	add_cube_to_cubes_array((vec3_t){250, 350, 210}, leaf_texture, &world_cubes);
+	add_cube_to_cubes_array((vec3_t){2 * CUBE_WIDTH, 3 * CUBE_WIDTH, 3 * CUBE_WIDTH}, leaf_texture, &world_cubes);
+	add_cube_to_cubes_array((vec3_t){3 * CUBE_WIDTH, 3 * CUBE_WIDTH, 2 * CUBE_WIDTH}, leaf_texture, &world_cubes);
+	add_cube_to_cubes_array((vec3_t){3 * CUBE_WIDTH, 3 * CUBE_WIDTH, 4 * CUBE_WIDTH}, leaf_texture, &world_cubes);
+	add_cube_to_cubes_array((vec3_t){4 * CUBE_WIDTH, 3 * CUBE_WIDTH, 3 * CUBE_WIDTH}, leaf_texture, &world_cubes);
+	add_cube_to_cubes_array((vec3_t){4 * CUBE_WIDTH, 3 * CUBE_WIDTH, 4 * CUBE_WIDTH}, leaf_texture, &world_cubes);
+	add_cube_to_cubes_array((vec3_t){4 * CUBE_WIDTH, 3 * CUBE_WIDTH, 2 * CUBE_WIDTH}, leaf_texture, &world_cubes);
+	add_cube_to_cubes_array((vec3_t){2 * CUBE_WIDTH, 3 * CUBE_WIDTH, 4 * CUBE_WIDTH}, leaf_texture, &world_cubes);
+	add_cube_to_cubes_array((vec3_t){2 * CUBE_WIDTH, 3 * CUBE_WIDTH, 2 * CUBE_WIDTH}, leaf_texture, &world_cubes);
 
 	return;
 }
@@ -729,11 +662,6 @@ void render_cubes() {
 			new_face.r = r;
 			new_face.dir = world_cubes.items[i].faces[j].dir;
 
-			float illumination = 1;
-			if (r > 1) {
-			    illumination = (10000 / (r));
-			}
-
 			// for each square of each face of the cube
 			for (int k = 0; k < SQUARES_PER_FACE; k++) {
 
@@ -748,17 +676,14 @@ void render_cubes() {
 					pos.z -= camera_pos.z;
 
 					vec3_t new_pos = {0};
-					rotate_and_project_squares(&pos, &new_pos);
+					rotate_and_project(&pos, &new_pos);
 
 					new_square.coords[l].x = new_pos.x;
 					new_square.coords[l].y = new_pos.y;
 					new_square.coords[l].z = new_pos.z;
 					
-				    colour_t c = unpack_colour_from_uint32(world_cubes.items[i].faces[j].squares[k].colour);
-					c.r *= illumination;
-					c.g *= illumination;
-					c.b *= illumination;
-					new_square.colour = pack_colour_to_uint32(&c);
+				    
+					new_square.colour = world_cubes.items[i].faces[j].squares[k].colour;
 				}
 
 				new_face.squares[k] = new_square;
@@ -849,24 +774,7 @@ int compare_faces(const void *one, const void *two) {
 	return 0;
 }
 
-int compare_faces_reverse(const void *one, const void *two) {
-	const face_t *face_one = one;
-	const face_t *face_two = two;
-
-	int r1 = face_one->r;
-	int r2 = face_two->r;
-
-	if (r1 < r2) {
-		return -1;
-	}
-	if (r1 > r2) {
-		return 1;
-	}
-
-	return 0;
-}
-
-void rotate_and_project_squares(vec3_t *pos, vec3_t *new_pos) {
+void rotate_and_project(vec3_t *pos, vec3_t *new_pos) {
 
 	// rotate
 	new_pos->x = (pos->z * sin(x_rotation) + pos->x * cos(x_rotation));
@@ -879,7 +787,7 @@ void rotate_and_project_squares(vec3_t *pos, vec3_t *new_pos) {
 	}
 
 	// project
-	float percent_size = ((float)(WIDTH_IN_CM * FOV) / new_pos->z);
+	float percent_size = ((float)((WIDTH / 10) * FOV) / new_pos->z);
 	if (new_pos->z > 0) {
 		new_pos->x *= percent_size;
 		new_pos->y *= percent_size;
@@ -941,22 +849,22 @@ void draw_hotbar() {
 	x += w;
     draw_rect((vec3_t){x, y, 1}, small_height, h, hotbar_colour);
 
-	int magic_num = 300;
+	int magic_num = 3 * CUBE_WIDTH;
 	switch(hotbar_selection) {
 		case 0: {
-			draw_rect((vec3_t){hotbar_x + 100, hotbar_y - hotbar_height, 1}, magic_num, hotbar_height, hotbar_colour);
+			draw_rect((vec3_t){hotbar_x + CUBE_WIDTH, hotbar_y - hotbar_height, 1}, magic_num, hotbar_height, hotbar_colour);
 			break;
 		}
 		case 1: {
-			draw_rect((vec3_t){hotbar_x + magic_num + 100, hotbar_y - hotbar_height, 1}, magic_num, hotbar_height, hotbar_colour);
+			draw_rect((vec3_t){hotbar_x + magic_num + CUBE_WIDTH, hotbar_y - hotbar_height, 1}, magic_num, hotbar_height, hotbar_colour);
 			break;
 		}
 		case 2: {
-			draw_rect((vec3_t){hotbar_x + 2 * magic_num + 100, hotbar_y - hotbar_height, 1}, magic_num, hotbar_height, hotbar_colour);
+			draw_rect((vec3_t){hotbar_x + 2 * magic_num + CUBE_WIDTH, hotbar_y - hotbar_height, 1}, magic_num, hotbar_height, hotbar_colour);
 			break;
 		}
 		case 3: {
-			draw_rect((vec3_t){hotbar_x + 3 * magic_num + 100, hotbar_y - hotbar_height, 1}, magic_num, hotbar_height, hotbar_colour);
+			draw_rect((vec3_t){hotbar_x + 3 * magic_num + CUBE_WIDTH, hotbar_y - hotbar_height, 1}, magic_num, hotbar_height, hotbar_colour);
 			break;
 		}
 	}
@@ -1197,33 +1105,27 @@ void place_cube(int index, texture_t *texture) {
 	pos.y = world_cubes.items[index].faces[0].squares[0].coords[0].y;
 	pos.z = world_cubes.items[index].faces[0].squares[0].coords[0].z;
 	switch (cube_highlighted) {
-		// top
-		case 0: {
+		case TOP: {
 		    pos.y += CUBE_WIDTH;
 			break;
 		}
-		// front
-		case 1: {
+		case FRONT: {
 			pos.z -= CUBE_WIDTH;
 			break;
 		}
-		// left
-		case 2: {
+		case LEFT: {
 		    pos.x -= CUBE_WIDTH;
 			break;
 		}
-		// back
-		case 3: {
+		case BACK: {
 			pos.z += CUBE_WIDTH;
 			break;
 		}
-		// right
-		case 4: {
+		case RIGHT: {
 		    pos.x += CUBE_WIDTH;
 			break;
 		}
-		// bottom
-		case 5: {
+		case BOTTOM: {
 		    pos.y -= CUBE_WIDTH;
 			break;
 		}
@@ -1352,7 +1254,7 @@ void handle_input()
 	}
     if (keys[space]) {
 		if (! jump) {
-			jump = 2.5 * CUBE_WIDTH;
+			jump = jump_height;
 		}
 		//y += speed;
 	}
@@ -1364,9 +1266,9 @@ void handle_input()
 	}
 
 	y += gravity;
-	y += jump / 10;
+	y += jump / 5;
 	if (jump > 0) {
-		jump -= 10;
+		jump -= (jump_height * 0.04);
 	}
 	else {
 		jump = 0;
@@ -1392,7 +1294,7 @@ void handle_input()
 	
 	camera_pos.y += CUBE_WIDTH;
 
-	vec3_t pos = {camera_pos.x + 220, camera_pos.y - 50, camera_pos.z + 50};
+	vec3_t pos = {camera_pos.x + 2 * CUBE_WIDTH, camera_pos.y - 0.5 * CUBE_WIDTH, camera_pos.z + 0.5 * CUBE_WIDTH};
 	if (keys[one]) {
 		hotbar_selection = 0;
 		hand_cubes.count = 0;
@@ -1627,7 +1529,7 @@ void render_hotbar() {
 					pos.z -= camera_pos.z;
 
 					vec3_t new_pos = {0};
-					rotate_and_project_squares_by_rot_value(&pos, &new_pos, 0, 0);
+					rotate_and_project_by_rot_value(&pos, &new_pos, 0, 0);
 
 					new_square.coords[l].x = new_pos.x;
 					new_square.coords[l].y = new_pos.y;
@@ -1689,7 +1591,7 @@ void render_hand() {
 					pos.z -= camera_pos.z;
 
 					vec3_t new_pos = {0};
-					rotate_and_project_squares_by_rot_value(&pos, &new_pos, 0, 0);
+					rotate_and_project_by_rot_value(&pos, &new_pos, 0, 0);
 
 					new_square.coords[l].x = new_pos.x;
 					new_square.coords[l].y = new_pos.y;
@@ -1708,7 +1610,7 @@ void render_hand() {
 	qsort(hand_faces.items, hand_faces.count, sizeof(face_t), compare_faces);
 }
 
-void rotate_and_project_squares_by_rot_value(vec3_t *pos, vec3_t *new_pos, float x_rot, float y_rot) {
+void rotate_and_project_by_rot_value(vec3_t *pos, vec3_t *new_pos, float x_rot, float y_rot) {
 
 	// rotate
 	new_pos->x = (pos->z * sin(x_rot) + pos->x * cos(x_rot));
@@ -1721,7 +1623,7 @@ void rotate_and_project_squares_by_rot_value(vec3_t *pos, vec3_t *new_pos, float
 	}
 
 	// project
-	float percent_size = ((float)(WIDTH_IN_CM * FOV) / new_pos->z);
+	float percent_size = ((float)((WIDTH / 10) * FOV) / new_pos->z);
 	if (new_pos->z > 0) {
 		new_pos->x *= percent_size;
 		new_pos->y *= percent_size;
@@ -1733,4 +1635,82 @@ void rotate_and_project_squares_by_rot_value(vec3_t *pos, vec3_t *new_pos, float
 	// convert from standard grid to screen grid
 	new_pos->x = new_pos->x + WIDTH / 2;
 	new_pos->y = -new_pos->y + HEIGHT / 2;
+}
+
+void generate_textures() {
+	// create grass texture
+	// * 3 for top bottom side of cube
+    int w = TEXTURE_WIDTH * 3, h = TEXTURE_WIDTH;
+    texture_t myImg = {w, h, malloc(w * h * 3)};
+
+	// top
+	int i = 0;
+	for (i; i < SQUARES_PER_FACE; i++) {
+		myImg.data[i] = (colour_t){10 + (rand() % 50), 180 + (rand() % 50), 20 + (rand() % 50), };
+	}
+	// bottom
+	for (i; i < 2 * SQUARES_PER_FACE; i++) {
+		myImg.data[i] = (colour_t){150 + (rand() % 50), 75 + (rand() % 50), 10 + (rand() % 50), };
+	}
+	// side
+	for (i; i < 3 * SQUARES_PER_FACE; i++) {
+		if (i < 2.5 * SQUARES_PER_FACE) {
+			myImg.data[i] = (colour_t){10 + (rand() % 50), 180 + (rand() % 50), 20 + (rand() % 50), };
+		}
+		else {
+			myImg.data[i] = (colour_t){150 + (rand() % 50), 75 + (rand() % 50), 10 + (rand() % 50), };
+		}
+	}
+
+    writePPM("grass.ppm", &myImg);
+
+	grass_texture = readPPM("grass.ppm");
+	assert(grass_texture != NULL);
+
+	// create stone texture
+	// top bottom side
+	i = 0;
+	for (i; i < SQUARES_PER_FACE * 3; i++) {
+		myImg.data[i] = (colour_t){75 + (rand()  % 12), 75 + (rand()  % 13), 75 + (rand()  % 5), };
+	}
+
+    writePPM("stone.ppm", &myImg);
+
+	stone_texture = readPPM("stone.ppm");
+	assert(stone_texture != NULL);
+
+	// create wood texture
+	// * 3 for top bottom side of cube
+	// top
+	i = 0;
+	for (i; i < SQUARES_PER_FACE; i++) {
+		myImg.data[i] = (colour_t){200 + (rand() % 50), 180 + (rand() % 50), 150 + (rand() % 50), };
+	}
+	// bottom
+	for (i; i < 2 * SQUARES_PER_FACE; i++) {
+		myImg.data[i] = (colour_t){200 + (rand() % 50), 180 + (rand() % 50), 150 + (rand() % 50), };
+	}
+	// side
+	for (i; i < 3 * SQUARES_PER_FACE; i++) {
+		myImg.data[i] = (colour_t){90 + (rand() % 10), 60 + (rand() % 10), 50 + (rand() % 20), };
+	}
+
+    writePPM("wood.ppm", &myImg);
+
+	wood_texture = readPPM("wood.ppm");
+	assert(wood_texture != NULL);
+
+	// create leaf texture
+	// top bottom side
+	i = 0;
+	for (i; i < SQUARES_PER_FACE * 3; i++) {
+		myImg.data[i] = (colour_t){5 - (rand()  % 5), 95 - (rand()  % 20), 7 - (rand()  % 7), };
+	}
+
+    writePPM("leaf.ppm", &myImg);
+
+    free(myImg.data);
+
+	leaf_texture = readPPM("leaf.ppm");
+	assert(leaf_texture != NULL);
 }
