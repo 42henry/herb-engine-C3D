@@ -16,9 +16,6 @@
 // fix setting whether or not a face has a neighbour...
     // this is taking a million years to load the world cos of this
 
-// small fixes:
-// only dont draw a square if ALL zs are negative
-
 // optimisations:
 // optimise by lowering resolution of the fill square function - see the TODO note
 
@@ -31,14 +28,7 @@
 
 #define MAX_CUBES 1000000
 
-// just a cool gimmick tbh
-#define PS1_STYLE 0
-
-#if PS1_STYLE
-    #define CUBE_WIDTH 25
-#else
-    #define CUBE_WIDTH 1000
-#endif
+#define CUBE_WIDTH 1000
 
 #define TEXTURE_WIDTH 5
 
@@ -782,25 +772,27 @@ void rotate_and_project(vec3_t *pos, vec3_t *new_pos) {
 	new_pos->x = (pos->z * sin(x_rotation) + pos->x * cos(x_rotation));
 	int z2 = (pos->z * cos(x_rotation) - pos->x * sin(x_rotation));
 
+	int neg = 0;
 	new_pos->y = (z2 * sin(y_rotation) + pos->y * cos(y_rotation));
 	new_pos->z = (z2 * cos(y_rotation) - pos->y * sin(y_rotation));
-	if (new_pos->z == 0) {
-		new_pos->z = 1;
+	if (new_pos->z <= 0) {
+		neg = 1;
+		// avoid divide by 0
+		new_pos->z = 100;
 	}
 
 	// project
 	float percent_size = ((float)((WIDTH / 10) * FOV) / new_pos->z);
-	if (new_pos->z > 0) {
-		new_pos->x *= percent_size;
-		new_pos->y *= percent_size;
-	}
-	else {
-		new_pos->z = 0;
-	}
+	new_pos->x *= percent_size;
+	new_pos->y *= percent_size;
 
 	// convert from standard grid to screen grid
 	new_pos->x = new_pos->x + WIDTH / 2;
 	new_pos->y = -new_pos->y + HEIGHT / 2;
+
+	if (neg) {
+		new_pos->z = 0;
+	}
 }
 
 void draw_all_faces() {
@@ -898,13 +890,19 @@ colour_t get_pixel_colour(vec2_t coord) {
 }
 
 void fill_square(square_t *square) {
+
 	int smallest_y = HEIGHT + 1;
 	int smallest_y_index = 0;
 	int largest_y = -1;
+
+	int neg_z_count = 0;
+
 	for (int i = 0; i < 4; i++) {
+
 		if (square->coords[i].z == 0) {
-			return;
+			neg_z_count++;
 		}
+
 		if (square->coords[i].y < smallest_y) {
 			smallest_y = square->coords[i].y;
 			smallest_y_index = i;
@@ -912,6 +910,11 @@ void fill_square(square_t *square) {
 		if (square->coords[i].y > largest_y) {
 			largest_y = square->coords[i].y;
 		}
+
+	}
+
+	if (neg_z_count == 4) {
+		return;
 	}
 
 	int left_start_index = smallest_y_index;
