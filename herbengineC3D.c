@@ -13,6 +13,7 @@
 	// when we go past a chunk border, remove old chunks, then add new chunks
 
 // simple terration - trees and hills
+// simple lighting
 
 // big fixes:
 // fix fill squares to accomodate for when the ys of the square are too close
