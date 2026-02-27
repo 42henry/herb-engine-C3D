@@ -9,6 +9,14 @@
 
 //TODO:
 
+// try storing chunks as a list of textures, or a 0 if no cube is at that location
+// then in render_chunks, we do the math to create the squares, and check for neighbours
+// or we could store a neighbours value along side the textures value
+// this would be so much nicer!
+
+// at large rs, squares start to draw in front of closer squares
+// place_cube is no longer checking neighbours
+
 // fix remove cube - need to check if cube was on the boundary of a chunk for neighbours!
 // improve detecting if we crossed a chunk boundary
 // detecting if we crossed a chunk boundary doesn't work at 0, 0, 0 area
@@ -20,7 +28,6 @@
 // simple terration - trees
 // simple lighting
 
-// at large rs, squares start to draw in front of closer squares
 // fix fill squares to accomodate for when the ys of the square are too close
 
 // optimise by lowering resolution of the fill square function - see the TODO note
@@ -1095,14 +1102,14 @@ void fill_square(square_t *square) {
 	}
 
 	// TODO: fix this fix
-	if (largest_y - smallest_y < 5) {
-		if (smallest_y > 1) {
-			smallest_y -= 1;
-		}
-		if (largest_y < HEIGHT - 1) {
-			largest_y += 1;
-		}
-	}
+	//if (largest_y - smallest_y < 5) {
+		//if (smallest_y > 1) {
+			//smallest_y -= 1;
+		//}
+		//if (largest_y < HEIGHT - 1) {
+			//largest_y += 1;
+		//}
+	//}
 
 	// TODO: could we use y+=2 or smthn instead of y++ here to make it faster?
 	for (int y = smallest_y; y < largest_y; y++) {
@@ -1995,15 +2002,51 @@ void generate_chunk(chunk_t *chunk, int i) {
 		for (int j = 0; j < CHUNK_WIDTH; j++) {
 			float val = 0.00003;
 			int y = floor(((perlin2D(&noise, (chunk->pos.x + (i * CUBE_WIDTH)) * val, (chunk->pos.z + (j * CUBE_WIDTH)) * val)) * 10));
+			if (y > 0) {
+				y = 0;
+			}
 			int right = floor(((perlin2D(&noise, (chunk->pos.x + (i * CUBE_WIDTH) + CUBE_WIDTH) * val, (chunk->pos.z + (j * CUBE_WIDTH)) * val)) * 10));
 			int left = floor(((perlin2D(&noise, (chunk->pos.x + (i * CUBE_WIDTH) - CUBE_WIDTH) * val, (chunk->pos.z + (j * CUBE_WIDTH)) * val)) * 10));
 
 			int front = floor(((perlin2D(&noise, (chunk->pos.x + (i * CUBE_WIDTH)) * val, (chunk->pos.z + (j * CUBE_WIDTH) - CUBE_WIDTH) * val)) * 10));
 			int back = floor(((perlin2D(&noise, (chunk->pos.x + (i * CUBE_WIDTH)) * val, (chunk->pos.z + (j * CUBE_WIDTH) + CUBE_WIDTH) * val)) * 10));
 
-			if (y > 0) {
-				y = 0;
+			bruh_top = 0;
+			bruh_bottom = 0;
+			bruh_left = 0;
+			bruh_right = 0;
+			bruh_front = 0;
+			bruh_back = 0;
+			if (rand() % 100 == 0) {
+				int h = (rand() % 10) + 3;
+				for (int t = 0; t < h; t++) {
+					add_cube_to_chunk((vec3_t){chunk->pos.x + (i * CUBE_WIDTH),
+											   (y + 1 + t) * CUBE_WIDTH,
+											   chunk->pos.z + (j * CUBE_WIDTH)},
+									  wood_texture, chunk);
+				}
+				add_cube_to_chunk((vec3_t){chunk->pos.x + (i * CUBE_WIDTH),
+										   (y + 1 + h) * CUBE_WIDTH,
+										   chunk->pos.z + (j * CUBE_WIDTH)},
+								  leaf_texture, chunk);
+				add_cube_to_chunk((vec3_t){chunk->pos.x + ((i + 1) * CUBE_WIDTH),
+										   (y + h) * CUBE_WIDTH,
+										   chunk->pos.z + (j * CUBE_WIDTH)},
+								  leaf_texture, chunk);
+				add_cube_to_chunk((vec3_t){chunk->pos.x + ((i - 1) * CUBE_WIDTH),
+										   (y + h) * CUBE_WIDTH,
+										   chunk->pos.z + (j * CUBE_WIDTH)},
+								  leaf_texture, chunk);
+				add_cube_to_chunk((vec3_t){chunk->pos.x + (i * CUBE_WIDTH),
+										   (y + h) * CUBE_WIDTH,
+										   chunk->pos.z + ((j + 1) * CUBE_WIDTH)},
+								  leaf_texture, chunk);
+				add_cube_to_chunk((vec3_t){chunk->pos.x + (i * CUBE_WIDTH),
+										   (y + h) * CUBE_WIDTH,
+										   chunk->pos.z + ((j - 1) * CUBE_WIDTH)},
+								  leaf_texture, chunk);
 			}
+
 			bruh_bottom = 1;
 			for (int k = y; k > - CHUNK_WIDTH; k--) {
 				if (front >= k) {
