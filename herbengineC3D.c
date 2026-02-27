@@ -9,22 +9,20 @@
 
 //TODO:
 
+// fix remove cube - need to check if cube was on the boundary of a chunk for neighbours!
+// improve detecting if we crossed a chunk boundary
 // detecting if we crossed a chunk boundary doesn't work at 0, 0, 0 area
 
-// fix neighbour finding in chunk generation and placing/removing a cube
-	// if we place or remove a block, store the location and block type in the chunk data, and save
-    // the chunk data.
-    // when we load a chunk, check if that chunk is stored in chunk data, else just generate it normally
+// if we place or remove a block, store the location and block type in the chunk data, and save
+// the chunk data.
+// when we load a chunk, check if that chunk is stored in chunk data, else just generate it normally
 
 // simple terration - trees
 // simple lighting
 
-// big fixes:
+// at large rs, squares start to draw in front of closer squares
 // fix fill squares to accomodate for when the ys of the square are too close
-// fix setting whether or not a face has a neighbour...
-    // this is taking a million years to load the world cos of this
 
-// optimisations:
 // optimise by lowering resolution of the fill square function - see the TODO note
 
 /* ----------------------- defines --------------------- */
@@ -48,7 +46,7 @@
 
 #define NUM_CHUNKS 16
 #define CHUNK_WIDTH 16
-#define CUBES_PER_CHUNK (CHUNK_WIDTH * CHUNK_WIDTH * CHUNK_WIDTH + 1000)
+#define CUBES_PER_CHUNK (CHUNK_WIDTH * CHUNK_WIDTH * CHUNK_WIDTH)
 
 #define HOTBAR_SLOTS 9
 #define HOTBAR_SLOT_WIDTH (WIDTH / (HOTBAR_SLOTS + 2)) // add 2 so it's centred
@@ -289,7 +287,7 @@ void init_stuff() {
 	highlighted_cube_face = -1;
 
 	camera_pos.x = 0;
-	camera_pos.y = 10 * CUBE_WIDTH;
+	camera_pos.y = 1 * CUBE_WIDTH;
 	camera_pos.z = 1 * CUBE_WIDTH;
 
 	player_width = CUBE_WIDTH / 3;
@@ -2003,6 +2001,9 @@ void generate_chunk(chunk_t *chunk, int i) {
 			int front = floor(((perlin2D(&noise, (chunk->pos.x + (i * CUBE_WIDTH)) * val, (chunk->pos.z + (j * CUBE_WIDTH) - CUBE_WIDTH) * val)) * 10));
 			int back = floor(((perlin2D(&noise, (chunk->pos.x + (i * CUBE_WIDTH)) * val, (chunk->pos.z + (j * CUBE_WIDTH) + CUBE_WIDTH) * val)) * 10));
 
+			if (y > 0) {
+				y = 0;
+			}
 			bruh_bottom = 1;
 			for (int k = y; k > - CHUNK_WIDTH; k--) {
 				if (front >= k) {
@@ -2044,6 +2045,12 @@ void generate_chunk(chunk_t *chunk, int i) {
 			}
 		}
 	}
+	bruh_top = 0;
+	bruh_bottom = 0;
+	bruh_left = 0;
+	bruh_right = 0;
+	bruh_front = 0;
+	bruh_back = 0;
 }
 
 //gpt perlin:
