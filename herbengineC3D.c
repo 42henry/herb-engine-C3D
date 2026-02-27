@@ -54,6 +54,8 @@
 #define HOTBAR_SLOTS 9
 #define HOTBAR_SLOT_WIDTH (WIDTH / (HOTBAR_SLOTS + 2)) // add 2 so it's centred
 
+#define REACH (4 * CUBE_WIDTH)
+
 /* ----------------------- structs --------------------- */
 
 typedef struct {
@@ -163,6 +165,7 @@ static void render_hotbar();
 static void render_hand();
 static vec3_t rotate_and_project(vec3_t pos);
 static void rotate_and_project_by_rot_value(vec3_t *pos, vec3_t *new_pos, float x_rot, float y_rot);
+static int square_surrounds_centre(square_t *square);
 
 // cubes/squares handling
 static void add_cube_to_cubes_array(vec3_t top_left, texture_t *texture, cubes_t *array);
@@ -555,7 +558,7 @@ void clear_screen(colour_t colour) {
 
 void render_chunks() {
 
-	int closest_r = 99999999;
+	double closest_r = 999999999;
 	highlighted_cube_face = -1;
 	int draw_highlight_index = -1;
 
@@ -621,6 +624,8 @@ void render_chunks() {
 
 				int texture_side = SQUARES_PER_FACE;
 
+				int pos_highlight = 0;
+
 				face_t face = {0};
 
 				switch (face_i) {
@@ -661,6 +666,12 @@ void render_chunks() {
 								square.colour = pack_colour_to_uint32(&c);
 
 								face.squares[count++] = square;
+
+								if (r < REACH) {
+									if (square_surrounds_centre(&square)) {
+										pos_highlight = 1;
+									}
+								}
 							}
 						}
 						draw_faces.items[draw_faces.count++] = face;
@@ -686,7 +697,6 @@ void render_chunks() {
 						// calc distance to camera
 						double r = sqrt((x2 * x2) + (y2 * y2) + (z2 * z2));
 
-						face_t face = {0};
 						face.r = r;
 
 						int count = 0;
@@ -704,6 +714,12 @@ void render_chunks() {
 								square.colour = pack_colour_to_uint32(&c);
 
 								face.squares[count++] = square;
+
+								if (r < REACH) {
+									if (square_surrounds_centre(&square)) {
+										pos_highlight = 1;
+									}
+								}
 							}
 						}
 						draw_faces.items[draw_faces.count++] = face;
@@ -729,7 +745,6 @@ void render_chunks() {
 						// calc distance to camera
 						double r = sqrt((x2 * x2) + (y2 * y2) + (z2 * z2));
 
-						face_t face = {0};
 						face.r = r;
 
 						int count = 0;
@@ -747,6 +762,12 @@ void render_chunks() {
 								square.colour = pack_colour_to_uint32(&c);
 
 								face.squares[count++] = square;
+
+								if (r < REACH) {
+									if (square_surrounds_centre(&square)) {
+										pos_highlight = 1;
+									}
+								}
 							}
 						}
 						draw_faces.items[draw_faces.count++] = face;
@@ -772,7 +793,6 @@ void render_chunks() {
 						// calc distance to camera
 						double r = sqrt((x2 * x2) + (y2 * y2) + (z2 * z2));
 
-						face_t face = {0};
 						face.r = r;
 
 						int count = 0;
@@ -789,6 +809,12 @@ void render_chunks() {
 								square.colour = pack_colour_to_uint32(&c);
 
 								face.squares[count++] = square;
+
+								if (r < REACH) {
+									if (square_surrounds_centre(&square)) {
+										pos_highlight = 1;
+									}
+								}
 							}
 						}
 						draw_faces.items[draw_faces.count++] = face;
@@ -814,7 +840,6 @@ void render_chunks() {
 						// calc distance to camera
 						double r = sqrt((x2 * x2) + (y2 * y2) + (z2 * z2));
 
-						face_t face = {0};
 						face.r = r;
 
 						int count = 0;
@@ -831,6 +856,12 @@ void render_chunks() {
 								square.colour = pack_colour_to_uint32(&c);
 
 								face.squares[count++] = square;
+								 
+								if (r < REACH) {
+									if (square_surrounds_centre(&square)) {
+										pos_highlight = 1;
+									}
+								}
 							}
 						}
 						draw_faces.items[draw_faces.count++] = face;
@@ -856,7 +887,6 @@ void render_chunks() {
 						// calc distance to camera
 						double r = sqrt((x2 * x2) + (y2 * y2) + (z2 * z2));
 
-						face_t face = {0};
 						face.r = r;
 
 						int count = 0;
@@ -873,6 +903,12 @@ void render_chunks() {
 								square.colour = pack_colour_to_uint32(&c);
 
 								face.squares[count++] = square;
+
+								if (r < REACH) {
+									if (square_surrounds_centre(&square)) {
+										pos_highlight = 1;
+									}
+								}
 							}
 						}
 						draw_faces.items[draw_faces.count++] = face;
@@ -880,44 +916,17 @@ void render_chunks() {
 					}
 				}
 
-				if (chunk_i == occupied_chunk_index) {
-					int pos_highlight = 0;
+				if (pos_highlight) {
+					// if it is, check that square.r is closest r
+					if (face.r < closest_r) {
+						closest_r = face.r;
 
-					int top_left_x = face.squares[0].coords[0].x;
-					int bottom_right_x = face.squares[SQUARES_PER_FACE - 1].coords[2].x;
-					int top_left_y = face.squares[0].coords[0].y;
-					int bottom_right_y = face.squares[SQUARES_PER_FACE - 1].coords[2].y;
+						highlighted_cube_index = cube_i;
+						highlighted_cube_chunk_index = chunk_i;
 
-					if (bottom_right_x < top_left_x) {
-						int temp = bottom_right_x;
-						bottom_right_x = top_left_x;
-						top_left_x = temp;
-					}
-					if (bottom_right_y < top_left_y) {
-						int temp = bottom_right_y;
-						bottom_right_y = top_left_y;
-						top_left_y = temp;
-					}
-
-					// check if the face just drawn surrounds 0,0
-
-					if (top_left_x <= WIDTH / 2 && bottom_right_x >= WIDTH / 2 && top_left_y <= HEIGHT / 2 && bottom_right_y >= HEIGHT / 2) {
-						pos_highlight = 1;
-					}
-
-					if (pos_highlight) {
-						// if it is, check that square.r is closest r
-						// also check that the z value is positive!!!
-						if (face.r < closest_r && face.squares[0].coords[0].z) {
-							closest_r = face.r;
-
-							highlighted_cube_index = cube_i;
-							highlighted_cube_chunk_index = chunk_i;
-
-							// find the face we have highlighted
-							highlighted_cube_face = face_i;
-							draw_highlight_index = draw_faces.count - 1;
-						}
+						// find the face we have highlighted
+						highlighted_cube_face = face_i;
+						draw_highlight_index = draw_faces.count - 1;
 					}
 				}
 			}
@@ -2181,4 +2190,36 @@ double perlin2D(perlin_t *n, double x, double y)
              grad(n->p[B+1], x-1, y-1), u),
         v
     );
+}
+
+int square_surrounds_centre(square_t *square) {
+	int left_x = WIDTH;
+	int right_x = -WIDTH;
+	int top_y = HEIGHT;
+	int bottom_y = -HEIGHT;
+	int count = 0;
+	for (int i = 0; i < 4; i++) {
+		if (square->coords[i].x < left_x) {
+			left_x = square->coords[i].x;
+		}	
+		if (square->coords[i].x > right_x) {
+			right_x = square->coords[i].x;
+		}	
+		if (square->coords[i].y > bottom_y) {
+			bottom_y = square->coords[i].y;
+		}
+		if (square->coords[i].y < top_y) {
+			top_y = square->coords[i].y;
+		}
+		if (square->coords[i].z < 0) {
+			count++;
+		}
+	}
+	if (count == 4) {
+		return 0;
+	}
+	if (left_x <= WIDTH / 2 && right_x >= WIDTH / 2 && top_y <= HEIGHT / 2 && bottom_y >= HEIGHT / 2) {
+		return 1;
+	}
+	return 0;
 }
