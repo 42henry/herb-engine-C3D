@@ -11,9 +11,12 @@
 
 // fix hotbar and hand UI
 
-// add fog at chunk boundaries
+// fix render issue
 
 // fix place and remove cube to also check neighbouring chunks if at a chunk boundary
+// fix place or remove cube seg fault?
+
+// fix issue where you get stuck in a block at a chunk boundary
 
 // if we place or remove a block, store the location and block type in the chunk data, and save the chunk data.
 // when we load a chunk, check if that chunk is stored in chunk data, else just generate it normally
@@ -44,10 +47,14 @@
 #define TARGET_FPS 60
 #define FRAME_TIME_NS (1000000000 / TARGET_FPS)
 
-#define SQRT_NUM_CHUNKS 3
+// this has to be odd
+#define SQRT_NUM_CHUNKS 5
+
 #define NUM_CHUNKS (SQRT_NUM_CHUNKS * SQRT_NUM_CHUNKS)
-#define CHUNK_WIDTH 10
+#define CHUNK_WIDTH 16
 #define CUBES_PER_CHUNK (CHUNK_WIDTH * CHUNK_WIDTH * CHUNK_WIDTH)
+
+#define FOG_DIST ((SQRT_NUM_CHUNKS - 2) * CHUNK_WIDTH * CUBE_WIDTH * 0.5)
 
 #define HOTBAR_SLOTS 9
 #define HOTBAR_SLOT_WIDTH (WIDTH / (HOTBAR_SLOTS + 2)) // add 2 so it's centred
@@ -205,6 +212,7 @@ static faces_t draw_faces = {0};
 
 static int highlighted_cube_face = 0;
 static int highlighted_cube_index = 0;
+static int highlighted_cube_chunk_index = 0;
 
 //static cubes_t hotbar_cubes = {0};
 //static faces_t hotbar_faces = {0};
@@ -275,16 +283,12 @@ static int bruh_right = 0;
 static int bruh_front = 0;
 static int bruh_back = 0;
 
-static int chunk_width_inv = 0;
-static int chunk_width_squared_inv = 0;
+static colour_t sky = {0};
 
 void init_stuff() {
 
 	srand(time(NULL));
     perlin_init(&noise, 69420);
-
-	chunk_width_inv = 1 / CHUNK_WIDTH;
-	chunk_width_squared_inv = 1 / (CHUNK_WIDTH * CHUNK_WIDTH);
 
 	// tests
 	assert(test_fill_square());
@@ -310,6 +314,10 @@ void init_stuff() {
 	red.r = 255;
 	green.g = 255;
 	blue.b = 255;
+
+	sky.r = 80;
+	sky.g = 200;
+	sky.b = 240;
 
 	small_height = HEIGHT * 0.01;
 	hotbar_y = HEIGHT - (HEIGHT * 0.1);
@@ -369,7 +377,7 @@ void update() {
 
 void update_pixels() {
 
-    clear_screen((colour_t){50, 180, 255});
+    clear_screen(sky);
 
 	render_chunks();
 
@@ -660,8 +668,19 @@ void render_chunks() {
 
 								// 0 as that is the top texture
 								colour_t c = texture->data[j * TEXTURE_WIDTH + i];
-								square.colour = pack_colour_to_uint32(&c);
 
+								if (r > FOG_DIST) {
+									double val = r - FOG_DIST;
+									val = (val * 100) / (CHUNK_WIDTH * CUBE_WIDTH * 0.5);
+									if (val > 100) {
+										val = 100;
+									}
+									c.r += (((float)sky.r - (float)c.r) / 100) * val;
+									c.g += (((float)sky.g - (float)c.g) / 100) * val;
+									c.b += (((float)sky.b - (float)c.b) / 100) * val;
+								}
+
+								square.colour = pack_colour_to_uint32(&c);
 								face.squares[count++] = square;
 
 								if (r < REACH) {
@@ -708,8 +727,18 @@ void render_chunks() {
 
 								// 1, as the top face textures are the first square of the texture image
 								colour_t c = texture->data[1 * texture_side + j * TEXTURE_WIDTH + i];
-								square.colour = pack_colour_to_uint32(&c);
+								if (r > FOG_DIST) {
+									double val = r - FOG_DIST;
+									val = (val * 100) / (CHUNK_WIDTH * CUBE_WIDTH * 0.5);
+									if (val > 100) {
+										val = 100;
+									}
+									c.r += (((float)sky.r - (float)c.r) / 100) * val;
+									c.g += (((float)sky.g - (float)c.g) / 100) * val;
+									c.b += (((float)sky.b - (float)c.b) / 100) * val;
+								}
 
+								square.colour = pack_colour_to_uint32(&c);
 								face.squares[count++] = square;
 
 								if (r < REACH) {
@@ -756,8 +785,18 @@ void render_chunks() {
 
 								// 2, as the side face textures are the 2nd square of the texture image
 								colour_t c = texture->data[2 * texture_side + j * TEXTURE_WIDTH + i];
-								square.colour = pack_colour_to_uint32(&c);
+								if (r > FOG_DIST) {
+									double val = r - FOG_DIST;
+									val = (val * 100) / (CHUNK_WIDTH * CUBE_WIDTH * 0.5);
+									if (val > 100) {
+										val = 100;
+									}
+									c.r += (((float)sky.r - (float)c.r) / 100) * val;
+									c.g += (((float)sky.g - (float)c.g) / 100) * val;
+									c.b += (((float)sky.b - (float)c.b) / 100) * val;
+								}
 
+								square.colour = pack_colour_to_uint32(&c);
 								face.squares[count++] = square;
 
 								if (r < REACH) {
@@ -803,8 +842,18 @@ void render_chunks() {
 								square.coords[3] = rotate_and_project((vec3_t) {x + (i * len), y - ((j + 1) * len), z + CUBE_WIDTH});
 
 								colour_t c = texture->data[2 * texture_side + j * TEXTURE_WIDTH + i];
-								square.colour = pack_colour_to_uint32(&c);
+								if (r > FOG_DIST) {
+									double val = r - FOG_DIST;
+									val = (val * 100) / (CHUNK_WIDTH * CUBE_WIDTH * 0.5);
+									if (val > 100) {
+										val = 100;
+									}
+									c.r += (((float)sky.r - (float)c.r) / 100) * val;
+									c.g += (((float)sky.g - (float)c.g) / 100) * val;
+									c.b += (((float)sky.b - (float)c.b) / 100) * val;
+								}
 
+								square.colour = pack_colour_to_uint32(&c);
 								face.squares[count++] = square;
 
 								if (r < REACH) {
@@ -850,8 +899,18 @@ void render_chunks() {
 								square.coords[3] = rotate_and_project((vec3_t) {x, y - ((j + 1) * len), z + (i * len)});
 
 								colour_t c = texture->data[2 * texture_side + j * TEXTURE_WIDTH + i];
-								square.colour = pack_colour_to_uint32(&c);
+								if (r > FOG_DIST) {
+									double val = r - FOG_DIST;
+									val = (val * 100) / (CHUNK_WIDTH * CUBE_WIDTH * 0.5);
+									if (val > 100) {
+										val = 100;
+									}
+									c.r += (((float)sky.r - (float)c.r) / 100) * val;
+									c.g += (((float)sky.g - (float)c.g) / 100) * val;
+									c.b += (((float)sky.b - (float)c.b) / 100) * val;
+								}
 
+								square.colour = pack_colour_to_uint32(&c);
 								face.squares[count++] = square;
 								 
 								if (r < REACH) {
@@ -897,8 +956,18 @@ void render_chunks() {
 								square.coords[3] = rotate_and_project((vec3_t) {x + CUBE_WIDTH, y - ((j + 1) * len), z + (i * len)});
 
 								colour_t c = texture->data[2 * texture_side + j * TEXTURE_WIDTH + i];
-								square.colour = pack_colour_to_uint32(&c);
+								if (r > FOG_DIST) {
+									double val = r - FOG_DIST;
+									val = (val * 100) / (CHUNK_WIDTH * CUBE_WIDTH * 0.5);
+									if (val > 100) {
+										val = 100;
+									}
+									c.r += (((float)sky.r - (float)c.r) / 100) * val;
+									c.g += (((float)sky.g - (float)c.g) / 100) * val;
+									c.b += (((float)sky.b - (float)c.b) / 100) * val;
+								}
 
+								square.colour = pack_colour_to_uint32(&c);
 								face.squares[count++] = square;
 
 								if (r < REACH) {
@@ -919,6 +988,7 @@ void render_chunks() {
 						closest_r = face.r;
 
 						highlighted_cube_index = cube_i;
+						highlighted_cube_chunk_index = chunk_i;
 						highlighted_cube_face = face_i;
 						draw_highlight_index = draw_faces.count - 1;
 					}
@@ -1310,9 +1380,9 @@ void draw_rect(vec3_t top_left, int width, int height, colour_t colour) {
 
 void place_cube(texture_t *texture) {
 	vec3_t pos = {0};
-	pos.x = chunks[occupied_chunk_index].pos.x + ((highlighted_cube_index % CHUNK_WIDTH) * CUBE_WIDTH);
-	pos.y = chunks[occupied_chunk_index].pos.y + (((highlighted_cube_index / CHUNK_WIDTH) % CHUNK_WIDTH) * CUBE_WIDTH);
-	pos.z = chunks[occupied_chunk_index].pos.z + (((highlighted_cube_index / (CHUNK_WIDTH * CHUNK_WIDTH)) % CHUNK_WIDTH) * CUBE_WIDTH);
+	pos.x = chunks[highlighted_cube_chunk_index].pos.x + ((highlighted_cube_index % CHUNK_WIDTH) * CUBE_WIDTH);
+	pos.y = chunks[highlighted_cube_chunk_index].pos.y + (((highlighted_cube_index / CHUNK_WIDTH) % CHUNK_WIDTH) * CUBE_WIDTH);
+	pos.z = chunks[highlighted_cube_chunk_index].pos.z + (((highlighted_cube_index / (CHUNK_WIDTH * CHUNK_WIDTH)) % CHUNK_WIDTH) * CUBE_WIDTH);
 	int diff = 0;
 	switch (highlighted_cube_face) {
 		case TOP: {
@@ -1388,75 +1458,75 @@ void place_cube(texture_t *texture) {
 
 	int new_i = highlighted_cube_index + diff;
 
-	chunks[occupied_chunk_index].cubes[new_i].texture = texture;
+	chunks[highlighted_cube_chunk_index].cubes[new_i].texture = texture;
 
-	chunks[occupied_chunk_index].cubes[new_i].top_neighbour = 0;
-	chunks[occupied_chunk_index].cubes[new_i].front_neighbour = 0;
-	chunks[occupied_chunk_index].cubes[new_i].left_neighbour = 0;
-	chunks[occupied_chunk_index].cubes[new_i].back_neighbour = 0;
-	chunks[occupied_chunk_index].cubes[new_i].right_neighbour = 0;
-	chunks[occupied_chunk_index].cubes[new_i].bottom_neighbour = 0;
+	chunks[highlighted_cube_chunk_index].cubes[new_i].top_neighbour = 0;
+	chunks[highlighted_cube_chunk_index].cubes[new_i].front_neighbour = 0;
+	chunks[highlighted_cube_chunk_index].cubes[new_i].left_neighbour = 0;
+	chunks[highlighted_cube_chunk_index].cubes[new_i].back_neighbour = 0;
+	chunks[highlighted_cube_chunk_index].cubes[new_i].right_neighbour = 0;
+	chunks[highlighted_cube_chunk_index].cubes[new_i].bottom_neighbour = 0;
 
 	// neighbour below:
-	if (chunks[occupied_chunk_index].cubes[new_i - CHUNK_WIDTH].texture != NULL) {
-		chunks[occupied_chunk_index].cubes[new_i - CHUNK_WIDTH].top_neighbour = 1;
-		chunks[occupied_chunk_index].cubes[new_i].bottom_neighbour = 1;
+	if (chunks[highlighted_cube_chunk_index].cubes[new_i - CHUNK_WIDTH].texture != NULL) {
+		chunks[highlighted_cube_chunk_index].cubes[new_i - CHUNK_WIDTH].top_neighbour = 1;
+		chunks[highlighted_cube_chunk_index].cubes[new_i].bottom_neighbour = 1;
 	}
 	// neighbour above:
-	if (chunks[occupied_chunk_index].cubes[new_i + CHUNK_WIDTH].texture != NULL) {
-		chunks[occupied_chunk_index].cubes[new_i + CHUNK_WIDTH].bottom_neighbour = 1;
-		chunks[occupied_chunk_index].cubes[new_i].top_neighbour = 1;
+	if (chunks[highlighted_cube_chunk_index].cubes[new_i + CHUNK_WIDTH].texture != NULL) {
+		chunks[highlighted_cube_chunk_index].cubes[new_i + CHUNK_WIDTH].bottom_neighbour = 1;
+		chunks[highlighted_cube_chunk_index].cubes[new_i].top_neighbour = 1;
 	}
 	// neighbour left:
-	if (chunks[occupied_chunk_index].cubes[new_i - 1].texture != NULL) {
-		chunks[occupied_chunk_index].cubes[new_i - 1].right_neighbour = 1;
-		chunks[occupied_chunk_index].cubes[new_i].left_neighbour = 1;
+	if (chunks[highlighted_cube_chunk_index].cubes[new_i - 1].texture != NULL) {
+		chunks[highlighted_cube_chunk_index].cubes[new_i - 1].right_neighbour = 1;
+		chunks[highlighted_cube_chunk_index].cubes[new_i].left_neighbour = 1;
 	}
 	// neighbour right:
-	if (chunks[occupied_chunk_index].cubes[new_i + 1].texture != NULL) {
-		chunks[occupied_chunk_index].cubes[new_i + 1].left_neighbour = 1;
-		chunks[occupied_chunk_index].cubes[new_i].right_neighbour = 1;
+	if (chunks[highlighted_cube_chunk_index].cubes[new_i + 1].texture != NULL) {
+		chunks[highlighted_cube_chunk_index].cubes[new_i + 1].left_neighbour = 1;
+		chunks[highlighted_cube_chunk_index].cubes[new_i].right_neighbour = 1;
 	}
 	//neighbour front:
-	if (chunks[occupied_chunk_index].cubes[new_i - CHUNK_WIDTH * CHUNK_WIDTH].texture != NULL) {
-		chunks[occupied_chunk_index].cubes[new_i - CHUNK_WIDTH * CHUNK_WIDTH].back_neighbour = 1;
-		chunks[occupied_chunk_index].cubes[new_i].front_neighbour = 1;
+	if (chunks[highlighted_cube_chunk_index].cubes[new_i - CHUNK_WIDTH * CHUNK_WIDTH].texture != NULL) {
+		chunks[highlighted_cube_chunk_index].cubes[new_i - CHUNK_WIDTH * CHUNK_WIDTH].back_neighbour = 1;
+		chunks[highlighted_cube_chunk_index].cubes[new_i].front_neighbour = 1;
 	}
 	//neighbour back:
-	if (chunks[occupied_chunk_index].cubes[new_i + CHUNK_WIDTH * CHUNK_WIDTH].texture != NULL) {
-		chunks[occupied_chunk_index].cubes[new_i + CHUNK_WIDTH * CHUNK_WIDTH].front_neighbour = 1;
-		chunks[occupied_chunk_index].cubes[new_i].back_neighbour = 1;
+	if (chunks[highlighted_cube_chunk_index].cubes[new_i + CHUNK_WIDTH * CHUNK_WIDTH].texture != NULL) {
+		chunks[highlighted_cube_chunk_index].cubes[new_i + CHUNK_WIDTH * CHUNK_WIDTH].front_neighbour = 1;
+		chunks[highlighted_cube_chunk_index].cubes[new_i].back_neighbour = 1;
 	}
 
 	return;
 }
 
 void remove_cube() {
-	chunks[occupied_chunk_index].cubes[highlighted_cube_index].texture = NULL;
+	chunks[highlighted_cube_chunk_index].cubes[highlighted_cube_index].texture = NULL;
 
 	// neighbour below:
-	if (chunks[occupied_chunk_index].cubes[highlighted_cube_index - CHUNK_WIDTH].texture != NULL) {
-		chunks[occupied_chunk_index].cubes[highlighted_cube_index - CHUNK_WIDTH].top_neighbour = 0;
+	if (chunks[highlighted_cube_chunk_index].cubes[highlighted_cube_index - CHUNK_WIDTH].texture != NULL) {
+		chunks[highlighted_cube_chunk_index].cubes[highlighted_cube_index - CHUNK_WIDTH].top_neighbour = 0;
 	}
 	// neighbour above:
-	if (chunks[occupied_chunk_index].cubes[highlighted_cube_index + CHUNK_WIDTH].texture != NULL) {
-		chunks[occupied_chunk_index].cubes[highlighted_cube_index + CHUNK_WIDTH].bottom_neighbour = 0;
+	if (chunks[highlighted_cube_chunk_index].cubes[highlighted_cube_index + CHUNK_WIDTH].texture != NULL) {
+		chunks[highlighted_cube_chunk_index].cubes[highlighted_cube_index + CHUNK_WIDTH].bottom_neighbour = 0;
 	}
 	// neighbour left:
-	if (chunks[occupied_chunk_index].cubes[highlighted_cube_index - 1].texture != NULL) {
-		chunks[occupied_chunk_index].cubes[highlighted_cube_index - 1].right_neighbour = 0;
+	if (chunks[highlighted_cube_chunk_index].cubes[highlighted_cube_index - 1].texture != NULL) {
+		chunks[highlighted_cube_chunk_index].cubes[highlighted_cube_index - 1].right_neighbour = 0;
 	}
 	// neighbour right:
-	if (chunks[occupied_chunk_index].cubes[highlighted_cube_index + 1].texture != NULL) {
-		chunks[occupied_chunk_index].cubes[highlighted_cube_index + 1].left_neighbour = 0;
+	if (chunks[highlighted_cube_chunk_index].cubes[highlighted_cube_index + 1].texture != NULL) {
+		chunks[highlighted_cube_chunk_index].cubes[highlighted_cube_index + 1].left_neighbour = 0;
 	}
 	//neighbour front:
-	if (chunks[occupied_chunk_index].cubes[highlighted_cube_index - CHUNK_WIDTH * CHUNK_WIDTH].texture != NULL) {
-		chunks[occupied_chunk_index].cubes[highlighted_cube_index - CHUNK_WIDTH * CHUNK_WIDTH].back_neighbour = 0;
+	if (chunks[highlighted_cube_chunk_index].cubes[highlighted_cube_index - CHUNK_WIDTH * CHUNK_WIDTH].texture != NULL) {
+		chunks[highlighted_cube_chunk_index].cubes[highlighted_cube_index - CHUNK_WIDTH * CHUNK_WIDTH].back_neighbour = 0;
 	}
 	//neighbour back:
-	if (chunks[occupied_chunk_index].cubes[highlighted_cube_index + CHUNK_WIDTH * CHUNK_WIDTH].texture != NULL) {
-		chunks[occupied_chunk_index].cubes[highlighted_cube_index + CHUNK_WIDTH * CHUNK_WIDTH].front_neighbour = 0;
+	if (chunks[highlighted_cube_chunk_index].cubes[highlighted_cube_index + CHUNK_WIDTH * CHUNK_WIDTH].texture != NULL) {
+		chunks[highlighted_cube_chunk_index].cubes[highlighted_cube_index + CHUNK_WIDTH * CHUNK_WIDTH].front_neighbour = 0;
 	}
 	return;
 }
