@@ -8,13 +8,15 @@
 #include <time.h>
 
 //TODO:
-// chunks - make it infinite
-    // store the index of which chunk the player is standing in at all times - update it when we update_chunks
+
+// detecting if we crossed a chunk boundary doesn't work at 0, 0, 0 area
+
+// fix neighbour finding in chunk generation and placing/removing a cube
 	// if we place or remove a block, store the location and block type in the chunk data, and save
     // the chunk data.
     // when we load a chunk, check if that chunk is stored in chunk data, else just generate it normally
 
-// simple terration - trees and hills
+// simple terration - trees
 // simple lighting
 
 // big fixes:
@@ -36,7 +38,7 @@
 
 #define CUBE_WIDTH 1000
 
-#define TEXTURE_WIDTH 5
+#define TEXTURE_WIDTH 2
 
 #define SQUARES_PER_FACE (TEXTURE_WIDTH * TEXTURE_WIDTH)
 #define SQUARES_PER_CUBE (TEXTURE_WIDTH * TEXTURE_WIDTH * 6)
@@ -44,9 +46,9 @@
 #define TARGET_FPS 60
 #define FRAME_TIME_NS (1000000000 / TARGET_FPS)
 
-#define NUM_CHUNKS 9
-#define CHUNK_WIDTH 5
-#define CUBES_PER_CHUNK (CHUNK_WIDTH * CHUNK_WIDTH * CHUNK_WIDTH)
+#define NUM_CHUNKS 16
+#define CHUNK_WIDTH 16
+#define CUBES_PER_CHUNK (CHUNK_WIDTH * CHUNK_WIDTH * CHUNK_WIDTH + 1000)
 
 #define HOTBAR_SLOTS 9
 #define HOTBAR_SLOT_WIDTH (WIDTH / (HOTBAR_SLOTS + 2)) // add 2 so it's centred
@@ -162,7 +164,7 @@ static void rotate_and_project_by_rot_value(vec3_t *pos, vec3_t *new_pos, float 
 // cubes/squares handling
 static void add_cube_to_chunk(vec3_t top_left, texture_t *texture, chunk_t *chunk);
 static void add_cube_to_cubes_array(vec3_t top_left, texture_t *texture, cubes_t *array);
-static void remove_cube(int index);
+static void remove_cube();
 static void place_cube(texture_t *texture);
 static int compare_faces(const void *one, const void *two);
 
@@ -263,6 +265,13 @@ struct timespec last, now;
 static int dlog = 0;
 
 static perlin_t noise;
+
+static int bruh_top = 0;
+static int bruh_bottom = 0;
+static int bruh_left = 0;
+static int bruh_right = 0;
+static int bruh_front = 0;
+static int bruh_back = 0;
 
 void init_stuff() {
 
@@ -506,6 +515,25 @@ void add_cube_to_chunk(vec3_t top_left, texture_t *texture, chunk_t *chunk) {
 		}
 	}
 
+	if (bruh_top) {
+		top.neighbour = 1;
+	}
+	if (bruh_bottom) {
+		bottom.neighbour = 1;
+	}
+	if (bruh_left) {
+		left.neighbour = 1;
+	}
+	if (bruh_right) {
+		right.neighbour = 1;
+	}
+	if (bruh_front) {
+		front.neighbour = 1;
+	}
+	if (bruh_back) {
+		back.neighbour = 1;
+	}
+
 	cube->faces[TOP] = top;
 	cube->faces[TOP].dir = TOP;
 
@@ -708,9 +736,9 @@ void render_chunks() {
 			// only draw faces closest to camera
 
 			// top left coord
-			int x1 = cube.faces[0].squares[0].coords[0].x;
-			int y1 = cube.faces[0].squares[0].coords[0].y;
-			int z1 = cube.faces[0].squares[0].coords[0].z;
+			int x1 = chunks[chunk_i].cubes[cube_i].faces[0].squares[0].coords[0].x;
+			int y1 = chunks[chunk_i].cubes[cube_i].faces[0].squares[0].coords[0].y;
+			int z1 = chunks[chunk_i].cubes[cube_i].faces[0].squares[0].coords[0].z;
 
 			// bottom right coord
 			int x2 = x1 + CUBE_WIDTH;
@@ -719,55 +747,55 @@ void render_chunks() {
 
 			if (abs(camera_pos.x - x2) < abs(camera_pos.x - x1)) {
 				// draw right side
-				cube.faces[RIGHT].back_face = 0;
-				cube.faces[LEFT].back_face = 1;
+				chunks[chunk_i].cubes[cube_i].faces[RIGHT].back_face = 0;
+				chunks[chunk_i].cubes[cube_i].faces[LEFT].back_face = 1;
 			}
 			else {
 				// draw left side
-				cube.faces[LEFT].back_face = 0;
-				cube.faces[RIGHT].back_face = 1;
+				chunks[chunk_i].cubes[cube_i].faces[LEFT].back_face = 0;
+				chunks[chunk_i].cubes[cube_i].faces[RIGHT].back_face = 1;
 			}
 			if (abs(camera_pos.z - z2) < abs(camera_pos.z - z1)) {
 				// draw back side
-				cube.faces[BACK].back_face = 0;
-				cube.faces[FRONT].back_face = 1;
+				chunks[chunk_i].cubes[cube_i].faces[BACK].back_face = 0;
+				chunks[chunk_i].cubes[cube_i].faces[FRONT].back_face = 1;
 			}
 			else {
 				// draw front side
-				cube.faces[FRONT].back_face = 0;
-				cube.faces[BACK].back_face = 1;
+				chunks[chunk_i].cubes[cube_i].faces[FRONT].back_face = 0;
+				chunks[chunk_i].cubes[cube_i].faces[BACK].back_face = 1;
 			}
 			if (abs(camera_pos.y - y2) > abs(camera_pos.y - y1)) {
 				// draw bottom side
-				cube.faces[BOTTOM].back_face = 1;
-				cube.faces[TOP].back_face = 0;
+				chunks[chunk_i].cubes[cube_i].faces[BOTTOM].back_face = 1;
+				chunks[chunk_i].cubes[cube_i].faces[TOP].back_face = 0;
 			}
 			else {
 				// draw top side
-				cube.faces[TOP].back_face = 1;
-				cube.faces[BOTTOM].back_face = 0;
+				chunks[chunk_i].cubes[cube_i].faces[TOP].back_face = 1;
+				chunks[chunk_i].cubes[cube_i].faces[BOTTOM].back_face = 0;
 			}
 
 			for (int j = 0; j < 6; j++) {
 
-				if (cube.faces[j].neighbour) {
+				if (chunks[chunk_i].cubes[cube_i].faces[j].neighbour) {
 					continue;
 				}
-				if (cube.faces[j].back_face) {
+				if (chunks[chunk_i].cubes[cube_i].faces[j].back_face) {
 					continue;
 				}
 
 				int pos_highlight = 0;
 
 				// top left coord
-				int x1 = cube.faces[j].squares[0].coords[0].x - camera_pos.x;
-				int y1 = cube.faces[j].squares[0].coords[0].y - camera_pos.y;
-				int z1 = cube.faces[j].squares[0].coords[0].z - camera_pos.z;
+				int x1 = chunks[chunk_i].cubes[cube_i].faces[j].squares[0].coords[0].x - camera_pos.x;
+				int y1 = chunks[chunk_i].cubes[cube_i].faces[j].squares[0].coords[0].y - camera_pos.y;
+				int z1 = chunks[chunk_i].cubes[cube_i].faces[j].squares[0].coords[0].z - camera_pos.z;
 
 				// bottom right coord
-				x1 += cube.faces[j].squares[SQUARES_PER_FACE - 1].coords[0].x - camera_pos.x;
-				y1 += cube.faces[j].squares[SQUARES_PER_FACE - 1].coords[0].y - camera_pos.y;
-				z1 += cube.faces[j].squares[SQUARES_PER_FACE - 1].coords[0].z - camera_pos.z;
+				x1 += chunks[chunk_i].cubes[cube_i].faces[j].squares[SQUARES_PER_FACE - 1].coords[0].x - camera_pos.x;
+				y1 += chunks[chunk_i].cubes[cube_i].faces[j].squares[SQUARES_PER_FACE - 1].coords[0].y - camera_pos.y;
+				z1 += chunks[chunk_i].cubes[cube_i].faces[j].squares[SQUARES_PER_FACE - 1].coords[0].z - camera_pos.z;
 
 				x1 /= 2;
 				y1 /= 2;
@@ -778,7 +806,7 @@ void render_chunks() {
 
 				face_t new_face = {0};
 				new_face.r = r;
-				new_face.dir = cube.faces[j].dir;
+				new_face.dir = chunks[chunk_i].cubes[cube_i].faces[j].dir;
 
 				// for each square of each face of the cube
 				for (int k = 0; k < SQUARES_PER_FACE; k++) {
@@ -786,9 +814,9 @@ void render_chunks() {
 					square_t new_square = {0};
 					for (int l = 0; l < 4; l++) {
 						vec3_t pos = {0};
-						pos.x = cube.faces[j].squares[k].coords[l].x;
-						pos.y = cube.faces[j].squares[k].coords[l].y;
-						pos.z = cube.faces[j].squares[k].coords[l].z;
+						pos.x = chunks[chunk_i].cubes[cube_i].faces[j].squares[k].coords[l].x;
+						pos.y = chunks[chunk_i].cubes[cube_i].faces[j].squares[k].coords[l].y;
+						pos.z = chunks[chunk_i].cubes[cube_i].faces[j].squares[k].coords[l].z;
 						pos.x -= camera_pos.x;
 						pos.y -= camera_pos.y;
 						pos.z -= camera_pos.z;
@@ -801,7 +829,7 @@ void render_chunks() {
 						new_square.coords[l].z = new_pos.z;
 						
 						
-						new_square.colour = cube.faces[j].squares[k].colour;
+						new_square.colour = chunks[chunk_i].cubes[cube_i].faces[j].squares[k].colour;
 					}
 
 					new_face.squares[k] = new_square;
@@ -1310,51 +1338,52 @@ void place_cube(texture_t *texture) {
 }
 
 //TODO;
-void remove_cube(int index) {
-	//int x = world_cubes.items[index].faces[0].squares[0].coords[0].x;
-	//int y = world_cubes.items[index].faces[0].squares[0].coords[0].y;
-	//int z = world_cubes.items[index].faces[0].squares[0].coords[0].z;
-//
-	//int count = index;
-	//for (int i = index + 1; i < world_cubes.count; i++) {
-		//world_cubes.items[count] = world_cubes.items[i];
-		//count++;	
-	//}
-	//world_cubes.count --;
-//
-	//// update neighbours:
-	//for (int i = 0; i < world_cubes.count; i++) {
-		//int x1 = world_cubes.items[i].faces[0].squares[0].coords[0].x;
-		//int y1 = world_cubes.items[i].faces[0].squares[0].coords[0].y;
-		//int z1 = world_cubes.items[i].faces[0].squares[0].coords[0].z;
-//
-		//if (y == y1 && z == z1) {
-			//if (world_cubes.items[i].faces[0].squares[0].coords[0].x - CUBE_WIDTH == x) {
-				//world_cubes.items[i].faces[LEFT].neighbour = 0;	
-			//}
-			//if (world_cubes.items[i].faces[0].squares[0].coords[0].x + CUBE_WIDTH == x) {
-				//world_cubes.items[i].faces[RIGHT].neighbour = 0;	
-			//}
-		//}
-//
-		//if (x == x1 && z == z1) {
-			//if (world_cubes.items[i].faces[0].squares[0].coords[0].y - CUBE_WIDTH == y) {
-				//world_cubes.items[i].faces[BOTTOM].neighbour = 0;	
-			//}
-			//if (world_cubes.items[i].faces[0].squares[0].coords[0].y + CUBE_WIDTH == y) {
-				//world_cubes.items[i].faces[TOP].neighbour = 0;	
-			//}
-		//}
-//
-		//if (x == x1 && y == y1) {
-			//if (world_cubes.items[i].faces[0].squares[0].coords[0].z - CUBE_WIDTH == z) {
-				//world_cubes.items[i].faces[FRONT].neighbour = 0;	
-			//}
-			//if (world_cubes.items[i].faces[0].squares[0].coords[0].z + CUBE_WIDTH == z) {
-				//world_cubes.items[i].faces[BACK].neighbour = 0;	
-			//}
-		//}
-	//}
+void remove_cube() {
+	vec3_t pos = {0};
+	int x = chunks[highlighted_cube_chunk_index].cubes[highlighted_cube_index].faces[0].squares[0].coords[0].x;
+	int y = chunks[highlighted_cube_chunk_index].cubes[highlighted_cube_index].faces[0].squares[0].coords[0].y;
+	int z = chunks[highlighted_cube_chunk_index].cubes[highlighted_cube_index].faces[0].squares[0].coords[0].z;
+
+	int count = highlighted_cube_index;
+	for (int i = highlighted_cube_index + 1; i < chunks[highlighted_cube_chunk_index].cube_count; i++) {
+		chunks[highlighted_cube_chunk_index].cubes[count] = chunks[highlighted_cube_chunk_index].cubes[i];
+		count++;	
+	}
+	chunks[highlighted_cube_chunk_index].cube_count--;
+
+	// update neighbours:
+	for (int i = 0; i < chunks[highlighted_cube_chunk_index].cube_count; i++) {
+		int x1 = chunks[highlighted_cube_chunk_index].cubes[i].faces[0].squares[0].coords[0].x;
+		int y1 = chunks[highlighted_cube_chunk_index].cubes[i].faces[0].squares[0].coords[0].y;
+		int z1 = chunks[highlighted_cube_chunk_index].cubes[i].faces[0].squares[0].coords[0].z;
+
+		if (y == y1 && z == z1) {
+			if (chunks[highlighted_cube_chunk_index].cubes[i].faces[0].squares[0].coords[0].x - CUBE_WIDTH == x) {
+				chunks[highlighted_cube_chunk_index].cubes[i].faces[LEFT].neighbour = 0;	
+			}
+			if (chunks[highlighted_cube_chunk_index].cubes[i].faces[0].squares[0].coords[0].x + CUBE_WIDTH == x) {
+				chunks[highlighted_cube_chunk_index].cubes[i].faces[RIGHT].neighbour = 0;	
+			}
+		}
+
+		if (x == x1 && z == z1) {
+			if (chunks[highlighted_cube_chunk_index].cubes[i].faces[0].squares[0].coords[0].y - CUBE_WIDTH == y) {
+				chunks[highlighted_cube_chunk_index].cubes[i].faces[BOTTOM].neighbour = 0;	
+			}
+			if (chunks[highlighted_cube_chunk_index].cubes[i].faces[0].squares[0].coords[0].y + CUBE_WIDTH == y) {
+				chunks[highlighted_cube_chunk_index].cubes[i].faces[TOP].neighbour = 0;	
+			}
+		}
+
+		if (x == x1 && y == y1) {
+			if (chunks[highlighted_cube_chunk_index].cubes[i].faces[0].squares[0].coords[0].z - CUBE_WIDTH == z) {
+				chunks[highlighted_cube_chunk_index].cubes[i].faces[FRONT].neighbour = 0;	
+			}
+			if (chunks[highlighted_cube_chunk_index].cubes[i].faces[0].squares[0].coords[0].z + CUBE_WIDTH == z) {
+				chunks[highlighted_cube_chunk_index].cubes[i].faces[BACK].neighbour = 0;	
+			}
+		}
+	}
 	return;
 }
 
@@ -1492,7 +1521,7 @@ void handle_mouse() {
 	else {
 		if (mouse_was_left_clicked) {
 			if (highlighted_cube_face > -1) {
-				remove_cube(highlighted_cube_index);
+				remove_cube();
 			}
 			dlog = (dlog ? 0 : 1);
 		}
@@ -1907,7 +1936,7 @@ void update_chunks(int dir) {
 				occupied_chunk_index += 1;
 			}
 			for (int i = 0; i < NUM_CHUNKS; i++) {
-				if (camera_pos.z - chunks[i].pos.z > 2 * CHUNK_WIDTH * CUBE_WIDTH) {
+				if (camera_pos.z - chunks[i].pos.z > (sqrt(NUM_CHUNKS) - 1) * CHUNK_WIDTH * CUBE_WIDTH) {
 					chunks[i].cube_count = 0;
 					chunks[i].pos.z += sqrt(NUM_CHUNKS) * CUBE_WIDTH * CHUNK_WIDTH;
 					generate_chunk(&chunks[i], i);
@@ -1937,7 +1966,7 @@ void update_chunks(int dir) {
 				occupied_chunk_index -= NUM_CHUNKS;
 			}
 			for (int i = 0; i < NUM_CHUNKS; i++) {
-				if (camera_pos.x - chunks[i].pos.x > 2 * CHUNK_WIDTH * CUBE_WIDTH) {
+				if (camera_pos.x - chunks[i].pos.x > (sqrt(NUM_CHUNKS) - 1) * CHUNK_WIDTH * CUBE_WIDTH) {
 					chunks[i].cube_count = 0;
 					chunks[i].pos.x += sqrt(NUM_CHUNKS) * CUBE_WIDTH * CHUNK_WIDTH;
 					generate_chunk(&chunks[i], i);
@@ -1963,30 +1992,55 @@ void update_chunks(int dir) {
 }
 
 void generate_chunk(chunk_t *chunk, int i) {
-	int count = 0;
+	texture_t *texture = grass_texture;
 	for (int i = 0; i < CHUNK_WIDTH; i++) {
 		for (int j = 0; j < CHUNK_WIDTH; j++) {
-			for (int k = 0; k < CHUNK_WIDTH; k++) {
-				count++;
-				add_cube_to_chunk((vec3_t){chunk->pos.x + (i * CUBE_WIDTH),
-						                   - k * CUBE_WIDTH,
-										   chunk->pos.z + (j * CUBE_WIDTH)},
-								  grass_texture, chunk);
-			}
-		}
-	}
-	for (int i = 0; i < CHUNK_WIDTH; i++) {
-		for (int j = 0; j < CHUNK_WIDTH; j++) {
-			int y = floor(((perlin2D(&noise, (chunk->pos.x + i) * 0.1, (chunk->pos.z + j) * 0.1)) * 10));
-			add_cube_to_chunk((vec3_t){chunk->pos.x + (i * CUBE_WIDTH),
-									   y * CUBE_WIDTH,
-									   chunk->pos.z + (j * CUBE_WIDTH)},
-							  grass_texture, chunk);
-			for (int k = y - 1; k > 0; k--) {
+			float val = 0.00003;
+			int y = floor(((perlin2D(&noise, (chunk->pos.x + (i * CUBE_WIDTH)) * val, (chunk->pos.z + (j * CUBE_WIDTH)) * val)) * 10));
+			int right = floor(((perlin2D(&noise, (chunk->pos.x + (i * CUBE_WIDTH) + CUBE_WIDTH) * val, (chunk->pos.z + (j * CUBE_WIDTH)) * val)) * 10));
+			int left = floor(((perlin2D(&noise, (chunk->pos.x + (i * CUBE_WIDTH) - CUBE_WIDTH) * val, (chunk->pos.z + (j * CUBE_WIDTH)) * val)) * 10));
+
+			int front = floor(((perlin2D(&noise, (chunk->pos.x + (i * CUBE_WIDTH)) * val, (chunk->pos.z + (j * CUBE_WIDTH) - CUBE_WIDTH) * val)) * 10));
+			int back = floor(((perlin2D(&noise, (chunk->pos.x + (i * CUBE_WIDTH)) * val, (chunk->pos.z + (j * CUBE_WIDTH) + CUBE_WIDTH) * val)) * 10));
+
+			bruh_bottom = 1;
+			for (int k = y; k > - CHUNK_WIDTH; k--) {
+				if (front >= k) {
+					bruh_front = 1;
+				}
+				else {
+					bruh_front = 0;
+				}
+				if (back >= k) {
+					bruh_back = 1;
+				}
+				else {
+					bruh_back = 0;
+				}
+				if (right >= k) {
+					bruh_right = 1;
+				}
+				else {
+					bruh_right = 0;
+				}
+				if (left >= k) {
+					bruh_left = 1;
+				}
+				else {
+					bruh_left = 0;
+				}
+				bruh_top = 0;
+				if (k == y) {
+					texture = grass_texture;
+				}
+				else {
+					texture = dirt_texture;
+					bruh_top = 1;
+				}
 				add_cube_to_chunk((vec3_t){chunk->pos.x + (i * CUBE_WIDTH),
 										   k * CUBE_WIDTH,
 										   chunk->pos.z + (j * CUBE_WIDTH)},
-								  dirt_texture, chunk);
+								  texture, chunk);
 			}
 		}
 	}
