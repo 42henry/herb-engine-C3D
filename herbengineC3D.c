@@ -207,7 +207,6 @@ static faces_t draw_faces = {0};
 
 static int highlighted_cube_face = 0;
 static int highlighted_cube_index = 0;
-static int highlighted_cube_chunk_index = 0;
 
 //static cubes_t hotbar_cubes = {0};
 //static faces_t hotbar_faces = {0};
@@ -922,9 +921,6 @@ void render_chunks() {
 						closest_r = face.r;
 
 						highlighted_cube_index = cube_i;
-						highlighted_cube_chunk_index = chunk_i;
-
-						// find the face we have highlighted
 						highlighted_cube_face = face_i;
 						draw_highlight_index = draw_faces.count - 1;
 					}
@@ -1160,7 +1156,7 @@ void fill_square(square_t *square) {
 	//}
 
 	// TODO: could we use y+=2 or smthn instead of y++ here to make it faster?
-	for (int y = smallest_y; y < largest_y; y++) {
+	for (int y = smallest_y; y < largest_y; y+=2) {
 		uint32_t* row = &pixels[y * WIDTH];
 
 		// get x coords y using y = mx + c
@@ -1316,127 +1312,156 @@ void draw_rect(vec3_t top_left, int width, int height, colour_t colour) {
 
 // TODO:
 void place_cube(texture_t *texture) {
-	//vec3_t pos = {0};
-	//pos.x = chunks[highlighted_cube_chunk_index].cubes[highlighted_cube_index].faces[0].squares[0].coords[0].x;
-	//pos.y = chunks[highlighted_cube_chunk_index].cubes[highlighted_cube_index].faces[0].squares[0].coords[0].y;
-	//pos.z = chunks[highlighted_cube_chunk_index].cubes[highlighted_cube_index].faces[0].squares[0].coords[0].z;
-	//switch (highlighted_cube_face) {
-		//case TOP: {
-		    //pos.y += CUBE_WIDTH;
-			//break;
-		//}
-		//case FRONT: {
-			//pos.z -= CUBE_WIDTH;
-			//break;
-		//}
-		//case LEFT: {
-		    //pos.x -= CUBE_WIDTH;
-			//break;
-		//}
-		//case BACK: {
-			//pos.z += CUBE_WIDTH;
-			//break;
-		//}
-		//case RIGHT: {
-		    //pos.x += CUBE_WIDTH;
-			//break;
-		//}
-		//case BOTTOM: {
-		    //pos.y -= CUBE_WIDTH;
-			//break;
-		//}
-	//}
-	//int x1 = pos.x;
-	//int y1 = pos.y;
-	//int z1 = pos.z;
-//
-	//// x2 = bottom right back
-	//int x2 = x1 + CUBE_WIDTH;	
-	//int y2 = y1 - CUBE_WIDTH;	
-	//int z2 = z1 + CUBE_WIDTH;
-//
-	//camera_pos.y -= CUBE_WIDTH;
-	//// player_x1 = top left front
-	//int player_x1 = camera_pos.x - player_width;
-	//int player_y1 = camera_pos.y + player_height;
-	//int player_z1 = camera_pos.z - player_width;
-//
-	//// player_x1 = bottom right back
-	//int player_x2 = camera_pos.x + player_width;
-	//int player_y2 = camera_pos.y - player_width;
-	//int player_z2 = camera_pos.z + player_width;
-//
-	//int x_collision = 0;
-	//int y_collision = 0;
-	//int z_collision = 0;
-	//if ((player_x1 >= x1 && player_x1 <= x2) || (player_x2 >= x1 && player_x2 <= x2)) {
-		//// xs overlap
-		//x_collision = 1;
-	//}
-	//if ((player_y1 <= y1 && player_y1 >= y2) || (player_y2 <= y1 && player_y2 >= y2)) {
-		//// ys overlap
-		//y_collision = 1;
-	//}
-	//if ((player_z1 >= z1 && player_z1 <= z2) || (player_z2 >= z1 && player_z2 <= z2)) {
-		//// zs overlap
-		//z_collision = 1;
-	//}
-	//camera_pos.y += CUBE_WIDTH;
-	//if (x_collision && y_collision && z_collision) {
-		//return;
-	//}
-//
-	//return;
+	vec3_t pos = {0};
+	pos.x = chunks[occupied_chunk_index].pos.x + ((highlighted_cube_index % CHUNK_WIDTH) * CUBE_WIDTH);
+	pos.y = chunks[occupied_chunk_index].pos.y + (((highlighted_cube_index / CHUNK_WIDTH) % CHUNK_WIDTH) * CUBE_WIDTH);
+	pos.z = chunks[occupied_chunk_index].pos.z + (((highlighted_cube_index / (CHUNK_WIDTH * CHUNK_WIDTH)) % CHUNK_WIDTH) * CUBE_WIDTH);
+	int diff = 0;
+	switch (highlighted_cube_face) {
+		case TOP: {
+		    pos.y += CUBE_WIDTH;
+			diff = CHUNK_WIDTH;
+			break;
+		}
+		case FRONT: {
+			pos.z -= CUBE_WIDTH;
+			diff = - CHUNK_WIDTH * CHUNK_WIDTH;
+			break;
+		}
+		case LEFT: {
+		    pos.x -= CUBE_WIDTH;
+			diff = -1;
+			break;
+		}
+		case BACK: {
+			pos.z += CUBE_WIDTH;
+			diff = CHUNK_WIDTH * CHUNK_WIDTH;
+			break;
+		}
+		case RIGHT: {
+		    pos.x += CUBE_WIDTH;
+			diff = 1;
+			break;
+		}
+		case BOTTOM: {
+		    pos.y -= CUBE_WIDTH;
+			diff = -CHUNK_WIDTH;
+			break;
+		}
+	}
+	int x1 = pos.x;
+	int y1 = pos.y;
+	int z1 = pos.z;
+
+	// x2 = bottom right back
+	int x2 = x1 + CUBE_WIDTH;	
+	int y2 = y1 - CUBE_WIDTH;	
+	int z2 = z1 + CUBE_WIDTH;
+
+	camera_pos.y -= CUBE_WIDTH;
+	// player_x1 = top left front
+	int player_x1 = camera_pos.x - player_width;
+	int player_y1 = camera_pos.y + player_height;
+	int player_z1 = camera_pos.z - player_width;
+
+	// player_x1 = bottom right back
+	int player_x2 = camera_pos.x + player_width;
+	int player_y2 = camera_pos.y - player_width;
+	int player_z2 = camera_pos.z + player_width;
+
+	int x_collision = 0;
+	int y_collision = 0;
+	int z_collision = 0;
+	if ((player_x1 >= x1 && player_x1 <= x2) || (player_x2 >= x1 && player_x2 <= x2)) {
+		// xs overlap
+		x_collision = 1;
+	}
+	if ((player_y1 <= y1 && player_y1 >= y2) || (player_y2 <= y1 && player_y2 >= y2)) {
+		// ys overlap
+		y_collision = 1;
+	}
+	if ((player_z1 >= z1 && player_z1 <= z2) || (player_z2 >= z1 && player_z2 <= z2)) {
+		// zs overlap
+		z_collision = 1;
+	}
+	camera_pos.y += CUBE_WIDTH;
+	if (x_collision && y_collision && z_collision) {
+		return;
+	}
+
+	int new_i = highlighted_cube_index + diff;
+
+	chunks[occupied_chunk_index].cubes[new_i].texture = texture;
+
+	chunks[occupied_chunk_index].cubes[new_i].top_neighbour = 0;
+	chunks[occupied_chunk_index].cubes[new_i].front_neighbour = 0;
+	chunks[occupied_chunk_index].cubes[new_i].left_neighbour = 0;
+	chunks[occupied_chunk_index].cubes[new_i].back_neighbour = 0;
+	chunks[occupied_chunk_index].cubes[new_i].right_neighbour = 0;
+	chunks[occupied_chunk_index].cubes[new_i].bottom_neighbour = 0;
+
+	// neighbour below:
+	if (chunks[occupied_chunk_index].cubes[new_i - CHUNK_WIDTH].texture != NULL) {
+		chunks[occupied_chunk_index].cubes[new_i - CHUNK_WIDTH].top_neighbour = 1;
+		chunks[occupied_chunk_index].cubes[new_i].bottom_neighbour = 1;
+	}
+	// neighbour above:
+	if (chunks[occupied_chunk_index].cubes[new_i + CHUNK_WIDTH].texture != NULL) {
+		chunks[occupied_chunk_index].cubes[new_i + CHUNK_WIDTH].bottom_neighbour = 1;
+		chunks[occupied_chunk_index].cubes[new_i].top_neighbour = 1;
+	}
+	// neighbour left:
+	if (chunks[occupied_chunk_index].cubes[new_i - 1].texture != NULL) {
+		chunks[occupied_chunk_index].cubes[new_i - 1].right_neighbour = 1;
+		chunks[occupied_chunk_index].cubes[new_i].left_neighbour = 1;
+	}
+	// neighbour right:
+	if (chunks[occupied_chunk_index].cubes[new_i + 1].texture != NULL) {
+		chunks[occupied_chunk_index].cubes[new_i + 1].left_neighbour = 1;
+		chunks[occupied_chunk_index].cubes[new_i].right_neighbour = 1;
+	}
+	//neighbour front:
+	if (chunks[occupied_chunk_index].cubes[new_i - CHUNK_WIDTH * CHUNK_WIDTH].texture != NULL) {
+		chunks[occupied_chunk_index].cubes[new_i - CHUNK_WIDTH * CHUNK_WIDTH].back_neighbour = 1;
+		chunks[occupied_chunk_index].cubes[new_i].front_neighbour = 1;
+	}
+	//neighbour back:
+	if (chunks[occupied_chunk_index].cubes[new_i + CHUNK_WIDTH * CHUNK_WIDTH].texture != NULL) {
+		chunks[occupied_chunk_index].cubes[new_i + CHUNK_WIDTH * CHUNK_WIDTH].front_neighbour = 1;
+		chunks[occupied_chunk_index].cubes[new_i].back_neighbour = 1;
+	}
+
+	return;
 }
 
-//TODO;
 void remove_cube() {
-	//vec3_t pos = {0};
-	//int x = chunks[highlighted_cube_chunk_index].cubes[highlighted_cube_index].faces[0].squares[0].coords[0].x;
-	//int y = chunks[highlighted_cube_chunk_index].cubes[highlighted_cube_index].faces[0].squares[0].coords[0].y;
-	//int z = chunks[highlighted_cube_chunk_index].cubes[highlighted_cube_index].faces[0].squares[0].coords[0].z;
-//
-	//int count = highlighted_cube_index;
-	//for (int i = highlighted_cube_index + 1; i < chunks[highlighted_cube_chunk_index].cube_count; i++) {
-		//chunks[highlighted_cube_chunk_index].cubes[count] = chunks[highlighted_cube_chunk_index].cubes[i];
-		//count++;	
-	//}
-	//chunks[highlighted_cube_chunk_index].cube_count--;
-//
-	//// update neighbours:
-	//for (int i = 0; i < chunks[highlighted_cube_chunk_index].cube_count; i++) {
-		//int x1 = chunks[highlighted_cube_chunk_index].cubes[i].faces[0].squares[0].coords[0].x;
-		//int y1 = chunks[highlighted_cube_chunk_index].cubes[i].faces[0].squares[0].coords[0].y;
-		//int z1 = chunks[highlighted_cube_chunk_index].cubes[i].faces[0].squares[0].coords[0].z;
-//
-		//if (y == y1 && z == z1) {
-			//if (chunks[highlighted_cube_chunk_index].cubes[i].faces[0].squares[0].coords[0].x - CUBE_WIDTH == x) {
-				//chunks[highlighted_cube_chunk_index].cubes[i].faces[LEFT].neighbour = 0;	
-			//}
-			//if (chunks[highlighted_cube_chunk_index].cubes[i].faces[0].squares[0].coords[0].x + CUBE_WIDTH == x) {
-				//chunks[highlighted_cube_chunk_index].cubes[i].faces[RIGHT].neighbour = 0;	
-			//}
-		//}
-//
-		//if (x == x1 && z == z1) {
-			//if (chunks[highlighted_cube_chunk_index].cubes[i].faces[0].squares[0].coords[0].y - CUBE_WIDTH == y) {
-				//chunks[highlighted_cube_chunk_index].cubes[i].faces[BOTTOM].neighbour = 0;	
-			//}
-			//if (chunks[highlighted_cube_chunk_index].cubes[i].faces[0].squares[0].coords[0].y + CUBE_WIDTH == y) {
-				//chunks[highlighted_cube_chunk_index].cubes[i].faces[TOP].neighbour = 0;	
-			//}
-		//}
-//
-		//if (x == x1 && y == y1) {
-			//if (chunks[highlighted_cube_chunk_index].cubes[i].faces[0].squares[0].coords[0].z - CUBE_WIDTH == z) {
-				//chunks[highlighted_cube_chunk_index].cubes[i].faces[FRONT].neighbour = 0;	
-			//}
-			//if (chunks[highlighted_cube_chunk_index].cubes[i].faces[0].squares[0].coords[0].z + CUBE_WIDTH == z) {
-				//chunks[highlighted_cube_chunk_index].cubes[i].faces[BACK].neighbour = 0;	
-			//}
-		//}
-	//}
-	//return;
+	chunks[occupied_chunk_index].cubes[highlighted_cube_index].texture = NULL;
+
+	// neighbour below:
+	if (chunks[occupied_chunk_index].cubes[highlighted_cube_index - CHUNK_WIDTH].texture != NULL) {
+		chunks[occupied_chunk_index].cubes[highlighted_cube_index - CHUNK_WIDTH].top_neighbour = 0;
+	}
+	// neighbour above:
+	if (chunks[occupied_chunk_index].cubes[highlighted_cube_index + CHUNK_WIDTH].texture != NULL) {
+		chunks[occupied_chunk_index].cubes[highlighted_cube_index + CHUNK_WIDTH].bottom_neighbour = 0;
+	}
+	// neighbour left:
+	if (chunks[occupied_chunk_index].cubes[highlighted_cube_index - 1].texture != NULL) {
+		chunks[occupied_chunk_index].cubes[highlighted_cube_index - 1].right_neighbour = 0;
+	}
+	// neighbour right:
+	if (chunks[occupied_chunk_index].cubes[highlighted_cube_index + 1].texture != NULL) {
+		chunks[occupied_chunk_index].cubes[highlighted_cube_index + 1].left_neighbour = 0;
+	}
+	//neighbour front:
+	if (chunks[occupied_chunk_index].cubes[highlighted_cube_index - CHUNK_WIDTH * CHUNK_WIDTH].texture != NULL) {
+		chunks[occupied_chunk_index].cubes[highlighted_cube_index - CHUNK_WIDTH * CHUNK_WIDTH].back_neighbour = 0;
+	}
+	//neighbour back:
+	if (chunks[occupied_chunk_index].cubes[highlighted_cube_index + CHUNK_WIDTH * CHUNK_WIDTH].texture != NULL) {
+		chunks[occupied_chunk_index].cubes[highlighted_cube_index + CHUNK_WIDTH * CHUNK_WIDTH].front_neighbour = 0;
+	}
+	return;
 }
 
 void handle_input()
