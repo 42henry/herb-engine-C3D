@@ -186,7 +186,7 @@ static void set_light_level(colour_t *c, float fog_r);
 
 // cubes/squares handling
 static void remove_cube(int chunk_i, int cube_i);
-static void place_cube(texture_t *texture, int chunk_i, int cube_i);
+static int place_cube(texture_t *texture, int chunk_i, int cube_i);
 static void player_place_cube();
 static int compare_faces(const void *one, const void *two);
 
@@ -1236,9 +1236,9 @@ void draw_rect(vec3_t top_left, int width, int height, colour_t colour) {
 	fill_square(&square);
 }
 
-void place_cube(texture_t *texture, int chunk_i, int cube_i) {
+int place_cube(texture_t *texture, int chunk_i, int cube_i) {
 	if (cube_i >= CUBES_PER_CHUNK) {
-		return;
+		return -1;
 	}
 
 	chunks[chunk_i].cubes[cube_i].texture = texture;
@@ -1329,7 +1329,7 @@ void place_cube(texture_t *texture, int chunk_i, int cube_i) {
 		}
 	}
 
-	return;
+	return 1;
 }
 
 void remove_cube(int chunk_i, int cube_i) {
@@ -2078,45 +2078,49 @@ void generate_chunk(int chunk_i) {
 
 							// make a tree
 							if (rand() % 100 == 0) {
-								if (x == 0 || x == CHUNK_WIDTH) {
+								if (x < 1 || x > CHUNK_WIDTH - 1) {
 									continue;
 								}
-								if (z == 0 || z == CHUNK_WIDTH) {
+								if (z < 1 || z > CHUNK_WIDTH - 1) {
 									continue;
 								}
-								if (y == CHUNK_WIDTH - 4) {
+								int max_h = 3 + rand() % 10;
+								if (y > CHUNK_WIDTH - max_h - 1) {
 									continue;
 								}
 								int h = 0;
-								for (h = 0; h < 3 + rand() % 10; h++) {
+								int placed_log = 0;
+								for (h = 0; h < max_h; h++) {
 									if (h + 1 > CHUNK_WIDTH) {
 										break;
 									}
 									int i = (x + ((y + h) * CHUNK_WIDTH) + (z * CHUNK_WIDTH * CHUNK_WIDTH));
-									place_cube(wood_texture, chunk_i, i);
+									placed_log = place_cube(wood_texture, chunk_i, i);
 									add_edit(chunk_i, i, wood_texture);
 								}
 
-								h--;
-								int i = ((x + 1) + ((y + h) * CHUNK_WIDTH) + (z * CHUNK_WIDTH * CHUNK_WIDTH));
-								place_cube(leaf_texture, chunk_i, i);
-								add_edit(chunk_i, i, leaf_texture);
+								if (placed_log) {
+									h--;
+									int i = ((x + 1) + ((y + h) * CHUNK_WIDTH) + (z * CHUNK_WIDTH * CHUNK_WIDTH));
+									place_cube(leaf_texture, chunk_i, i);
+									add_edit(chunk_i, i, leaf_texture);
 
-								i = ((x - 1) + ((y + h) * CHUNK_WIDTH) + (z * CHUNK_WIDTH * CHUNK_WIDTH));
-								place_cube(leaf_texture, chunk_i, i);
-								add_edit(chunk_i, i, leaf_texture);
+									i = ((x - 1) + ((y + h) * CHUNK_WIDTH) + (z * CHUNK_WIDTH * CHUNK_WIDTH));
+									place_cube(leaf_texture, chunk_i, i);
+									add_edit(chunk_i, i, leaf_texture);
 
-								i = (x + ((y + h) * CHUNK_WIDTH) + ((z + 1) * CHUNK_WIDTH * CHUNK_WIDTH));
-								place_cube(leaf_texture, chunk_i, i);
-								add_edit(chunk_i, i, leaf_texture);
+									i = (x + ((y + h) * CHUNK_WIDTH) + ((z + 1) * CHUNK_WIDTH * CHUNK_WIDTH));
+									place_cube(leaf_texture, chunk_i, i);
+									add_edit(chunk_i, i, leaf_texture);
 
-								i = (x + ((y + h) * CHUNK_WIDTH) + ((z - 1) * CHUNK_WIDTH * CHUNK_WIDTH));
-								place_cube(leaf_texture, chunk_i, i);
-								add_edit(chunk_i, i, leaf_texture);
+									i = (x + ((y + h) * CHUNK_WIDTH) + ((z - 1) * CHUNK_WIDTH * CHUNK_WIDTH));
+									place_cube(leaf_texture, chunk_i, i);
+									add_edit(chunk_i, i, leaf_texture);
 
-								i = (x + ((y + h + 1) * CHUNK_WIDTH) + (z * CHUNK_WIDTH * CHUNK_WIDTH));
-								place_cube(leaf_texture, chunk_i, i);
-								add_edit(chunk_i, i, leaf_texture);
+									i = (x + ((y + h + 1) * CHUNK_WIDTH) + (z * CHUNK_WIDTH * CHUNK_WIDTH));
+									place_cube(leaf_texture, chunk_i, i);
+									add_edit(chunk_i, i, leaf_texture);
+								}
 							}
 
 						}
