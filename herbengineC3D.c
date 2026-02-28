@@ -16,9 +16,6 @@
 
 // optimise by lowering resolution of the fill square function - see the TODO note
 
-// fix render issue where sometimes the squares are drawn super large for a split second
-// fix rendering issues at chunk boundaries
-
 /* ----------------------- defines --------------------- */
 
 #define WIDTH  1920
@@ -530,7 +527,11 @@ void render_chunks() {
 						int y = y1 - camera_pos.y;
 						int z = z1 - camera_pos.z;
 
-						float fog_r = sqrt(((float)(float)x * (float)x) + ((float)z * (float)z));
+						double x2 = x + CUBE_WIDTH / 2;
+						double y2 = y;
+						double z2 = z + CUBE_WIDTH / 2;
+
+						float fog_r = sqrt((x2 * x2) + (z2 * z2));
 
 						int count = 0;
 						for (int i = 0; i < TEXTURE_WIDTH; i++) {
@@ -561,10 +562,6 @@ void render_chunks() {
 
 						// calc distance to camera
 
-						double x2 = face.squares[0].coords[0].x + face.squares[SQUARES_PER_FACE - 1].coords[2].x;
-						double y2 = face.squares[0].coords[0].y + face.squares[SQUARES_PER_FACE - 1].coords[2].y;
-						double z2 = face.squares[0].coords[0].z + face.squares[SQUARES_PER_FACE - 1].coords[2].z;
-
 						double r = sqrt((x2 * x2) + (y2 * y2) + (z2 * z2));
 						face.r = r;
 
@@ -583,7 +580,11 @@ void render_chunks() {
 						int y = y1 - camera_pos.y;
 						int z = z1 - camera_pos.z;
 
-						float fog_r = sqrt(((float)x * (float)x) + ((float)z * (float)z));
+						double x2 = x + CUBE_WIDTH / 2;
+						double y2 = y - CUBE_WIDTH;
+						double z2 = z + CUBE_WIDTH / 2;
+
+						float fog_r = sqrt((x2 * x2) + (z2 * z2));
 
 						int count = 0;
 						for (int i = 0; i < TEXTURE_WIDTH; i++) {
@@ -614,10 +615,6 @@ void render_chunks() {
 
 						// calc distance to camera
 
-						double x2 = face.squares[0].coords[0].x + face.squares[SQUARES_PER_FACE - 1].coords[2].x;
-						double y2 = face.squares[0].coords[0].y + face.squares[SQUARES_PER_FACE - 1].coords[2].y;
-						double z2 = face.squares[0].coords[0].z + face.squares[SQUARES_PER_FACE - 1].coords[2].z;
-
 						double r = sqrt((x2 * x2) + (y2 * y2) + (z2 * z2));
 						face.r = r;
 
@@ -636,7 +633,11 @@ void render_chunks() {
 						int y = y1 - camera_pos.y;
 						int z = z1 - camera_pos.z;
 
-						float fog_r = sqrt(((float)x * (float)x) + ((float)z * (float)z));
+						double x2 = x + CUBE_WIDTH / 2;
+						double y2 = y - CUBE_WIDTH / 2;
+						double z2 = z;
+
+						float fog_r = sqrt((x2 * x2) + (z2 * z2));
 
 						int count = 0;
 						for (int i = 0; i < TEXTURE_WIDTH; i++) {
@@ -667,10 +668,6 @@ void render_chunks() {
 
 						// calc distance to camera
 
-						double x2 = face.squares[0].coords[0].x + face.squares[SQUARES_PER_FACE - 1].coords[2].x;
-						double y2 = face.squares[0].coords[0].y + face.squares[SQUARES_PER_FACE - 1].coords[2].y;
-						double z2 = face.squares[0].coords[0].z + face.squares[SQUARES_PER_FACE - 1].coords[2].z;
-
 						double r = sqrt((x2 * x2) + (y2 * y2) + (z2 * z2));
 						face.r = r;
 
@@ -689,7 +686,11 @@ void render_chunks() {
 						int y = y1 - camera_pos.y;
 						int z = z1 - camera_pos.z;
 
-						float fog_r = sqrt(((float)x * (float)x) + ((float)z * (float)z));
+						double x2 = x + CUBE_WIDTH / 2;
+						double y2 = y - CUBE_WIDTH / 2;
+						double z2 = z + CUBE_WIDTH;
+
+						float fog_r = sqrt((x2 * x2) + (z2 * z2));
 
 						int count = 0;
 						for (int i = 0; i < TEXTURE_WIDTH; i++) {
@@ -719,10 +720,6 @@ void render_chunks() {
 
 						// calc distance to camera
 
-						double x2 = face.squares[0].coords[0].x + face.squares[SQUARES_PER_FACE - 1].coords[2].x;
-						double y2 = face.squares[0].coords[0].y + face.squares[SQUARES_PER_FACE - 1].coords[2].y;
-						double z2 = face.squares[0].coords[0].z + face.squares[SQUARES_PER_FACE - 1].coords[2].z;
-
 						double r = sqrt((x2 * x2) + (y2 * y2) + (z2 * z2));
 						face.r = r;
 
@@ -741,7 +738,11 @@ void render_chunks() {
 						int y = y1 - camera_pos.y;
 						int z = z1 - camera_pos.z;
 
-						float fog_r = sqrt(((float)x * (float)x) + ((float)z * (float)z));
+						double x2 = x;
+						double y2 = y - CUBE_WIDTH / 2;
+						double z2 = z + CUBE_WIDTH / 2;
+
+						float fog_r = sqrt((x2 * x2) + (z2 * z2));
 
 						int count = 0;
 						for (int i = 0; i < TEXTURE_WIDTH; i++) {
@@ -771,10 +772,6 @@ void render_chunks() {
 
 						// calc distance to camera
 
-						double x2 = face.squares[0].coords[0].x + face.squares[SQUARES_PER_FACE - 1].coords[2].x;
-						double y2 = face.squares[0].coords[0].y + face.squares[SQUARES_PER_FACE - 1].coords[2].y;
-						double z2 = face.squares[0].coords[0].z + face.squares[SQUARES_PER_FACE - 1].coords[2].z;
-
 						double r = sqrt((x2 * x2) + (y2 * y2) + (z2 * z2));
 						face.r = r;
 
@@ -793,7 +790,11 @@ void render_chunks() {
 						int y = y1 - camera_pos.y;
 						int z = z1 - camera_pos.z;
 
-						float fog_r = sqrt(((float)x * (float)x) + ((float)z * (float)z));
+						double x2 = x + CUBE_WIDTH;
+						double y2 = y - CUBE_WIDTH / 2;
+						double z2 = z + CUBE_WIDTH / 2;
+
+						float fog_r = sqrt((x2 * x2) + (z2 * z2));
 
 						int count = 0;
 						for (int i = 0; i < TEXTURE_WIDTH; i++) {
@@ -822,10 +823,6 @@ void render_chunks() {
 						}
 
 						// calc distance to camera
-
-						double x2 = face.squares[0].coords[0].x + face.squares[SQUARES_PER_FACE - 1].coords[2].x;
-						double y2 = face.squares[0].coords[0].y + face.squares[SQUARES_PER_FACE - 1].coords[2].y;
-						double z2 = face.squares[0].coords[0].z + face.squares[SQUARES_PER_FACE - 1].coords[2].z;
 
 						double r = sqrt((x2 * x2) + (y2 * y2) + (z2 * z2));
 						face.r = r;
@@ -1088,6 +1085,9 @@ void fill_square(square_t *square) {
 				if (x2 > WIDTH) {
 					x2 = WIDTH;
 				}
+				if (x2 - x1 > WIDTH * 0.5) {
+					return;
+				}
 				for (int x = x1; x < x2; x++) {
 					row[x] = square->colour;
 				}
@@ -1098,6 +1098,9 @@ void fill_square(square_t *square) {
 				}
 				if (x1 > WIDTH) {
 					x1 = WIDTH;
+				}
+				if (x1 - x2 > WIDTH * 0.5) {
+					return;
 				}
 				for (int x = x2; x < x1; x++) {
 					row[x] = square->colour;
@@ -1128,6 +1131,9 @@ void fill_square(square_t *square) {
 				if (x2 > WIDTH) {
 					x2 = WIDTH;
 				}
+				if (x2 - x1 > WIDTH * 0.5) {
+					return;
+				}
 				for (int x = x1; x < x2; x++) {
 					row[x] = square->colour;
 				}
@@ -1138,6 +1144,9 @@ void fill_square(square_t *square) {
 				}
 				if (x1 > WIDTH) {
 					x1 = WIDTH;
+				}
+				if (x1 - x2 > WIDTH * 0.5) {
+					return;
 				}
 				for (int x = x2; x < x1; x++) {
 					row[x] = square->colour;
@@ -1173,6 +1182,9 @@ void fill_square(square_t *square) {
 			if (right_x > WIDTH) {
 				right_x = WIDTH;
 			}
+			if (right_x - left_x > WIDTH * 0.5) {
+				return;
+			}
 			for (int x = left_x; x < right_x; x++) {
 				row[x] = square->colour;
 			}
@@ -1183,6 +1195,9 @@ void fill_square(square_t *square) {
 			}
 			if (left_x > WIDTH) {
 				left_x = WIDTH;
+			}
+			if (left_x - right_x > WIDTH * 0.5) {
+				return;
 			}
 			for (int x = right_x; x < left_x; x++) {
 				row[x] = square->colour;
