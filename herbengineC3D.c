@@ -14,13 +14,12 @@
 
 // fix hotbar and hand UI
 
-// fix place and remove cube to also check neighbouring chunks if at a chunk boundary
-// fix place or remove so you can't place a block above or below the chunk boundary
 // fix collision issue where you get stuck in a block at a chunk boundary
 
 // optimise by lowering resolution of the fill square function - see the TODO note
 
 // fix render issue where sometimes the squares are drawn super large for a split second
+// fix rendering issues at chunk boundaries
 
 /* ----------------------- defines --------------------- */
 
@@ -307,6 +306,10 @@ void init_stuff() {
 	srand(time(NULL));
     perlin_init(&noise, 69420);
 
+	edits.items = malloc(256 * sizeof(edit_t));
+	edits.capacity = 256;
+	edits.count = 0;
+
 	// tests
 	assert(test_fill_square());
 
@@ -357,6 +360,10 @@ void init_stuff() {
 	//vec3_t pos = {camera_pos.x + 2 * CUBE_WIDTH, camera_pos.y - 0.5 * CUBE_WIDTH, camera_pos.z + 0.5 * CUBE_WIDTH};
 	//render_hand();
 
+	camera_pos.x += (SQRT_NUM_CHUNKS * CHUNK_WIDTH * CUBE_WIDTH) / 2;
+	camera_pos.y = 10 * CUBE_WIDTH;
+	camera_pos.z += (SQRT_NUM_CHUNKS * CHUNK_WIDTH * CUBE_WIDTH) / 2;
+
 	// setup the world:
 	vec3_t chunk_pos = {0, 0, 0};
 	int count = 0;
@@ -368,14 +375,6 @@ void init_stuff() {
 		}
 	}
 	occupied_chunk_index = NUM_CHUNKS / 2;
-
-	camera_pos.x += (SQRT_NUM_CHUNKS * CHUNK_WIDTH * CUBE_WIDTH) / 2;
-	camera_pos.y = 10 * CUBE_WIDTH;
-	camera_pos.z += (SQRT_NUM_CHUNKS * CHUNK_WIDTH * CUBE_WIDTH) / 2;
-
-	edits.items = malloc(256 * sizeof(edit_t));
-	edits.capacity = 256;
-	edits.count = 0;
 
 	return;
 }
@@ -1197,6 +1196,9 @@ void draw_rect(vec3_t top_left, int width, int height, colour_t colour) {
 }
 
 void place_cube(texture_t *texture, int chunk_i, int cube_i) {
+	if (cube_i >= CUBES_PER_CHUNK) {
+		return;
+	}
 
 	chunks[chunk_i].cubes[cube_i].texture = texture;
 
@@ -1207,35 +1209,83 @@ void place_cube(texture_t *texture, int chunk_i, int cube_i) {
 	chunks[chunk_i].cubes[cube_i].right_neighbour = 0;
 	chunks[chunk_i].cubes[cube_i].bottom_neighbour = 0;
 
-	// neighbour below:
-	if (chunks[chunk_i].cubes[cube_i - CHUNK_WIDTH].texture != NULL) {
-		chunks[chunk_i].cubes[cube_i - CHUNK_WIDTH].top_neighbour = 1;
+	// if cube at chunk boundary, just make it have no neighbours
+	int x = (cube_i % CHUNK_WIDTH);
+	int y = ((cube_i / CHUNK_WIDTH) % CHUNK_WIDTH);
+	int z = ((cube_i / (CHUNK_WIDTH * CHUNK_WIDTH)) % CHUNK_WIDTH);
+
+	int no_left = 0;
+	int no_right = 0;
+	int no_below = 0;
+	int no_top = 0;
+	int no_front = 0;
+	int no_back = 0;
+	if (x == 0) {
+		chunks[chunk_i].cubes[cube_i].left_neighbour = 0;
+		no_left = 1;
+	}
+	else if (x == CHUNK_WIDTH - 1) {
+		chunks[chunk_i].cubes[cube_i].right_neighbour = 0;
+		no_right = 1;
+	}
+	if (y == 0) {
 		chunks[chunk_i].cubes[cube_i].bottom_neighbour = 1;
+		no_below = 1;
+	}
+	else if (y == CHUNK_WIDTH - 1) {
+		chunks[chunk_i].cubes[cube_i].top_neighbour = 0;
+		no_top = 1;
+	}
+	if (z == 0) {
+		chunks[chunk_i].cubes[cube_i].front_neighbour = 0;
+		no_front = 1;
+	}
+	else if (z == CHUNK_WIDTH - 1) {
+		chunks[chunk_i].cubes[cube_i].back_neighbour = 0;
+		no_back = 1;
+	}
+
+	// neighbour below:
+	if (! no_below) {
+		if (chunks[chunk_i].cubes[cube_i - CHUNK_WIDTH].texture != NULL) {
+			chunks[chunk_i].cubes[cube_i - CHUNK_WIDTH].top_neighbour = 1;
+			chunks[chunk_i].cubes[cube_i].bottom_neighbour = 1;
+		}
 	}
 	// neighbour above:
-	if (chunks[chunk_i].cubes[cube_i + CHUNK_WIDTH].texture != NULL) {
-		chunks[chunk_i].cubes[cube_i + CHUNK_WIDTH].bottom_neighbour = 1;
-		chunks[chunk_i].cubes[cube_i].top_neighbour = 1;
+	if (! no_top) {
+		if (chunks[chunk_i].cubes[cube_i + CHUNK_WIDTH].texture != NULL) {
+			chunks[chunk_i].cubes[cube_i + CHUNK_WIDTH].bottom_neighbour = 1;
+			chunks[chunk_i].cubes[cube_i].top_neighbour = 1;
+		}
 	}
 	// neighbour left:
-	if (chunks[chunk_i].cubes[cube_i - 1].texture != NULL) {
-		chunks[chunk_i].cubes[cube_i - 1].right_neighbour = 1;
-		chunks[chunk_i].cubes[cube_i].left_neighbour = 1;
+	if (! no_left) {
+		if (chunks[chunk_i].cubes[cube_i - 1].texture != NULL) {
+			chunks[chunk_i].cubes[cube_i - 1].right_neighbour = 1;
+			chunks[chunk_i].cubes[cube_i].left_neighbour = 1;
+		}
 	}
 	// neighbour right:
-	if (chunks[chunk_i].cubes[cube_i + 1].texture != NULL) {
-		chunks[chunk_i].cubes[cube_i + 1].left_neighbour = 1;
-		chunks[chunk_i].cubes[cube_i].right_neighbour = 1;
+	if (! no_right) {
+		if (chunks[chunk_i].cubes[cube_i + 1].texture != NULL) {
+			chunks[chunk_i].cubes[cube_i + 1].left_neighbour = 1;
+			chunks[chunk_i].cubes[cube_i].right_neighbour = 1;
+		}
 	}
 	//neighbour front:
-	if (chunks[chunk_i].cubes[cube_i - CHUNK_WIDTH * CHUNK_WIDTH].texture != NULL) {
-		chunks[chunk_i].cubes[cube_i - CHUNK_WIDTH * CHUNK_WIDTH].back_neighbour = 1;
-		chunks[chunk_i].cubes[cube_i].front_neighbour = 1;
+	if (! no_front) {
+		if (chunks[chunk_i].cubes[cube_i - CHUNK_WIDTH * CHUNK_WIDTH].texture != NULL) {
+			chunks[chunk_i].cubes[cube_i - CHUNK_WIDTH * CHUNK_WIDTH].back_neighbour = 1;
+			chunks[chunk_i].cubes[cube_i].front_neighbour = 1;
+		}
 	}
 	//neighbour back:
-	if (chunks[chunk_i].cubes[cube_i + CHUNK_WIDTH * CHUNK_WIDTH].texture != NULL) {
-		chunks[chunk_i].cubes[cube_i + CHUNK_WIDTH * CHUNK_WIDTH].front_neighbour = 1;
-		chunks[chunk_i].cubes[cube_i].back_neighbour = 1;
+	if (! no_back) {
+		if (chunks[chunk_i].cubes[cube_i + CHUNK_WIDTH * CHUNK_WIDTH].texture != NULL) {
+			chunks[chunk_i].cubes[cube_i + CHUNK_WIDTH * CHUNK_WIDTH].front_neighbour = 1;
+			chunks[chunk_i].cubes[cube_i].back_neighbour = 1;
+		}
 	}
 
 	return;
@@ -1873,6 +1923,13 @@ void update_chunks(int dir) {
 void generate_chunk(int chunk_i) {
 	chunk_t *chunk = &chunks[chunk_i];
 
+	int edit_index = -1;
+	for (int i = 0; i < edits.count; i++) {
+		if (edits.items[i].pos.x == chunk->pos.x && edits.items[i].pos.z == chunk->pos.z) {
+			edit_index = i;
+		}
+	}
+
 	texture_t *texture = grass_texture;
 
 	for (int x = 0; x < CHUNK_WIDTH; x++) {
@@ -1957,15 +2014,74 @@ void generate_chunk(int chunk_i) {
 			}
 		}
 	}
-	for (int i = 0; i < edits.count; i++) {
-		if (edits.items[i].pos.x == chunk->pos.x && edits.items[i].pos.z == chunk->pos.z) {
-			// apply the edits
-			for (int j = 0; j < edits.items[i].count; j++) {
-				if (edits.items[i].cubes[j].texture == NULL) {
-					remove_cube(chunk_i, edits.items[i].cubes[j].cube_i);
-				}
-				else {
-					place_cube(edits.items[i].cubes[j].texture, chunk_i, edits.items[i].cubes[j].cube_i);
+	if (edit_index > -1) {
+		// apply the edits
+		for (int j = 0; j < edits.items[edit_index].count; j++) {
+			if (edits.items[edit_index].cubes[j].texture == NULL) {
+				remove_cube(chunk_i, edits.items[edit_index].cubes[j].cube_i);
+			}
+			else {
+				place_cube(edits.items[edit_index].cubes[j].texture, chunk_i, edits.items[edit_index].cubes[j].cube_i);
+			}
+		}
+	}
+	else {
+		// generate some trees:
+		for (int x = 0; x < CHUNK_WIDTH; x++) {
+			for (int z = 0; z < CHUNK_WIDTH; z++) {
+				int found_air = 0;
+				for (int y = 0; y < CHUNK_WIDTH; y++) {
+					if (chunk->cubes[x + (y * CHUNK_WIDTH) + (z * CHUNK_WIDTH * CHUNK_WIDTH)].texture == NULL) {
+
+						if (! found_air) {
+
+							// make a tree
+							if (rand() % 100 == 0) {
+								if (x == 0 || x == CHUNK_WIDTH) {
+									continue;
+								}
+								if (z == 0 || z == CHUNK_WIDTH) {
+									continue;
+								}
+								if (y == CHUNK_WIDTH - 4) {
+									continue;
+								}
+								int h = 0;
+								for (h = 0; h < 3 + rand() % 10; h++) {
+									if (h + 1 > CHUNK_WIDTH) {
+										break;
+									}
+									int i = (x + ((y + h) * CHUNK_WIDTH) + (z * CHUNK_WIDTH * CHUNK_WIDTH));
+									place_cube(wood_texture, chunk_i, i);
+									add_edit(chunk_i, i, wood_texture);
+								}
+
+								h--;
+								int i = ((x + 1) + ((y + h) * CHUNK_WIDTH) + (z * CHUNK_WIDTH * CHUNK_WIDTH));
+								place_cube(leaf_texture, chunk_i, i);
+								add_edit(chunk_i, i, leaf_texture);
+
+								i = ((x - 1) + ((y + h) * CHUNK_WIDTH) + (z * CHUNK_WIDTH * CHUNK_WIDTH));
+								place_cube(leaf_texture, chunk_i, i);
+								add_edit(chunk_i, i, leaf_texture);
+
+								i = (x + ((y + h) * CHUNK_WIDTH) + ((z + 1) * CHUNK_WIDTH * CHUNK_WIDTH));
+								place_cube(leaf_texture, chunk_i, i);
+								add_edit(chunk_i, i, leaf_texture);
+
+								i = (x + ((y + h) * CHUNK_WIDTH) + ((z - 1) * CHUNK_WIDTH * CHUNK_WIDTH));
+								place_cube(leaf_texture, chunk_i, i);
+								add_edit(chunk_i, i, leaf_texture);
+
+								i = (x + ((y + h + 1) * CHUNK_WIDTH) + (z * CHUNK_WIDTH * CHUNK_WIDTH));
+								place_cube(leaf_texture, chunk_i, i);
+								add_edit(chunk_i, i, leaf_texture);
+							}
+
+						}
+						found_air = 1;
+
+					}
 				}
 			}
 		}
