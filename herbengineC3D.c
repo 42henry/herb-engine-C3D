@@ -9,8 +9,6 @@
 
 //TODO:
 
-// fix update chunks to only move the edge chunks along
-
 // fix hotbar and hand UI
 
 // if we place or remove a block, store the location and block type in the chunk data, and save the chunk data.
@@ -52,13 +50,13 @@
 #define FRAME_TIME_NS (1000000000 / TARGET_FPS)
 
 // this has to be odd
-#define SQRT_NUM_CHUNKS 3
+#define SQRT_NUM_CHUNKS 5
 
 #define NUM_CHUNKS (SQRT_NUM_CHUNKS * SQRT_NUM_CHUNKS)
-#define CHUNK_WIDTH 8
+#define CHUNK_WIDTH 16
 #define CUBES_PER_CHUNK (CHUNK_WIDTH * CHUNK_WIDTH * CHUNK_WIDTH)
 
-#define FOG_DIST ((SQRT_NUM_CHUNKS - 2) * CHUNK_WIDTH * CUBE_WIDTH * 0.5)
+#define FOG_DIST ((SQRT_NUM_CHUNKS / 2) * CHUNK_WIDTH * CUBE_WIDTH)
 
 #define HOTBAR_SLOTS 9
 #define HOTBAR_SLOT_WIDTH (WIDTH / (HOTBAR_SLOTS + 2)) // add 2 so it's centred
@@ -2092,7 +2090,7 @@ void update_chunks(int dir) {
 				occupied_chunk_index -= SQRT_NUM_CHUNKS;
 			}
 			for (int i = 0; i < NUM_CHUNKS; i++) {
-				if (camera_pos.z - chunks[i].pos.z > (SQRT_NUM_CHUNKS - 1) * CHUNK_WIDTH * CUBE_WIDTH) {
+				if (camera_pos.z - chunks[i].pos.z > ((SQRT_NUM_CHUNKS / 2) + 1) * CHUNK_WIDTH * CUBE_WIDTH) {
 					chunks[i].pos.z += SQRT_NUM_CHUNKS * CUBE_WIDTH * CHUNK_WIDTH;
 					generate_chunk(&chunks[i]);
 				}
@@ -2107,7 +2105,7 @@ void update_chunks(int dir) {
 				occupied_chunk_index -= 1;
 			}
 			for (int i = 0; i < NUM_CHUNKS; i++) {
-				if (chunks[i].pos.z - camera_pos.z> CHUNK_WIDTH * CUBE_WIDTH) {
+				if (chunks[i].pos.z - camera_pos.z > (SQRT_NUM_CHUNKS / 2) * CHUNK_WIDTH * CUBE_WIDTH) {
 					chunks[i].pos.z -= SQRT_NUM_CHUNKS * CUBE_WIDTH * CHUNK_WIDTH;
 					generate_chunk(&chunks[i]);
 				}
@@ -2120,7 +2118,7 @@ void update_chunks(int dir) {
 				occupied_chunk_index -= NUM_CHUNKS;
 			}
 			for (int i = 0; i < NUM_CHUNKS; i++) {
-				if (camera_pos.x - chunks[i].pos.x > (SQRT_NUM_CHUNKS - 1) * CHUNK_WIDTH * CUBE_WIDTH) {
+				if (camera_pos.x - chunks[i].pos.x > ((SQRT_NUM_CHUNKS / 2) + 1) * CHUNK_WIDTH * CUBE_WIDTH) {
 					chunks[i].pos.x += SQRT_NUM_CHUNKS * CUBE_WIDTH * CHUNK_WIDTH;
 					generate_chunk(&chunks[i]);
 				}
@@ -2133,7 +2131,7 @@ void update_chunks(int dir) {
 				occupied_chunk_index += NUM_CHUNKS;
 			}
 			for (int i = 0; i < NUM_CHUNKS; i++) {
-				if (chunks[i].pos.x - camera_pos.x> CHUNK_WIDTH * CUBE_WIDTH) {
+				if (chunks[i].pos.x - camera_pos.x > (SQRT_NUM_CHUNKS / 2) * CHUNK_WIDTH * CUBE_WIDTH) {
 					chunks[i].pos.x -= SQRT_NUM_CHUNKS * CUBE_WIDTH * CHUNK_WIDTH;
 					generate_chunk(&chunks[i]);
 				}
