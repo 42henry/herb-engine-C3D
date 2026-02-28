@@ -293,6 +293,11 @@ static perlin_t noise;
 
 static colour_t sky = {0};
 
+static double sine_x_rotation = 0;
+static double sine_y_rotation = 0;
+static double cos_x_rotation = 0;
+static double cos_y_rotation = 0;
+
 void init_stuff() {
 
 	srand(time(NULL));
@@ -895,12 +900,12 @@ vec3_t rotate_and_project(vec3_t pos) {
 
 	// rotate
 	vec3_t new_pos;
-	new_pos.x = (pos.z * sin(x_rotation) + pos.x * cos(x_rotation));
-	int z2 = (pos.z * cos(x_rotation) - pos.x * sin(x_rotation));
+	new_pos.x = (pos.z * sine_x_rotation + pos.x * cos_x_rotation);
+	int z2 = (pos.z * cos_x_rotation - pos.x * sine_x_rotation);
 
 	int neg = 0;
-	new_pos.y = (z2 * sin(y_rotation) + pos.y * cos(y_rotation));
-	new_pos.z = (z2 * cos(y_rotation) - pos.y * sin(y_rotation));
+	new_pos.y = (z2 * sine_y_rotation + pos.y * cos_y_rotation);
+	new_pos.z = (z2 * cos_y_rotation - pos.y * sine_y_rotation);
 	if (new_pos.z <= 0) {
 		neg = 1;
 		// avoid divide by 0
@@ -1571,6 +1576,11 @@ void handle_mouse() {
 		if (y_rotation < -3.141/2) y_rotation = -3.141/2;
 
 	}
+	sine_x_rotation = sin(x_rotation);
+	sine_y_rotation = sin(y_rotation);
+
+	cos_x_rotation = cos(x_rotation);
+	cos_y_rotation = cos(y_rotation);
 }
 
 int collided() {
