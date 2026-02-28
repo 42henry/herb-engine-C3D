@@ -9,6 +9,8 @@
 
 //TODO:
 
+// fix rendering issue where certain cube faces draw in wrong order when looking in certain axis
+
 // simple terration - trees
 // simple lighting
 
@@ -570,7 +572,7 @@ void render_chunks() {
 
 						// central coord
 						double x2 = x + (CUBE_WIDTH / 2);
-						double y2 = y;
+						double y2 = y - CUBE_WIDTH;
 						double z2 = z + (CUBE_WIDTH / 2);
 
 						// calc distance to camera
