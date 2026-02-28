@@ -9,12 +9,10 @@
 
 //TODO:
 
-// simple terration - trees
-// simple lighting
-
 // fix hotbar and hand UI
 
 // fix collision issue where you get stuck in a block at a chunk boundary
+// fix remove cube at chunk boundary to update neighbouring chunks neighbours
 
 // optimise by lowering resolution of the fill square function - see the TODO note
 
@@ -153,6 +151,7 @@ static void init_stuff();
 
 static void update();
 static void update_pixels();
+static void update_day_cycle();
 
 static void cleanup();
 
@@ -186,6 +185,7 @@ static vec3_t rotate_and_project(vec3_t pos);
 static void rotate_and_project_by_rot_value(vec3_t *pos, vec3_t *new_pos, float x_rot, float y_rot);
 static int square_surrounds_centre(square_t *square);
 static void set_fog_level(colour_t *c, float fog_r);
+static void set_light_level(colour_t *c, float fog_r);
 
 // cubes/squares handling
 static void remove_cube(int chunk_i, int cube_i);
@@ -293,6 +293,7 @@ static int dlog = 0;
 static perlin_t noise;
 
 static colour_t sky = {0};
+static colour_t max_sky = {0};
 
 static double sine_x_rotation = 0;
 static double sine_y_rotation = 0;
@@ -300,6 +301,13 @@ static double cos_x_rotation = 0;
 static double cos_y_rotation = 0;
 
 static edits_t edits = {0};
+
+static float day_cycle = 0;
+static float max_day_cycle = 0;
+static float night_length = 0;
+static int day = 0;
+static int cycle_frame_interval = 0;
+static int night = 0;
 
 void init_stuff() {
 
@@ -335,9 +343,19 @@ void init_stuff() {
 	green.g = 255;
 	blue.b = 255;
 
-	sky.r = 80;
-	sky.g = 200;
-	sky.b = 240;
+	max_sky.r = 80;
+	max_sky.g = 200;
+	max_sky.b = 240;
+
+	sky.r = 0;
+	sky.g = 0;
+	sky.b = 0;
+
+	day_cycle = 0;
+	night = 1;
+	cycle_frame_interval = 10;
+	max_day_cycle = 48;
+	night_length = 48;
 
 	small_height = HEIGHT * 0.01;
 	hotbar_y = HEIGHT - (HEIGHT * 0.1);
@@ -384,6 +402,8 @@ void update() {
 		return;
 	}
 	frame++;
+
+	update_day_cycle();
 
 	handle_input();
 
@@ -525,6 +545,7 @@ void render_chunks() {
 								// 0 as that is the top texture
 								colour_t c = texture->data[j * TEXTURE_WIDTH + i];
 
+								set_light_level(&c, fog_r);
 								set_fog_level(&c, fog_r);
 
 								square.colour = pack_colour_to_uint32(&c);
@@ -577,6 +598,7 @@ void render_chunks() {
 								// 1, as the top face textures are the first square of the texture image
 								colour_t c = texture->data[1 * texture_side + j * TEXTURE_WIDTH + i];
 
+								set_light_level(&c, fog_r);
 								set_fog_level(&c, fog_r);
 
 								square.colour = pack_colour_to_uint32(&c);
@@ -629,6 +651,7 @@ void render_chunks() {
 								// 2, as the side face textures are the 2nd square of the texture image
 								colour_t c = texture->data[2 * texture_side + j * TEXTURE_WIDTH + i];
 
+								set_light_level(&c, fog_r);
 								set_fog_level(&c, fog_r);
 
 								square.colour = pack_colour_to_uint32(&c);
@@ -680,6 +703,7 @@ void render_chunks() {
 
 								colour_t c = texture->data[2 * texture_side + j * TEXTURE_WIDTH + i];
 
+								set_light_level(&c, fog_r);
 								set_fog_level(&c, fog_r);
 
 								square.colour = pack_colour_to_uint32(&c);
@@ -731,6 +755,7 @@ void render_chunks() {
 
 								colour_t c = texture->data[2 * texture_side + j * TEXTURE_WIDTH + i];
 
+								set_light_level(&c, fog_r);
 								set_fog_level(&c, fog_r);
 
 								square.colour = pack_colour_to_uint32(&c);
@@ -782,6 +807,7 @@ void render_chunks() {
 
 								colour_t c = texture->data[2 * texture_side + j * TEXTURE_WIDTH + i];
 
+								set_light_level(&c, fog_r);
 								set_fog_level(&c, fog_r);
 
 								square.colour = pack_colour_to_uint32(&c);
@@ -2341,4 +2367,70 @@ void set_fog_level(colour_t *c, float fog_r) {
 			c->g += (((float)sky.g - (float)c->g) / 100) * val;
 			c->b += (((float)sky.b - (float)c->b) / 100) * val;
 		}
+}
+
+void set_light_level(colour_t *c, float fog_r) {
+		float val = 1.0f / (fog_r * 0.001);
+		val += day_cycle / max_day_cycle;
+		if (val > 1) {
+			val = 1;
+		}
+		float r = ((float)c->r) * val;
+		float g = ((float)c->g) * val;
+		float b = ((float)c->b) * val;
+		if (r < 0) {
+			r == 0;
+		}
+		else if (r > c->r) {
+			r = c->r;
+		}
+		if (g < 0) {
+			g == 0;
+		}
+		else if (g > c->g) {
+			g = c->g;
+		}
+		if (b < 0) {
+			b == 0;
+		}
+		else if (b > c->b) {
+			b = c->b;
+		}
+		c->r = (char) r;
+		c->g = (char) g;
+		c->b = (char) b;
+}
+
+void update_day_cycle() {
+	if (night) {
+		if (frame % cycle_frame_interval == 0 && day_cycle < max_day_cycle) {
+			day_cycle += 1;
+		}	
+		if (day_cycle == max_day_cycle) {
+			if (frame % cycle_frame_interval == 0) {
+				night += 1;
+			}
+			if (night == night_length) {
+				night = 0;
+				day = 1;
+			}
+		}
+	}
+	if (day) {
+		if (frame % cycle_frame_interval == 0 && day_cycle > 0) {
+			day_cycle -= 1;
+		}	
+		if (day_cycle == 0) {
+			if (frame % cycle_frame_interval == 0) {
+				day += 1;
+			}
+			if (day == night_length) {
+				day = 0;
+				night = 1;
+			}
+		}
+	}
+	sky.r = (char)((float)max_sky.r * (day_cycle / max_day_cycle));
+	sky.g = (char)((float)max_sky.g * (day_cycle / max_day_cycle));
+	sky.b = (char)((float)max_sky.b * (day_cycle / max_day_cycle));
 }
