@@ -16,9 +16,6 @@
 // fix hotbar and hand UI
 
 // fix collision issue where you get stuck in a block at a chunk boundary
-// fix remove cube at chunk boundary to update neighbouring chunks neighbours
-
-// optimise by lowering resolution of the fill square function - see the TODO note
 
 /* ----------------------- defines --------------------- */
 
@@ -50,8 +47,6 @@
 
 #define HOTBAR_SLOTS 9
 #define HOTBAR_SLOT_WIDTH (WIDTH / (HOTBAR_SLOTS + 2)) // add 2 so it's centred
-
-#define REACH (4 * CUBE_WIDTH)
 
 #define TARGET_FPS 60
 #define FRAME_TIME_NS (1000000000 / TARGET_FPS)
@@ -193,7 +188,7 @@ static void render_hand();
 static void player_place_cube();
 static void player_remove_cube();
 
-static int place_cube(texture_t *texture, int chunk_i, int cube_i);
+static int place_cube(int chunk_i, int cube_i, texture_t *texture);
 static void remove_cube(int chunk_i, int cube_i);
 
 // input
@@ -394,6 +389,7 @@ void init_stuff() {
 }
 
 void update() {
+	printf("\n");
 	if (paused) {
 		return;
 	}
@@ -548,10 +544,8 @@ void render_chunks() {
 								square.colour = pack_colour_to_uint32(&c);
 								face.squares[count++] = square;
 
-								if (chunk_i == occupied_chunk_index) {
-									if (square_surrounds_centre(&square)) {
-										highlight = 1;
-									}
+								if (square_surrounds_centre(&square)) {
+									highlight = 1;
 								}
 							}
 						}
@@ -594,10 +588,8 @@ void render_chunks() {
 								square.colour = pack_colour_to_uint32(&c);
 								face.squares[count++] = square;
 
-								if (chunk_i == occupied_chunk_index) {
-									if (square_surrounds_centre(&square)) {
-										highlight = 1;
-									}
+								if (square_surrounds_centre(&square)) {
+									highlight = 1;
 								}
 							}
 						}
@@ -640,10 +632,8 @@ void render_chunks() {
 								square.colour = pack_colour_to_uint32(&c);
 								face.squares[count++] = square;
 
-								if (chunk_i == occupied_chunk_index) {
-									if (square_surrounds_centre(&square)) {
-										highlight = 1;
-									}
+								if (square_surrounds_centre(&square)) {
+									highlight = 1;
 								}
 							}
 						}
@@ -685,10 +675,8 @@ void render_chunks() {
 								square.colour = pack_colour_to_uint32(&c);
 								face.squares[count++] = square;
 
-								if (chunk_i == occupied_chunk_index) {
-									if (square_surrounds_centre(&square)) {
-										highlight = 1;
-									}
+								if (square_surrounds_centre(&square)) {
+									highlight = 1;
 								}
 							}
 						}
@@ -730,10 +718,8 @@ void render_chunks() {
 								square.colour = pack_colour_to_uint32(&c);
 								face.squares[count++] = square;
 								 
-								if (chunk_i == occupied_chunk_index) {
-									if (square_surrounds_centre(&square)) {
-										highlight = 1;
-									}
+								if (square_surrounds_centre(&square)) {
+									highlight = 1;
 								}
 							}
 						}
@@ -775,10 +761,8 @@ void render_chunks() {
 								square.colour = pack_colour_to_uint32(&c);
 								face.squares[count++] = square;
 
-								if (chunk_i == occupied_chunk_index) {
-									if (square_surrounds_centre(&square)) {
-										highlight = 1;
-									}
+								if (square_surrounds_centre(&square)) {
+									highlight = 1;
 								}
 							}
 						}
@@ -824,6 +808,55 @@ void render_chunks() {
 				colour.b = 255;
 			}
 			draw_faces.items[draw_highlight_index].squares[k].colour =  pack_colour_to_uint32(&colour);
+		}
+	}
+
+	// check if cube highlighted is at a chunk edge
+	int x = (highlighted_cube_index % CHUNK_WIDTH);
+	int y = ((highlighted_cube_index / CHUNK_WIDTH) % CHUNK_WIDTH);
+	int z = ((highlighted_cube_index / (CHUNK_WIDTH * CHUNK_WIDTH)) % CHUNK_WIDTH);
+
+	if (x == 0) {
+		if (highlighted_cube_face == LEFT) {
+			int left_chunk_i = highlighted_cube_chunk_index - SQRT_NUM_CHUNKS;
+			if (left_chunk_i < 0) {
+				left_chunk_i += NUM_CHUNKS;
+			}
+			highlighted_cube_chunk_index = left_chunk_i;
+			highlighted_cube_index += CHUNK_WIDTH;
+		}
+	}
+	else if (x == CHUNK_WIDTH - 1) {
+		if (highlighted_cube_face == RIGHT) {
+			int right_chunk_i = highlighted_cube_chunk_index + SQRT_NUM_CHUNKS;	
+			if (right_chunk_i > (NUM_CHUNKS - 1)) {
+				right_chunk_i -= NUM_CHUNKS;
+			}
+			highlighted_cube_chunk_index = right_chunk_i;
+			highlighted_cube_index -= CHUNK_WIDTH;
+		}
+	}
+	if (z == 0) {
+		if (highlighted_cube_face == FRONT) {
+			int in_front_chunk_i = highlighted_cube_chunk_index;
+			if (in_front_chunk_i % SQRT_NUM_CHUNKS == 0) {
+				in_front_chunk_i += SQRT_NUM_CHUNKS - 1;
+			}
+			else {
+				in_front_chunk_i -= 1;
+			}
+			highlighted_cube_chunk_index = in_front_chunk_i;
+			highlighted_cube_index += (CHUNK_WIDTH) * CHUNK_WIDTH * CHUNK_WIDTH;
+		}
+	}
+	else if (z == CHUNK_WIDTH - 1) {
+		if (highlighted_cube_face == BACK) {
+			int behind_chunk_i = highlighted_cube_chunk_index + 1;
+			if (behind_chunk_i % SQRT_NUM_CHUNKS == 0) {
+				behind_chunk_i -= SQRT_NUM_CHUNKS;
+			}
+			highlighted_cube_chunk_index = behind_chunk_i;
+			highlighted_cube_index -= (CHUNK_WIDTH) * CHUNK_WIDTH * CHUNK_WIDTH;
 		}
 	}
 
@@ -1162,9 +1195,7 @@ void draw_rect(vec3_t top_left, int width, int height, colour_t colour) {
 	fill_square(&square);
 }
 
-// TODO: continue cleaning from here 
-
-int place_cube(texture_t *texture, int chunk_i, int cube_i) {
+int place_cube(int chunk_i, int cube_i, texture_t *texture) {
 	if (cube_i >= CUBES_PER_CHUNK) {
 		return -1;
 	}
@@ -1178,82 +1209,78 @@ int place_cube(texture_t *texture, int chunk_i, int cube_i) {
 	chunks[chunk_i].cubes[cube_i].right_neighbour = 0;
 	chunks[chunk_i].cubes[cube_i].bottom_neighbour = 0;
 
-	// if cube at chunk boundary, just make it have no neighbours
+	// check if we are at a chunk edge
 	int x = (cube_i % CHUNK_WIDTH);
 	int y = ((cube_i / CHUNK_WIDTH) % CHUNK_WIDTH);
 	int z = ((cube_i / (CHUNK_WIDTH * CHUNK_WIDTH)) % CHUNK_WIDTH);
 
-	int no_left = 0;
-	int no_right = 0;
-	int no_below = 0;
-	int no_top = 0;
-	int no_front = 0;
-	int no_back = 0;
+	int block_above = 1;
+	int block_in_front = 1;
+	int block_left = 1;
+	int block_behind = 1;
+	int block_right = 1;
+	int block_below = 1;
+
 	if (x == 0) {
 		chunks[chunk_i].cubes[cube_i].left_neighbour = 0;
-		no_left = 1;
+		block_left = 0;
 	}
 	else if (x == CHUNK_WIDTH - 1) {
 		chunks[chunk_i].cubes[cube_i].right_neighbour = 0;
-		no_right = 1;
+		block_right = 0;
 	}
 	if (y == 0) {
 		chunks[chunk_i].cubes[cube_i].bottom_neighbour = 1;
-		no_below = 1;
+		block_below = 0;
 	}
 	else if (y == CHUNK_WIDTH - 1) {
 		chunks[chunk_i].cubes[cube_i].top_neighbour = 0;
-		no_top = 1;
+		block_above = 0;
 	}
 	if (z == 0) {
 		chunks[chunk_i].cubes[cube_i].front_neighbour = 0;
-		no_front = 1;
+		block_in_front = 0;
 	}
 	else if (z == CHUNK_WIDTH - 1) {
 		chunks[chunk_i].cubes[cube_i].back_neighbour = 0;
-		no_back = 1;
+		block_behind = 0;
 	}
 
-	// neighbour below:
-	if (! no_below) {
-		if (chunks[chunk_i].cubes[cube_i - CHUNK_WIDTH].texture != NULL) {
-			chunks[chunk_i].cubes[cube_i - CHUNK_WIDTH].top_neighbour = 1;
-			chunks[chunk_i].cubes[cube_i].bottom_neighbour = 1;
-		}
-	}
-	// neighbour above:
-	if (! no_top) {
+	// set neighbour faces
+	if (block_above) {
 		if (chunks[chunk_i].cubes[cube_i + CHUNK_WIDTH].texture != NULL) {
 			chunks[chunk_i].cubes[cube_i + CHUNK_WIDTH].bottom_neighbour = 1;
 			chunks[chunk_i].cubes[cube_i].top_neighbour = 1;
 		}
 	}
-	// neighbour left:
-	if (! no_left) {
-		if (chunks[chunk_i].cubes[cube_i - 1].texture != NULL) {
-			chunks[chunk_i].cubes[cube_i - 1].right_neighbour = 1;
-			chunks[chunk_i].cubes[cube_i].left_neighbour = 1;
-		}
-	}
-	// neighbour right:
-	if (! no_right) {
-		if (chunks[chunk_i].cubes[cube_i + 1].texture != NULL) {
-			chunks[chunk_i].cubes[cube_i + 1].left_neighbour = 1;
-			chunks[chunk_i].cubes[cube_i].right_neighbour = 1;
-		}
-	}
-	//neighbour front:
-	if (! no_front) {
+	if (block_in_front) {
 		if (chunks[chunk_i].cubes[cube_i - CHUNK_WIDTH * CHUNK_WIDTH].texture != NULL) {
 			chunks[chunk_i].cubes[cube_i - CHUNK_WIDTH * CHUNK_WIDTH].back_neighbour = 1;
 			chunks[chunk_i].cubes[cube_i].front_neighbour = 1;
 		}
 	}
-	//neighbour back:
-	if (! no_back) {
+	if (block_left) {
+		if (chunks[chunk_i].cubes[cube_i - 1].texture != NULL) {
+			chunks[chunk_i].cubes[cube_i - 1].right_neighbour = 1;
+			chunks[chunk_i].cubes[cube_i].left_neighbour = 1;
+		}
+	}
+	if (block_behind) {
 		if (chunks[chunk_i].cubes[cube_i + CHUNK_WIDTH * CHUNK_WIDTH].texture != NULL) {
 			chunks[chunk_i].cubes[cube_i + CHUNK_WIDTH * CHUNK_WIDTH].front_neighbour = 1;
 			chunks[chunk_i].cubes[cube_i].back_neighbour = 1;
+		}
+	}
+	if (block_right) {
+		if (chunks[chunk_i].cubes[cube_i + 1].texture != NULL) {
+			chunks[chunk_i].cubes[cube_i + 1].left_neighbour = 1;
+			chunks[chunk_i].cubes[cube_i].right_neighbour = 1;
+		}
+	}
+	if (block_below) {
+		if (chunks[chunk_i].cubes[cube_i - CHUNK_WIDTH].texture != NULL) {
+			chunks[chunk_i].cubes[cube_i - CHUNK_WIDTH].top_neighbour = 1;
+			chunks[chunk_i].cubes[cube_i].bottom_neighbour = 1;
 		}
 	}
 
@@ -1264,30 +1291,110 @@ void remove_cube(int chunk_i, int cube_i) {
 
 	chunks[chunk_i].cubes[cube_i].texture = NULL;
 
-	// neighbour below:
-	if (chunks[chunk_i].cubes[cube_i - CHUNK_WIDTH].texture != NULL) {
-		chunks[chunk_i].cubes[cube_i - CHUNK_WIDTH].top_neighbour = 0;
+	// check if we are at a chunk edge
+	int x = (cube_i % CHUNK_WIDTH);
+	int y = ((cube_i / CHUNK_WIDTH) % CHUNK_WIDTH);
+	int z = ((cube_i / (CHUNK_WIDTH * CHUNK_WIDTH)) % CHUNK_WIDTH);
+
+	int block_above = 1;
+	int block_in_front = 1;
+	int block_left = 1;
+	int block_behind = 1;
+	int block_right = 1;
+	int block_below = 1;
+
+	if (x == 0) {
+		chunks[chunk_i].cubes[cube_i].left_neighbour = 0;
+		block_left = 0;
 	}
-	// neighbour above:
-	if (chunks[chunk_i].cubes[cube_i + CHUNK_WIDTH].texture != NULL) {
-		chunks[chunk_i].cubes[cube_i + CHUNK_WIDTH].bottom_neighbour = 0;
+	else if (x == CHUNK_WIDTH - 1) {
+		chunks[chunk_i].cubes[cube_i].right_neighbour = 0;
+		block_right = 0;
 	}
-	// neighbour left:
-	if (chunks[chunk_i].cubes[cube_i - 1].texture != NULL) {
-		chunks[chunk_i].cubes[cube_i - 1].right_neighbour = 0;
+	if (y == 0) {
+		chunks[chunk_i].cubes[cube_i].bottom_neighbour = 1;
+		block_below = 0;
 	}
-	// neighbour right:
-	if (chunks[chunk_i].cubes[cube_i + 1].texture != NULL) {
-		chunks[chunk_i].cubes[cube_i + 1].left_neighbour = 0;
+	else if (y == CHUNK_WIDTH - 1) {
+		chunks[chunk_i].cubes[cube_i].top_neighbour = 0;
+		block_above = 0;
 	}
-	//neighbour front:
-	if (chunks[chunk_i].cubes[cube_i - CHUNK_WIDTH * CHUNK_WIDTH].texture != NULL) {
-		chunks[chunk_i].cubes[cube_i - CHUNK_WIDTH * CHUNK_WIDTH].back_neighbour = 0;
+	if (z == 0) {
+		chunks[chunk_i].cubes[cube_i].front_neighbour = 0;
+		block_in_front = 0;
 	}
-	//neighbour back:
-	if (chunks[chunk_i].cubes[cube_i + CHUNK_WIDTH * CHUNK_WIDTH].texture != NULL) {
-		chunks[chunk_i].cubes[cube_i + CHUNK_WIDTH * CHUNK_WIDTH].front_neighbour = 0;
+	else if (z == CHUNK_WIDTH - 1) {
+		chunks[chunk_i].cubes[cube_i].back_neighbour = 0;
+		block_behind = 0;
 	}
+
+	// update neighbours
+	if (block_above) {
+		if (chunks[chunk_i].cubes[cube_i + CHUNK_WIDTH].texture != NULL) {
+			chunks[chunk_i].cubes[cube_i + CHUNK_WIDTH].bottom_neighbour = 0;
+		}
+	}
+	if (block_in_front) {
+		if (chunks[chunk_i].cubes[cube_i - CHUNK_WIDTH * CHUNK_WIDTH].texture != NULL) {
+			chunks[chunk_i].cubes[cube_i - CHUNK_WIDTH * CHUNK_WIDTH].back_neighbour = 0;
+		}
+	}
+	else {
+		int in_front_chunk_i = chunk_i;
+		if (in_front_chunk_i % SQRT_NUM_CHUNKS == 0) {
+			in_front_chunk_i += SQRT_NUM_CHUNKS - 1;
+		}
+		else {
+			in_front_chunk_i -= 1;
+		}
+		int z2 = CHUNK_WIDTH - 1;
+		chunks[in_front_chunk_i].cubes[x + (y * CHUNK_WIDTH) + (z2 * CHUNK_WIDTH * CHUNK_WIDTH)].back_neighbour = 0;
+	}
+	if (block_left) {
+		if (chunks[chunk_i].cubes[cube_i - 1].texture != NULL) {
+			chunks[chunk_i].cubes[cube_i - 1].right_neighbour = 0;
+		}
+	}
+	else {
+		int left_chunk_i = chunk_i - SQRT_NUM_CHUNKS;
+		if (left_chunk_i < 0) {
+			left_chunk_i += NUM_CHUNKS;
+		}
+		int x2 = CHUNK_WIDTH - 1;
+		chunks[left_chunk_i].cubes[x2 + (y * CHUNK_WIDTH) + (z * CHUNK_WIDTH * CHUNK_WIDTH)].right_neighbour = 0;
+	}
+	if (block_behind) {
+		if (chunks[chunk_i].cubes[cube_i + CHUNK_WIDTH * CHUNK_WIDTH].texture != NULL) {
+			chunks[chunk_i].cubes[cube_i + CHUNK_WIDTH * CHUNK_WIDTH].front_neighbour = 0;
+		}
+	}
+	else {
+		int behind_chunk_i = chunk_i + 1;
+		if (behind_chunk_i % SQRT_NUM_CHUNKS == 0) {
+			behind_chunk_i -= SQRT_NUM_CHUNKS;
+		}
+		int z2 = 0;
+		chunks[behind_chunk_i].cubes[x + (y * CHUNK_WIDTH) + (z2 * CHUNK_WIDTH * CHUNK_WIDTH)].front_neighbour = 0;
+	}
+	if (block_right) {
+		if (chunks[chunk_i].cubes[cube_i + 1].texture != NULL) {
+			chunks[chunk_i].cubes[cube_i + 1].left_neighbour = 0;
+		}
+	}
+	else {
+		int right_chunk_i = chunk_i + SQRT_NUM_CHUNKS;	
+		if (right_chunk_i > (NUM_CHUNKS - 1)) {
+			right_chunk_i -= NUM_CHUNKS;
+		}
+		int x2 = 0;
+		chunks[right_chunk_i].cubes[x2 + (y * CHUNK_WIDTH) + (z * CHUNK_WIDTH * CHUNK_WIDTH)].left_neighbour = 0;
+	}
+	if (block_below) {
+		if (chunks[chunk_i].cubes[cube_i - CHUNK_WIDTH].texture != NULL) {
+			chunks[chunk_i].cubes[cube_i - CHUNK_WIDTH].top_neighbour = 0;
+		}
+	}
+
 	return;
 }
 
@@ -1989,7 +2096,9 @@ void generate_chunk(int chunk_i) {
 				remove_cube(chunk_i, edits.items[edit_index].cubes[j].cube_i);
 			}
 			else {
-				place_cube(edits.items[edit_index].cubes[j].texture, chunk_i, edits.items[edit_index].cubes[j].cube_i);
+				place_cube(chunk_i,
+						   edits.items[edit_index].cubes[j].cube_i,
+						   edits.items[edit_index].cubes[j].texture);
 			}
 		}
 	}
@@ -2022,30 +2131,30 @@ void generate_chunk(int chunk_i) {
 										break;
 									}
 									int i = (x + ((y + h) * CHUNK_WIDTH) + (z * CHUNK_WIDTH * CHUNK_WIDTH));
-									placed_log = place_cube(wood_texture, chunk_i, i);
+									placed_log = place_cube(chunk_i, i, wood_texture);
 									add_edit(chunk_i, i, wood_texture);
 								}
 
 								if (placed_log) {
 									h--;
 									int i = ((x + 1) + ((y + h) * CHUNK_WIDTH) + (z * CHUNK_WIDTH * CHUNK_WIDTH));
-									place_cube(leaf_texture, chunk_i, i);
+									place_cube(chunk_i, i, leaf_texture);
 									add_edit(chunk_i, i, leaf_texture);
 
 									i = ((x - 1) + ((y + h) * CHUNK_WIDTH) + (z * CHUNK_WIDTH * CHUNK_WIDTH));
-									place_cube(leaf_texture, chunk_i, i);
+									place_cube(chunk_i, i, leaf_texture);
 									add_edit(chunk_i, i, leaf_texture);
 
 									i = (x + ((y + h) * CHUNK_WIDTH) + ((z + 1) * CHUNK_WIDTH * CHUNK_WIDTH));
-									place_cube(leaf_texture, chunk_i, i);
+									place_cube(chunk_i, i, leaf_texture);
 									add_edit(chunk_i, i, leaf_texture);
 
 									i = (x + ((y + h) * CHUNK_WIDTH) + ((z - 1) * CHUNK_WIDTH * CHUNK_WIDTH));
-									place_cube(leaf_texture, chunk_i, i);
+									place_cube(chunk_i, i, leaf_texture);
 									add_edit(chunk_i, i, leaf_texture);
 
 									i = (x + ((y + h + 1) * CHUNK_WIDTH) + (z * CHUNK_WIDTH * CHUNK_WIDTH));
-									place_cube(leaf_texture, chunk_i, i);
+									place_cube(chunk_i, i, leaf_texture);
 									add_edit(chunk_i, i, leaf_texture);
 								}
 							}
@@ -2143,7 +2252,7 @@ int square_surrounds_centre(square_t *square) {
 		if (square->coords[i].y < top_y) {
 			top_y = square->coords[i].y;
 		}
-		if (square->coords[i].z == 0) {
+		if (square->coords[i].z < 0) {
 			count++;
 		}
 	}
@@ -2157,107 +2266,109 @@ int square_surrounds_centre(square_t *square) {
 }
 
 void player_place_cube() {
-		vec3_t pos = {0};
-		pos.x = chunks[highlighted_cube_chunk_index].pos.x + ((highlighted_cube_index % CHUNK_WIDTH) * CUBE_WIDTH);
-		pos.y = chunks[highlighted_cube_chunk_index].pos.y + (((highlighted_cube_index / CHUNK_WIDTH) % CHUNK_WIDTH) * CUBE_WIDTH);
-		pos.z = chunks[highlighted_cube_chunk_index].pos.z + (((highlighted_cube_index / (CHUNK_WIDTH * CHUNK_WIDTH)) % CHUNK_WIDTH) * CUBE_WIDTH);
-		int diff = 0;
-		switch (highlighted_cube_face) {
-			case TOP: {
-				pos.y += CUBE_WIDTH;
-				diff = CHUNK_WIDTH;
-				break;
-			}
-			case FRONT: {
-				pos.z -= CUBE_WIDTH;
-				diff = - CHUNK_WIDTH * CHUNK_WIDTH;
-				break;
-			}
-			case LEFT: {
-				pos.x -= CUBE_WIDTH;
-				diff = -1;
-				break;
-			}
-			case BACK: {
-				pos.z += CUBE_WIDTH;
-				diff = CHUNK_WIDTH * CHUNK_WIDTH;
-				break;
-			}
-			case RIGHT: {
-				pos.x += CUBE_WIDTH;
-				diff = 1;
-				break;
-			}
-			case BOTTOM: {
-				pos.y -= CUBE_WIDTH;
-				diff = -CHUNK_WIDTH;
-				break;
-			}
-		}
-		int x1 = pos.x;
-		int y1 = pos.y;
-		int z1 = pos.z;
+	vec3_t pos = {0};
 
-		// x2 = bottom right back
-		int x2 = x1 + CUBE_WIDTH;	
-		int y2 = y1 - CUBE_WIDTH;	
-		int z2 = z1 + CUBE_WIDTH;
+	pos.x = chunks[highlighted_cube_chunk_index].pos.x + (highlighted_cube_index % CHUNK_WIDTH);
+	pos.y = chunks[highlighted_cube_chunk_index].pos.y + ((highlighted_cube_index / CHUNK_WIDTH) % CHUNK_WIDTH);
+	pos.z = chunks[highlighted_cube_chunk_index].pos.z + ((highlighted_cube_index / (CHUNK_WIDTH * CHUNK_WIDTH)) % CHUNK_WIDTH);
 
-		camera_pos.y -= CUBE_WIDTH;
-		// player_x1 = top left front
-		int player_x1 = camera_pos.x - player_width;
-		int player_y1 = camera_pos.y + player_height;
-		int player_z1 = camera_pos.z - player_width;
+	int diff = 0;
+	switch (highlighted_cube_face) {
+		case TOP: {
+			pos.y += CUBE_WIDTH;
+			diff = CHUNK_WIDTH;
+			break;
+		}
+		case FRONT: {
+			pos.z -= CUBE_WIDTH;
+			diff = - CHUNK_WIDTH * CHUNK_WIDTH;
+			break;
+		}
+		case LEFT: {
+			pos.x -= CUBE_WIDTH;
+			diff = -1;
+			break;
+		}
+		case BACK: {
+			pos.z += CUBE_WIDTH;
+			diff = CHUNK_WIDTH * CHUNK_WIDTH;
+			break;
+		}
+		case RIGHT: {
+			pos.x += CUBE_WIDTH;
+			diff = 1;
+			break;
+		}
+		case BOTTOM: {
+			pos.y -= CUBE_WIDTH;
+			diff = -CHUNK_WIDTH;
+			break;
+		}
+	}
+	int x1 = pos.x;
+	int y1 = pos.y;
+	int z1 = pos.z;
 
-		// player_x1 = bottom right back
-		int player_x2 = camera_pos.x + player_width;
-		int player_y2 = camera_pos.y - player_width;
-		int player_z2 = camera_pos.z + player_width;
+	// x2 = bottom right back
+	int x2 = x1 + CUBE_WIDTH;	
+	int y2 = y1 - CUBE_WIDTH;	
+	int z2 = z1 + CUBE_WIDTH;
 
-		int x_collision = 0;
-		int y_collision = 0;
-		int z_collision = 0;
-		if ((player_x1 >= x1 && player_x1 <= x2) || (player_x2 >= x1 && player_x2 <= x2)) {
-			// xs overlap
-			x_collision = 1;
-		}
-		if ((player_y1 <= y1 && player_y1 >= y2) || (player_y2 <= y1 && player_y2 >= y2)) {
-			// ys overlap
-			y_collision = 1;
-		}
-		if ((player_z1 >= z1 && player_z1 <= z2) || (player_z2 >= z1 && player_z2 <= z2)) {
-			// zs overlap
-			z_collision = 1;
-		}
-		camera_pos.y += CUBE_WIDTH;
+	camera_pos.y -= CUBE_WIDTH;
+	// player_x1 = top left front
+	int player_x1 = camera_pos.x - player_width;
+	int player_y1 = camera_pos.y + player_height;
+	int player_z1 = camera_pos.z - player_width;
 
-		texture_t *texture = grass_texture;
+	// player_x1 = bottom right back
+	int player_x2 = camera_pos.x + player_width;
+	int player_y2 = camera_pos.y - player_width;
+	int player_z2 = camera_pos.z + player_width;
 
-		if (x_collision && y_collision && z_collision) {
-			return;
+	int x_collision = 0;
+	int y_collision = 0;
+	int z_collision = 0;
+	if ((player_x1 >= x1 && player_x1 <= x2) || (player_x2 >= x1 && player_x2 <= x2)) {
+		// xs overlap
+		x_collision = 1;
+	}
+	if ((player_y1 <= y1 && player_y1 >= y2) || (player_y2 <= y1 && player_y2 >= y2)) {
+		// ys overlap
+		y_collision = 1;
+	}
+	if ((player_z1 >= z1 && player_z1 <= z2) || (player_z2 >= z1 && player_z2 <= z2)) {
+		// zs overlap
+		z_collision = 1;
+	}
+	camera_pos.y += CUBE_WIDTH;
+
+	texture_t *texture = grass_texture;
+
+	if (x_collision && y_collision && z_collision) {
+		return;
+	}
+	switch (hotbar_selection) {
+		case 0: {
+			// grass
+			break;
 		}
-		switch (hotbar_selection) {
-			case 0: {
-				// grass
-				break;
-			}
-			case 1: {
-				texture = stone_texture;
-				break;
-			}
-			case 2: {
-				texture = wood_texture;
-				break;
-			}
-			case 3: {
-				texture = leaf_texture;
-				break;
-			}
+		case 1: {
+			texture = stone_texture;
+			break;
 		}
-		int cube_i = highlighted_cube_index + diff;
-		place_cube(texture, highlighted_cube_chunk_index, cube_i);
-		add_edit(highlighted_cube_chunk_index, cube_i, texture);
-	
+		case 2: {
+			texture = wood_texture;
+			break;
+		}
+		case 3: {
+			texture = leaf_texture;
+			break;
+		}
+	}
+	int cube_i = highlighted_cube_index + diff;
+	place_cube(highlighted_cube_chunk_index, cube_i, texture);
+	add_edit(highlighted_cube_chunk_index, cube_i, texture);
+	return;	
 }
 
 void add_edit(int chunk_i, int cube_i, texture_t *texture) {
