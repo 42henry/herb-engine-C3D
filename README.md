@@ -28,6 +28,12 @@ Known issues:
  - collision issues when passing chunk borders
  - rendering issues when some points of a square have negative z values
 
+Next steps:
+ - from profiling I can see that the fill square function accounts for the most program instructions
+ - cache hits seem good, so the next step would be to come up with a faster fill square algorithm
+ - I have in mind to enfore that a square's coords are provided in a specific order to make
+ - the line calculations quicker/without conditionals... something for the future!
+
 To compile:
  - linux:  
    - gcc -o main.o -lX11 -lm -O3 -march=native ./linux2.c  
