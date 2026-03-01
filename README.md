@@ -30,9 +30,7 @@ Known issues:
 
 Next steps:
  - from profiling I can see that the fill square function accounts for the most program instructions
- - cache hits seem good, so the next step would be to come up with a faster fill square algorithm
- - I have in mind to enfore that a square's coords are provided in a specific order to make
- - the line calculations quicker/without conditionals... something for the future!
+ - cache hits seem good, so the next step would be to come up with a faster fill square algorithm...
 
 To compile:
  - linux:  
