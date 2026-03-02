@@ -85,6 +85,7 @@ typedef struct {
 typedef struct {
 	vec3_t coords[4];	
 	uint32_t colour;
+	int water;
 } square_t;
 
 typedef struct {
@@ -297,6 +298,8 @@ texture_t *dirt_texture = NULL;
 texture_t *stone_texture = NULL;
 texture_t *wood_texture = NULL;
 texture_t *leaf_texture = NULL;
+texture_t *sand_texture = NULL;
+texture_t *water_texture = NULL;
 
 // gpt perlin noise
 static perlin_t noise;
@@ -454,7 +457,8 @@ int collided() {
 
 	for (int cube_i = 0; cube_i < CUBES_PER_CHUNK; cube_i++) {
 
-		if (chunks[occupied_chunk_index].cubes[cube_i].texture == NULL) {
+		if (chunks[occupied_chunk_index].cubes[cube_i].texture == NULL ||
+			chunks[occupied_chunk_index].cubes[cube_i].texture == water_texture) {
 			continue;
 		}
 
@@ -640,6 +644,12 @@ void handle_input() {
 		//hand_cubes.count = 0;
 		//render_hand();
 	}
+	if (keys[five]) {
+		hotbar_selection = 4;
+	}
+	if (keys[six]) {
+		hotbar_selection = 5;
+	}
 	return;
 }
 
@@ -791,7 +801,11 @@ void fill_square(square_t *square) {
 	int left_x, right_x;
 	int x1, x2, y1, y2;
 
-	for (int y = smallest_y; y < largest_y; y++) {
+	int increment = 1;
+	if (square->water) {
+		increment = 2;
+	}
+	for (int y = smallest_y; y < largest_y; y += increment) {
 		uint32_t* row = &pixels[y * WIDTH];
 
 		// get x coords y using y = mx + c
@@ -997,6 +1011,14 @@ void draw_hotbar() {
 			draw_rect((vec3_t){hotbar_x + (HOTBAR_SLOT_WIDTH * 3), hotbar_y - hotbar_height, 1}, HOTBAR_SLOT_WIDTH, hotbar_height, hotbar_colour);
 			break;
 		}
+		case 4: {
+			draw_rect((vec3_t){hotbar_x + (HOTBAR_SLOT_WIDTH * 4), hotbar_y - hotbar_height, 1}, HOTBAR_SLOT_WIDTH, hotbar_height, hotbar_colour);
+			break;
+		}
+		case 5: {
+			draw_rect((vec3_t){hotbar_x + (HOTBAR_SLOT_WIDTH * 5), hotbar_y - hotbar_height, 1}, HOTBAR_SLOT_WIDTH, hotbar_height, hotbar_colour);
+			break;
+		}
 	}
 
 	//for (int i = 0; i < hotbar_faces.count; i++) {
@@ -1121,6 +1143,10 @@ void render_chunks() {
 								set_fog_level(&c, fog_r);
 
 								square.colour = pack_colour_to_uint32(&c);
+								if (texture == water_texture) {
+									square.water = 1;
+								}
+
 								face.squares[count++] = square;
 
 								if (square_surrounds_centre_of_screen(&square)) {
@@ -1165,6 +1191,10 @@ void render_chunks() {
 								set_fog_level(&c, fog_r);
 
 								square.colour = pack_colour_to_uint32(&c);
+								if (texture == water_texture) {
+									square.water = 1;
+								}
+
 								face.squares[count++] = square;
 
 								if (square_surrounds_centre_of_screen(&square)) {
@@ -1209,6 +1239,10 @@ void render_chunks() {
 								set_fog_level(&c, fog_r);
 
 								square.colour = pack_colour_to_uint32(&c);
+								if (texture == water_texture) {
+									square.water = 1;
+								}
+
 								face.squares[count++] = square;
 
 								if (square_surrounds_centre_of_screen(&square)) {
@@ -1252,6 +1286,10 @@ void render_chunks() {
 								set_fog_level(&c, fog_r);
 
 								square.colour = pack_colour_to_uint32(&c);
+								if (texture == water_texture) {
+									square.water = 1;
+								}
+
 								face.squares[count++] = square;
 
 								if (square_surrounds_centre_of_screen(&square)) {
@@ -1295,6 +1333,10 @@ void render_chunks() {
 								set_fog_level(&c, fog_r);
 
 								square.colour = pack_colour_to_uint32(&c);
+								if (texture == water_texture) {
+									square.water = 1;
+								}
+
 								face.squares[count++] = square;
 								 
 								if (square_surrounds_centre_of_screen(&square)) {
@@ -1338,6 +1380,10 @@ void render_chunks() {
 								set_fog_level(&c, fog_r);
 
 								square.colour = pack_colour_to_uint32(&c);
+								if (texture == water_texture) {
+									square.water = 1;
+								}
+
 								face.squares[count++] = square;
 
 								if (square_surrounds_centre_of_screen(&square)) {
@@ -1699,6 +1745,71 @@ int place_cube(int chunk_i, int cube_i, texture_t *texture) {
 		block_behind = 0;
 	}
 
+	// wow for transparency
+	if (chunks[chunk_i].cubes[cube_i].texture == water_texture) {
+
+		// set water neighbour faces
+		if (block_above) {
+			// cube_i + - 1 goes right or left one cube
+			// cube_i + - CHUNK_WIDTH goes up or down one cube
+			// cube_i + - CHUNK_WIDTH * CHUNK_WIDTH goes back or forward one cube
+			if (chunks[chunk_i].cubes[cube_i + CHUNK_WIDTH].texture == water_texture) {
+				chunks[chunk_i].cubes[cube_i + CHUNK_WIDTH].bottom_neighbour = 1;
+				chunks[chunk_i].cubes[cube_i].top_neighbour = 1;
+			}
+			else if (chunks[chunk_i].cubes[cube_i + CHUNK_WIDTH].texture != NULL) {
+				chunks[chunk_i].cubes[cube_i].top_neighbour = 1;
+			}
+		}
+		if (block_in_front) {
+			if (chunks[chunk_i].cubes[cube_i - CHUNK_WIDTH * CHUNK_WIDTH].texture == water_texture) {
+				chunks[chunk_i].cubes[cube_i - CHUNK_WIDTH * CHUNK_WIDTH].back_neighbour = 1;
+				chunks[chunk_i].cubes[cube_i].front_neighbour = 1;
+			}
+			else if (chunks[chunk_i].cubes[cube_i - CHUNK_WIDTH * CHUNK_WIDTH].texture != NULL) {
+				chunks[chunk_i].cubes[cube_i].front_neighbour = 1;
+			}
+		}
+		if (block_left) {
+			if (chunks[chunk_i].cubes[cube_i - 1].texture == water_texture) {
+				chunks[chunk_i].cubes[cube_i - 1].right_neighbour = 1;
+				chunks[chunk_i].cubes[cube_i].left_neighbour = 1;
+			}
+			else if (chunks[chunk_i].cubes[cube_i - 1].texture != NULL) {
+				chunks[chunk_i].cubes[cube_i].left_neighbour = 1;
+			}
+		}
+		if (block_behind) {
+			if (chunks[chunk_i].cubes[cube_i + CHUNK_WIDTH * CHUNK_WIDTH].texture == water_texture) {
+				chunks[chunk_i].cubes[cube_i + CHUNK_WIDTH * CHUNK_WIDTH].front_neighbour = 1;
+				chunks[chunk_i].cubes[cube_i].back_neighbour = 1;
+			}
+			else if (chunks[chunk_i].cubes[cube_i + CHUNK_WIDTH * CHUNK_WIDTH].texture != NULL) {
+				chunks[chunk_i].cubes[cube_i].back_neighbour = 1;
+			}
+		}
+		if (block_right) {
+			if (chunks[chunk_i].cubes[cube_i + 1].texture == water_texture) {
+				chunks[chunk_i].cubes[cube_i + 1].left_neighbour = 1;
+				chunks[chunk_i].cubes[cube_i].right_neighbour = 1;
+			}
+			else if (chunks[chunk_i].cubes[cube_i + 1].texture != NULL) {
+				chunks[chunk_i].cubes[cube_i].right_neighbour = 1;
+			}
+		}
+		if (block_below) {
+			if (chunks[chunk_i].cubes[cube_i - CHUNK_WIDTH].texture == water_texture) {
+				chunks[chunk_i].cubes[cube_i - CHUNK_WIDTH].top_neighbour = 1;
+				chunks[chunk_i].cubes[cube_i].bottom_neighbour = 1;
+			}
+			else if (chunks[chunk_i].cubes[cube_i - CHUNK_WIDTH].texture != NULL) {
+				chunks[chunk_i].cubes[cube_i].bottom_neighbour = 1;
+			}
+		}
+
+		return 1;
+	}
+
 	// set neighbour faces
 	if (block_above) {
 		// cube_i + - 1 goes right or left one cube
@@ -1957,6 +2068,14 @@ void player_place_cube() {
 		}
 		case 3: {
 			texture = leaf_texture;
+			break;
+		}
+		case 4: {
+			texture = sand_texture;
+			break;
+		}
+		case 5: {
+			texture = water_texture;
 			break;
 		}
 	}
@@ -2294,19 +2413,19 @@ void generate_textures() {
 	// top
 	int i = 0;
 	for (i; i < SQUARES_PER_FACE; i++) {
-		myImg.data[i] = (colour_t){10, 180 + (rand() % 80), 20 + (rand() % 60), };
+		myImg.data[i] = (colour_t){10, 180 + (rand() % 70), 20 + (rand() % 60)};
 	}
 	// bottom
 	for (i; i < 2 * SQUARES_PER_FACE; i++) {
-		myImg.data[i] = (colour_t){150 + (rand() % 70), 75 + (rand() % 60), 10 + (rand() % 60), };
+		myImg.data[i] = (colour_t){150 + (rand() % 70), 75 + (rand() % 60), 10 + (rand() % 60)};
 	}
 	// side
 	for (i; i < 3 * SQUARES_PER_FACE; i++) {
 		if (i < 2.5 * SQUARES_PER_FACE) {
-			myImg.data[i] = (colour_t){10, 180 + (rand() % 80), 20 + (rand() % 60), };
+			myImg.data[i] = (colour_t){10, 180 + (rand() % 70), 20 + (rand() % 60)};
 		}
 		else {
-			myImg.data[i] = (colour_t){150 + (rand() % 70), 75 + (rand() % 60), 10 + (rand() % 60), };
+			myImg.data[i] = (colour_t){150 + (rand() % 70), 75 + (rand() % 60), 10 + (rand() % 60)};
 		}
 	}
 
@@ -2319,7 +2438,7 @@ void generate_textures() {
 	// top bottom side
 	i = 0;
 	for (i; i < SQUARES_PER_FACE * 3; i++) {
-		myImg.data[i] = (colour_t){110 + (rand()  % 20), 110 + (rand()  % 20), 120 + (rand()  % 20), };
+		myImg.data[i] = (colour_t){110 + (rand()  % 20), 110 + (rand()  % 20), 120 + (rand()  % 20)};
 	}
 
     writePPM("stone.ppm", &myImg);
@@ -2331,7 +2450,7 @@ void generate_textures() {
 	// top bottom side
 	i = 0;
 	for (i; i < SQUARES_PER_FACE * 3; i++) {
-		myImg.data[i] = (colour_t){150 + (rand() % 70), 75 + (rand() % 60), 10 + (rand() % 60), };
+		myImg.data[i] = (colour_t){150 + (rand() % 70), 75 + (rand() % 60), 10 + (rand() % 60)};
 	}
 
     writePPM("dirt.ppm", &myImg);
@@ -2344,15 +2463,15 @@ void generate_textures() {
 	// top
 	i = 0;
 	for (i; i < SQUARES_PER_FACE; i++) {
-		myImg.data[i] = (colour_t){200 + (rand() % 50), 180 + (rand() % 50), 150 + (rand() % 50), };
+		myImg.data[i] = (colour_t){200 + (rand() % 50), 180 + (rand() % 50), 150 + (rand() % 50)};
 	}
 	// bottom
 	for (i; i < 2 * SQUARES_PER_FACE; i++) {
-		myImg.data[i] = (colour_t){200 + (rand() % 50), 180 + (rand() % 50), 150 + (rand() % 50), };
+		myImg.data[i] = (colour_t){200 + (rand() % 50), 180 + (rand() % 50), 150 + (rand() % 50)};
 	}
 	// side
 	for (i; i < 3 * SQUARES_PER_FACE; i++) {
-		myImg.data[i] = (colour_t){ 110 + (rand() % 7),  70 + (rand() % 15),  40 + (rand() % 10) };
+		myImg.data[i] = (colour_t){ 110 + (rand() % 7),  70 + (rand() % 15),  40 + (rand() % 10)};
 	}
 
     writePPM("wood.ppm", &myImg);
@@ -2364,15 +2483,39 @@ void generate_textures() {
 	// top bottom side
 	i = 0;
 	for (i; i < SQUARES_PER_FACE * 3; i++) {
-		myImg.data[i] = (colour_t){5 - (rand()  % 5), 95 - (rand()  % 40), 7 - (rand()  % 7), };
+		myImg.data[i] = (colour_t){5 - (rand()  % 5), 95 - (rand()  % 40), 7 - (rand()  % 7)};
 	}
 
     writePPM("leaf.ppm", &myImg);
 
-    free(myImg.data);
-
 	leaf_texture = readPPM("leaf.ppm");
 	assert(leaf_texture != NULL);
+
+	// create sand texture
+	// top bottom side
+	i = 0;
+	for (i; i < SQUARES_PER_FACE * 3; i++) {
+		myImg.data[i] = (colour_t){240 - (rand()  % 5), 190 - (rand()  % 40), 80 - (rand()  % 7)};
+	}
+
+    writePPM("sand.ppm", &myImg);
+
+	sand_texture = readPPM("sand.ppm");
+	assert(leaf_texture != NULL);
+
+	// create water texture
+	// top bottom side
+	i = 0;
+	for (i; i < SQUARES_PER_FACE * 3; i++) {
+		myImg.data[i] = (colour_t){50 + (rand() % 50), 50 + (rand() % 50), 255};
+	}
+
+    writePPM("water.ppm", &myImg);
+
+	water_texture = readPPM("water.ppm");
+	assert(water_texture != NULL);
+
+    free(myImg.data);
 
 	return;
 }
