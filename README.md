@@ -16,7 +16,7 @@ Work done so far:
  - a texture map, which takes each square, and colours it pixel by pixel from a given texture
  - sort each square by their distance to the camera
  - simple cubicy collisions
- - simple hotbar
+ - simple hotbar/hand with different blocks accesible by pressing 1-6
  - don't draw back faces, or faces with a neighbouring face
  - placing and removing cubes within any chunk
  - chunk system with dynamically saved chunk edits
@@ -41,6 +41,7 @@ Next steps:
    - the difference between the closest face, and the furthest face represents a scale from completely dark, to completely bright
    - use that scale to colour each face a certain brightness based on their distance to the sun
  - I'd also love to try use sockets to make multiplayer from scratch - or just use enet...
+ - biomes sounds like a tough nut to crack so I'd love to try that some time too!
 
 To compile:
  - linux:  
