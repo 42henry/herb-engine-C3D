@@ -2294,19 +2294,19 @@ void generate_textures() {
 	// top
 	int i = 0;
 	for (i; i < SQUARES_PER_FACE; i++) {
-		myImg.data[i] = (colour_t){10 + (rand() % 50), 180 + (rand() % 50), 20 + (rand() % 50), };
+		myImg.data[i] = (colour_t){10, 180 + (rand() % 80), 20 + (rand() % 60), };
 	}
 	// bottom
 	for (i; i < 2 * SQUARES_PER_FACE; i++) {
-		myImg.data[i] = (colour_t){150 + (rand() % 50), 75 + (rand() % 50), 10 + (rand() % 50), };
+		myImg.data[i] = (colour_t){150 + (rand() % 70), 75 + (rand() % 60), 10 + (rand() % 60), };
 	}
 	// side
 	for (i; i < 3 * SQUARES_PER_FACE; i++) {
 		if (i < 2.5 * SQUARES_PER_FACE) {
-			myImg.data[i] = (colour_t){10 + (rand() % 50), 180 + (rand() % 50), 20 + (rand() % 50), };
+			myImg.data[i] = (colour_t){10, 180 + (rand() % 80), 20 + (rand() % 60), };
 		}
 		else {
-			myImg.data[i] = (colour_t){150 + (rand() % 50), 75 + (rand() % 50), 10 + (rand() % 50), };
+			myImg.data[i] = (colour_t){150 + (rand() % 70), 75 + (rand() % 60), 10 + (rand() % 60), };
 		}
 	}
 
@@ -2319,7 +2319,7 @@ void generate_textures() {
 	// top bottom side
 	i = 0;
 	for (i; i < SQUARES_PER_FACE * 3; i++) {
-		myImg.data[i] = (colour_t){75 + (rand()  % 12), 75 + (rand()  % 13), 75 + (rand()  % 5), };
+		myImg.data[i] = (colour_t){110 + (rand()  % 20), 110 + (rand()  % 20), 120 + (rand()  % 20), };
 	}
 
     writePPM("stone.ppm", &myImg);
@@ -2331,7 +2331,7 @@ void generate_textures() {
 	// top bottom side
 	i = 0;
 	for (i; i < SQUARES_PER_FACE * 3; i++) {
-		myImg.data[i] = (colour_t){150 + (rand() % 50), 75 + (rand() % 50), 10 + (rand() % 50), };
+		myImg.data[i] = (colour_t){150 + (rand() % 70), 75 + (rand() % 60), 10 + (rand() % 60), };
 	}
 
     writePPM("dirt.ppm", &myImg);
@@ -2352,7 +2352,7 @@ void generate_textures() {
 	}
 	// side
 	for (i; i < 3 * SQUARES_PER_FACE; i++) {
-		myImg.data[i] = (colour_t){90 + (rand() % 10), 60 + (rand() % 10), 50 + (rand() % 20), };
+		myImg.data[i] = (colour_t){ 110 + (rand() % 7),  70 + (rand() % 15),  40 + (rand() % 10) };
 	}
 
     writePPM("wood.ppm", &myImg);
@@ -2364,7 +2364,7 @@ void generate_textures() {
 	// top bottom side
 	i = 0;
 	for (i; i < SQUARES_PER_FACE * 3; i++) {
-		myImg.data[i] = (colour_t){5 - (rand()  % 5), 95 - (rand()  % 20), 7 - (rand()  % 7), };
+		myImg.data[i] = (colour_t){5 - (rand()  % 5), 95 - (rand()  % 40), 7 - (rand()  % 7), };
 	}
 
     writePPM("leaf.ppm", &myImg);
