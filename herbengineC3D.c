@@ -354,8 +354,6 @@ texture_t *water_texture = NULL;
 // gpt perlin noise
 static perlin_t noise;
 
-static int bruh;
-
 /* -------------------------- funciton definitions -------------------------- */
 
 void init_stuff() {
@@ -399,7 +397,7 @@ void init_stuff() {
 	space_was_pressed = 0;
 	last_space_frame = -100;
 	space_to_fly_frame_interval = 20;
-	flying = 1;
+	flying = 0;
 
 	// - drawing
 	hotbar_colour.r = 50;
@@ -511,6 +509,10 @@ void update_day_cycle() {
 }
 
 int player_inside_cube(vec3_t cube_top_left_front_pos) {
+
+	// make the player 2 cubes tall:
+	player_pos.y -= CUBE_WIDTH;
+
 	// x1 = top left front
 	int x1 = cube_top_left_front_pos.x;
 	int y1 = cube_top_left_front_pos.y;
@@ -539,40 +541,30 @@ int player_inside_cube(vec3_t cube_top_left_front_pos) {
 	if ((player_x1 >= x1 && player_x1 <= x2) || (player_x2 >= x1 && player_x2 <= x2)) {
 		// xs overlap
 		x_collision = 1;
-		if (bruh) {
-			printf("\nxs overlap");
-		}
 	}
 	if (player_y1 <= y1 && player_y1 >= y2) {
 		// ys overlap
-		if (bruh) {
-			printf("\nys overlap");
-		}
 		y_collision = 1;
 	}
 	if (player_y2 <= y1 && player_y2 >= y2) {
 		y_collision = 1;
 		possibly_hit_ground = 1;
-		if (bruh) {
-			printf("\nys overlap");
-		}
 	}
 	if ((player_z1 >= z1 && player_z1 <= z2) || (player_z2 >= z1 && player_z2 <= z2)) {
 		// zs overlap
 		z_collision = 1;
-		if (bruh) {
-			printf("\nzs overlap");
-		}
 	}
 	if (x_collision && y_collision && z_collision) {
 		if (possibly_hit_ground) {
-		if (bruh) {
-			printf("\nxs overlap");
-		}
 			flying = 0;
 		}
+
+		// make the player 2 cubes tall:
+		player_pos.y += CUBE_WIDTH;
 		return 1;
 	}
+	// make the player 2 cubes tall:
+	player_pos.y += CUBE_WIDTH;
 	return 0;
 }
 
@@ -674,9 +666,6 @@ void handle_input() {
 		}
 	}
 
-	// make the player 2 cubes tall:
-	player_pos.y -= CUBE_WIDTH;
-
 	int old = ((player_pos.x / CUBE_WIDTH) / CHUNK_WIDTH);
 	// account for the fact 6 / 10 = 0 and - 6 / 10 = 0
 	if (player_pos.x < 0) {
@@ -731,9 +720,6 @@ void handle_input() {
 			update_chunks(Z_POS);
 		}
 	}
-	
-	// make the player 2 cubes tall:
-	player_pos.y += CUBE_WIDTH;
 
 	//vec3_t pos = {player_pos.x + 2 * CUBE_WIDTH, player_pos.y - 0.5 * CUBE_WIDTH, player_pos.z + 0.5 * CUBE_WIDTH};
 	if (keys[one]) {
@@ -2050,9 +2036,9 @@ void player_place_cube() {
 
 	vec3_t pos = {0};
 
-	pos.x = chunks[highlighted_cube_chunk_index].pos.x + CUBE_X(highlighted_cube_chunk_index);
-	pos.y = chunks[highlighted_cube_chunk_index].pos.y + CUBE_Y(highlighted_cube_chunk_index);
-	pos.z = chunks[highlighted_cube_chunk_index].pos.z + CUBE_Z(highlighted_cube_chunk_index);
+	pos.x = chunks[highlighted_cube_chunk_index].pos.x + (CUBE_X(highlighted_cube_index) * CUBE_WIDTH);
+	pos.y = chunks[highlighted_cube_chunk_index].pos.y + (CUBE_Y(highlighted_cube_index) * CUBE_WIDTH);
+	pos.z = chunks[highlighted_cube_chunk_index].pos.z + (CUBE_Z(highlighted_cube_index) * CUBE_WIDTH);
 
 	int index_diff = 0;
 	switch (highlighted_cube_face) {
@@ -2091,11 +2077,9 @@ void player_place_cube() {
 	int y1 = pos.y;
 	int z1 = pos.z;
 
-	bruh = 1;
 	if (player_inside_cube((vec3_t){x1, y1, z1})) {
 		return;
 	}
-	bruh = 0;
 
 	texture_t *texture = grass_texture;
 
