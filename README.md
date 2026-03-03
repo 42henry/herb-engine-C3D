@@ -47,7 +47,9 @@ To compile:
  - linux:  
    - gcc -o main.o -lX11 -lm -O3 -march=native ./linux2.c  
  - Windows:  
-   - gcc -o main.exe -lgdi32 -mwindows -O3 -march=native .\main-windows.c  
+   - gcc -o main.exe -lgdi32 -mwindows -O3 -march=native .\main-windows.c
+Or play right now (claude rewrote linux_platform.c for compilation with emcc to web assembly!) on my website:
+https:/niceboisnice.com/digmake 
 
 Dev screenshots:
 
