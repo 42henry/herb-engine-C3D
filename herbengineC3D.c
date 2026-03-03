@@ -112,8 +112,9 @@ typedef struct {
 } colour_t;
 
 typedef struct {
-    int width, height;
-    colour_t *data;
+    colour_t *pixels;
+    int width;
+	int height;
 } texture_t;
 
 typedef struct {
@@ -239,9 +240,6 @@ static void generate_easter_island_statue(vec3_t pos, int chunk_i);
 
 // textures
 void generate_textures();
-
-static void writePPM(const char *filename, texture_t *img); // gpt
-static texture_t* readPPM(const char *filename); // gpt
 
 // gpt perlin noise:
 static uint32_t lcg(uint32_t *state);
@@ -458,6 +456,12 @@ void cleanup() {
 		free(chunk_edits.items[i].cubes);
 	}
 	free(chunk_edits.items);
+	free(grass_texture->pixels);
+	free(stone_texture->pixels);
+	free(wood_texture->pixels);
+	free(leaf_texture->pixels);
+	free(sand_texture->pixels);
+	free(water_texture->pixels);
 	return;
 }
 
@@ -1208,7 +1212,7 @@ void render_chunks() {
 								square.coords[3] = rotate_and_project((vec3_t) {x + (i * len), y, z + ((j + 1) * len)});
 
 								// 0 as that is the top texture
-								colour_t c = texture->data[j * TEXTURE_WIDTH + i];
+								colour_t c = texture->pixels[j * TEXTURE_WIDTH + i];
 
 								set_light_level(&c, fog_r);
 								set_fog_level(&c, fog_r);
@@ -1256,7 +1260,7 @@ void render_chunks() {
 								square.coords[3] = rotate_and_project((vec3_t) {x + (i * len), y, z + ((j + 1) * len)});
 
 								// 1, as the top face textures are the first square of the texture image
-								colour_t c = texture->data[1 * texture_side + j * TEXTURE_WIDTH + i];
+								colour_t c = texture->pixels[1 * texture_side + j * TEXTURE_WIDTH + i];
 
 								set_light_level(&c, fog_r);
 								set_fog_level(&c, fog_r);
@@ -1304,7 +1308,7 @@ void render_chunks() {
 								square.coords[3] = rotate_and_project((vec3_t) {x + (i * len), y - ((j + 1) * len), z});
 
 								// 2, as the side face textures are the 2nd square of the texture image
-								colour_t c = texture->data[2 * texture_side + j * TEXTURE_WIDTH + i];
+								colour_t c = texture->pixels[2 * texture_side + j * TEXTURE_WIDTH + i];
 
 								set_light_level(&c, fog_r);
 								set_fog_level(&c, fog_r);
@@ -1351,7 +1355,7 @@ void render_chunks() {
 								square.coords[2] = rotate_and_project((vec3_t) {x + ((i + 1) * len), y - ((j + 1) * len), z});
 								square.coords[3] = rotate_and_project((vec3_t) {x + (i * len), y - ((j + 1) * len), z});
 
-								colour_t c = texture->data[2 * texture_side + j * TEXTURE_WIDTH + i];
+								colour_t c = texture->pixels[2 * texture_side + j * TEXTURE_WIDTH + i];
 
 								set_light_level(&c, fog_r);
 								set_fog_level(&c, fog_r);
@@ -1398,7 +1402,7 @@ void render_chunks() {
 								square.coords[2] = rotate_and_project((vec3_t) {x, y - ((j + 1) * len), z + ((i + 1) * len)});
 								square.coords[3] = rotate_and_project((vec3_t) {x, y - ((j + 1) * len), z + (i * len)});
 
-								colour_t c = texture->data[2 * texture_side + j * TEXTURE_WIDTH + i];
+								colour_t c = texture->pixels[2 * texture_side + j * TEXTURE_WIDTH + i];
 
 								set_light_level(&c, fog_r);
 								set_fog_level(&c, fog_r);
@@ -1445,7 +1449,7 @@ void render_chunks() {
 								square.coords[2] = rotate_and_project((vec3_t) {x, y - ((j + 1) * len), z + ((i + 1) * len)});
 								square.coords[3] = rotate_and_project((vec3_t) {x, y - ((j + 1) * len), z + (i * len)});
 
-								colour_t c = texture->data[2 * texture_side + j * TEXTURE_WIDTH + i];
+								colour_t c = texture->pixels[2 * texture_side + j * TEXTURE_WIDTH + i];
 
 								set_light_level(&c, fog_r);
 								set_fog_level(&c, fog_r);
@@ -1558,7 +1562,7 @@ void render_cube_to_faces_array(texture_t *texture, vec3_t cube_top_left_front_p
 						square.coords[3] = rotate_and_project_by_rot_value((vec3_t) {x + (i * len), y, z + ((j + 1) * len)}, x_rot, y_rot);
 
 						// 0 as that is the top texture
-						colour_t c = texture->data[j * TEXTURE_WIDTH + i];
+						colour_t c = texture->pixels[j * TEXTURE_WIDTH + i];
 
 						square.colour = pack_colour_to_uint32(&c);
 						if (texture == water_texture) {
@@ -1591,7 +1595,7 @@ void render_cube_to_faces_array(texture_t *texture, vec3_t cube_top_left_front_p
 						square.coords[3] = rotate_and_project_by_rot_value((vec3_t) {x + (i * len), y, z + ((j + 1) * len)}, x_rot, y_rot);
 
 						// 1, as the top face textures are the first square of the texture image
-						colour_t c = texture->data[1 * texture_side + j * TEXTURE_WIDTH + i];
+						colour_t c = texture->pixels[1 * texture_side + j * TEXTURE_WIDTH + i];
 
 						square.colour = pack_colour_to_uint32(&c);
 						if (texture == water_texture) {
@@ -1624,7 +1628,7 @@ void render_cube_to_faces_array(texture_t *texture, vec3_t cube_top_left_front_p
 						square.coords[3] = rotate_and_project_by_rot_value((vec3_t) {x + (i * len), y - ((j + 1) * len), z}, x_rot, y_rot);
 
 						// 2, as the side face textures are the 2nd square of the texture image
-						colour_t c = texture->data[2 * texture_side + j * TEXTURE_WIDTH + i];
+						colour_t c = texture->pixels[2 * texture_side + j * TEXTURE_WIDTH + i];
 
 						square.colour = pack_colour_to_uint32(&c);
 						if (texture == water_texture) {
@@ -1656,7 +1660,7 @@ void render_cube_to_faces_array(texture_t *texture, vec3_t cube_top_left_front_p
 						square.coords[2] = rotate_and_project_by_rot_value((vec3_t) {x + ((i + 1) * len), y - ((j + 1) * len), z}, x_rot, y_rot);
 						square.coords[3] = rotate_and_project_by_rot_value((vec3_t) {x + (i * len), y - ((j + 1) * len), z}, x_rot, y_rot);
 
-						colour_t c = texture->data[2 * texture_side + j * TEXTURE_WIDTH + i];
+						colour_t c = texture->pixels[2 * texture_side + j * TEXTURE_WIDTH + i];
 
 						square.colour = pack_colour_to_uint32(&c);
 						if (texture == water_texture) {
@@ -1688,7 +1692,7 @@ void render_cube_to_faces_array(texture_t *texture, vec3_t cube_top_left_front_p
 						square.coords[2] = rotate_and_project_by_rot_value((vec3_t) {x, y - ((j + 1) * len), z + ((i + 1) * len)}, x_rot, y_rot);
 						square.coords[3] = rotate_and_project_by_rot_value((vec3_t) {x, y - ((j + 1) * len), z + (i * len)}, x_rot, y_rot);
 
-						colour_t c = texture->data[2 * texture_side + j * TEXTURE_WIDTH + i];
+						colour_t c = texture->pixels[2 * texture_side + j * TEXTURE_WIDTH + i];
 
 						square.colour = pack_colour_to_uint32(&c);
 						if (texture == water_texture) {
@@ -1720,7 +1724,7 @@ void render_cube_to_faces_array(texture_t *texture, vec3_t cube_top_left_front_p
 						square.coords[2] = rotate_and_project_by_rot_value((vec3_t) {x, y - ((j + 1) * len), z + ((i + 1) * len)}, x_rot, y_rot);
 						square.coords[3] = rotate_and_project_by_rot_value((vec3_t) {x, y - ((j + 1) * len), z + (i * len)}, x_rot, y_rot);
 
-						colour_t c = texture->data[2 * texture_side + j * TEXTURE_WIDTH + i];
+						colour_t c = texture->pixels[2 * texture_side + j * TEXTURE_WIDTH + i];
 
 						square.colour = pack_colour_to_uint32(&c);
 						if (texture == water_texture) {
@@ -2793,177 +2797,119 @@ void generate_textures() {
 	// * 3 for top bottom side of cube
     int width = TEXTURE_WIDTH * 3;
     int height = TEXTURE_WIDTH;
-    texture_t myImg = {width, height, malloc(width * height * 3)};
+	grass_texture = malloc(sizeof(texture_t));
+    grass_texture->pixels = malloc(width * height * 3 * sizeof(colour_t));
+	grass_texture->width = width;
+	grass_texture->height = height;
+	assert(grass_texture != NULL);
 
 	// top
 	int i = 0;
 	for (i; i < SQUARES_PER_FACE; i++) {
-		myImg.data[i] = (colour_t){10, 180 + (rand() % 70), 20 + (rand() % 60)};
+		grass_texture->pixels[i] = (colour_t){10, 180 + (rand() % 70), 20 + (rand() % 60)};
 	}
 	// bottom
 	for (i; i < 2 * SQUARES_PER_FACE; i++) {
-		myImg.data[i] = (colour_t){150 + (rand() % 70), 75 + (rand() % 60), 10 + (rand() % 60)};
+		grass_texture->pixels[i] = (colour_t){150 + (rand() % 70), 75 + (rand() % 60), 10 + (rand() % 60)};
 	}
 	// side
 	for (i; i < 3 * SQUARES_PER_FACE; i++) {
 		if (i < 2.5 * SQUARES_PER_FACE) {
-			myImg.data[i] = (colour_t){10, 180 + (rand() % 70), 20 + (rand() % 60)};
+			grass_texture->pixels[i] = (colour_t){10, 180 + (rand() % 70), 20 + (rand() % 60)};
 		}
 		else {
-			myImg.data[i] = (colour_t){150 + (rand() % 70), 75 + (rand() % 60), 10 + (rand() % 60)};
+			grass_texture->pixels[i] = (colour_t){150 + (rand() % 70), 75 + (rand() % 60), 10 + (rand() % 60)};
 		}
 	}
-
-    writePPM("grass.ppm", &myImg);
-
-	grass_texture = readPPM("grass.ppm");
-	assert(grass_texture != NULL);
 
 	// create stone texture
 	// top bottom side
+	stone_texture = malloc(sizeof(texture_t));
+    stone_texture->pixels = malloc(width * height * 3 * sizeof(colour_t));
+	stone_texture->width = width;
+	stone_texture->height = height;
+	assert(stone_texture != NULL);
+
 	i = 0;
 	for (i; i < SQUARES_PER_FACE * 3; i++) {
-		myImg.data[i] = (colour_t){110 + (rand()  % 20), 110 + (rand()  % 20), 120 + (rand()  % 20)};
+		stone_texture->pixels[i] = (colour_t){110 + (rand()  % 20), 110 + (rand()  % 20), 120 + (rand()  % 20)};
 	}
 
-    writePPM("stone.ppm", &myImg);
-
-	stone_texture = readPPM("stone.ppm");
-	assert(stone_texture != NULL);
-	
 	// create dirt texture
 	// top bottom side
+	dirt_texture = malloc(sizeof(texture_t));
+    dirt_texture->pixels = malloc(width * height * 3 * sizeof(colour_t));
+	dirt_texture->width = width;
+	dirt_texture->height = height;
+	assert(dirt_texture != NULL);
+
 	i = 0;
 	for (i; i < SQUARES_PER_FACE * 3; i++) {
-		myImg.data[i] = (colour_t){150 + (rand() % 70), 75 + (rand() % 60), 10 + (rand() % 60)};
+		dirt_texture->pixels[i] = (colour_t){150 + (rand() % 70), 75 + (rand() % 60), 10 + (rand() % 60)};
 	}
-
-    writePPM("dirt.ppm", &myImg);
-
-	dirt_texture = readPPM("dirt.ppm");
-	assert(dirt_texture != NULL);
 
 	// create wood texture
 	// * 3 for top bottom side of cube
 	// top
+	wood_texture = malloc(sizeof(texture_t));
+    wood_texture->pixels = malloc(width * height * 3 * sizeof(colour_t));
+	wood_texture->width = width;
+	wood_texture->height = height;
+	assert(wood_texture != NULL);
+
 	i = 0;
 	for (i; i < SQUARES_PER_FACE; i++) {
-		myImg.data[i] = (colour_t){200 + (rand() % 50), 180 + (rand() % 50), 150 + (rand() % 50)};
+		wood_texture->pixels[i] = (colour_t){200 + (rand() % 50), 180 + (rand() % 50), 150 + (rand() % 50)};
 	}
 	// bottom
 	for (i; i < 2 * SQUARES_PER_FACE; i++) {
-		myImg.data[i] = (colour_t){200 + (rand() % 50), 180 + (rand() % 50), 150 + (rand() % 50)};
+		wood_texture->pixels[i] = (colour_t){200 + (rand() % 50), 180 + (rand() % 50), 150 + (rand() % 50)};
 	}
 	// side
 	for (i; i < 3 * SQUARES_PER_FACE; i++) {
-		myImg.data[i] = (colour_t){ 110 + (rand() % 7),  70 + (rand() % 15),  40 + (rand() % 10)};
+		wood_texture->pixels[i] = (colour_t){ 110 + (rand() % 7),  70 + (rand() % 15),  40 + (rand() % 10)};
 	}
-
-    writePPM("wood.ppm", &myImg);
-
-	wood_texture = readPPM("wood.ppm");
-	assert(wood_texture != NULL);
 
 	// create leaf texture
 	// top bottom side
+	leaf_texture = malloc(sizeof(texture_t));
+    leaf_texture->pixels = malloc(width * height * 3 * sizeof(colour_t));
+	leaf_texture->width = width;
+	leaf_texture->height = height;
+	assert(leaf_texture != NULL);
+
 	i = 0;
 	for (i; i < SQUARES_PER_FACE * 3; i++) {
-		myImg.data[i] = (colour_t){5 - (rand()  % 5), 95 - (rand()  % 40), 7 - (rand()  % 7)};
+		leaf_texture->pixels[i] = (colour_t){5 - (rand()  % 5), 95 - (rand()  % 40), 7 - (rand()  % 7)};
 	}
-
-    writePPM("leaf.ppm", &myImg);
-
-	leaf_texture = readPPM("leaf.ppm");
-	assert(leaf_texture != NULL);
 
 	// create sand texture
 	// top bottom side
+	sand_texture = malloc(sizeof(texture_t));
+    sand_texture->pixels = malloc(width * height * 3 * sizeof(colour_t));
+	sand_texture->width = width;
+	sand_texture->height = height;
+	assert(sand_texture != NULL);
+
 	i = 0;
 	for (i; i < SQUARES_PER_FACE * 3; i++) {
-		myImg.data[i] = (colour_t){240 - (rand()  % 5), 190 - (rand()  % 40), 80 - (rand()  % 7)};
+		sand_texture->pixels[i] = (colour_t){240 - (rand()  % 5), 190 - (rand()  % 40), 80 - (rand()  % 7)};
 	}
-
-    writePPM("sand.ppm", &myImg);
-
-	sand_texture = readPPM("sand.ppm");
-	assert(leaf_texture != NULL);
 
 	// create water texture
 	// top bottom side
-	i = 0;
-	for (i; i < SQUARES_PER_FACE * 3; i++) {
-		myImg.data[i] = (colour_t){50 + (rand() % 50), 50 + (rand() % 50), 255};
-	}
-
-    writePPM("water.ppm", &myImg);
-
-	water_texture = readPPM("water.ppm");
+	water_texture = malloc(sizeof(texture_t));
+    water_texture->pixels = malloc(width * height * 3 * sizeof(colour_t));
+	water_texture->width = width;
+	water_texture->height = height;
 	assert(water_texture != NULL);
 
-    free(myImg.data);
-
-	return;
-}
-
-// gpt write and read ppm
-void writePPM(const char *filename, texture_t *img) {
-
-    FILE *fp = fopen(filename, "wb");
-    if (!fp) {
-		assert(0);
+	i = 0;
+	for (i; i < SQUARES_PER_FACE * 3; i++) {
+		water_texture->pixels[i] = (colour_t){50 + (rand() % 50), 50 + (rand() % 50), 255};
 	}
 
-    fprintf(fp, "P6\n%d %d\n255\n", img->width, img->height);
-    
-    fwrite(img->data, 3, img->width * img->height, fp);
-    fclose(fp);
-
 	return;
-}
-
-texture_t* readPPM(const char *filename) {
-
-    FILE *fp = fopen(filename, "rb");
-    if (!fp) return NULL;
-
-    char header[3];
-    int width, height, maxVal;
-
-    if (fscanf(fp, "%2s", header) != 1 || strcmp(header, "P6") != 0) {
-        fclose(fp);
-        return NULL;
-    }
-
-    if (fscanf(fp, "%d %d", &width, &height) != 2) {
-        fclose(fp);
-        return NULL;
-    }
-
-    if (fscanf(fp, "%d", &maxVal) != 1 || maxVal != 255) {
-        fclose(fp);
-        return NULL;
-    }
-
-    fgetc(fp);
-
-    texture_t *img = malloc(sizeof(texture_t));
-    img->width = width;
-    img->height = height;
-    img->data = malloc(width * height * sizeof(colour_t));
-
-    if (fread(img->data,
-              sizeof(colour_t),
-              width * height,
-              fp) != width * height) {
-        free(img->data);
-        free(img);
-        fclose(fp);
-        return NULL;
-    }
-
-    fclose(fp);
-
-    return img;
 }
 
 // gpt perlin:
