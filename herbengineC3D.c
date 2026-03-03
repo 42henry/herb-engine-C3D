@@ -175,8 +175,6 @@ static void update();
 
 static void cleanup();
 
-static void debug_log(char *str);
-
 // physics
 static int player_inside_cube(vec3_t cube_top_left_front_pos);
 static int collided();
@@ -312,9 +310,6 @@ static face_t hand_leaf_faces[6];
 static face_t hand_sand_faces[6];
 static face_t hand_water_faces[6];
 static vec3_t hand_pos = {0};
-static int hand_index;
-
-static int small_height;
 
 // rendering
 static float x_rotation;
@@ -423,7 +418,6 @@ void init_stuff() {
 	render_cube_to_faces_array(leaf_texture, hand_pos, hand_leaf_faces, 0);
 	render_cube_to_faces_array(sand_texture, hand_pos, hand_sand_faces, 0);
 	render_cube_to_faces_array(water_texture, hand_pos, hand_water_faces, 0);
-	hand_index = 0;
 
 	// - chunks
 	occupied_chunk_index = NUM_CHUNKS / 2;
@@ -453,6 +447,7 @@ void cleanup() {
 	}
 	free(chunk_edits.items);
 	free(grass_texture->pixels);
+	free(dirt_texture->pixels);
 	free(stone_texture->pixels);
 	free(wood_texture->pixels);
 	free(leaf_texture->pixels);
@@ -717,27 +712,21 @@ void handle_input() {
 
 	if (keys[one]) {
 		hotbar_selection = 0;
-		hand_index = 0;
 	}
 	if (keys[two]) {
 		hotbar_selection = 1;
-		hand_index = 1;
 	}
 	if (keys[three]) {
 		hotbar_selection = 2;
-		hand_index = 2;
 	}
 	if (keys[four]) {
 		hotbar_selection = 3;
-		hand_index = 3;
 	}
 	if (keys[five]) {
 		hotbar_selection = 4;
-		hand_index = 4;
 	}
 	if (keys[six]) {
 		hotbar_selection = 5;
-		hand_index = 5;
 	}
 	return;
 }
@@ -1070,7 +1059,7 @@ void draw_cursor() {
 
 void draw_hand() {
 	face_t *faces;
-	switch (hand_index) {
+	switch (hotbar_selection) {
 		case 0: {
 			faces = hand_grass_faces;
 			break;
@@ -1827,13 +1816,13 @@ void set_light_level(colour_t *c, float fog_r) {
 		r = c->r;
 	}
 	if (g < 0) {
-		g == 0;
+		g = 0;
 	}
 	else if (g > c->g) {
 		g = c->g;
 	}
 	if (b < 0) {
-		b == 0;
+		b = 0;
 	}
 	else if (b > c->b) {
 		b = c->b;
@@ -1889,7 +1878,7 @@ vec3_t rotate_and_project_by_rot_value(vec3_t pos, float x_rot, float y_rot) {
 	new_pos.z = (z2 * cos(y_rot) - pos.y * sin(y_rot));
 
 	int neg = 0;
-	if (new_pos.z == 0) {
+	if (new_pos.z <= 0) {
 		neg = 1;
 		// avoid divide by 0
 		new_pos.z = 7;
