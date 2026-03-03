@@ -6,8 +6,7 @@ that I can update each frame with my own functions,
 this is my attempt to make a 3D game like minecraft!
 I have used gpt to help write the x11 or winapi parts of the code,
 so I can just have my array of pixels that I update each frame.
-I also used gpt to make the write and read PPM functions as this does not
-interest me, and also for perlin noise, as this is outside the scope of this project
+I also used gpt to make the perlin noise function, as the maths for this is outside project scope,
 but I thought it would be nice to have. Everything else is from scratch!
 
 Work done so far:
