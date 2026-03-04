@@ -5,7 +5,7 @@
 
 /* -------------------------- TODO list -------------------------- */
 
-// fix collision issue where you get stuck in a block at a chunk boundary
+// fix collision issue where you get stuck in a block at a chunk boundary - probs just have to check adjacent chunks too
 // fix rendering issue when some points have -z the square draws rlly big on screen
 
 /* -------------------------- defines -------------------------- */
@@ -309,6 +309,9 @@ static face_t hand_wood_faces[6];
 static face_t hand_leaf_faces[6];
 static face_t hand_sand_faces[6];
 static face_t hand_water_faces[6];
+static face_t hand_black_faces[6];
+static face_t hand_white_faces[6];
+static face_t hand_beige_faces[6];
 static vec3_t hand_pos = {0};
 
 // rendering
@@ -338,6 +341,9 @@ texture_t *wood_texture = NULL;
 texture_t *leaf_texture = NULL;
 texture_t *sand_texture = NULL;
 texture_t *water_texture = NULL;
+texture_t *black_texture = NULL;
+texture_t *white_texture = NULL;
+texture_t *beige_texture = NULL;
 
 // gpt perlin noise
 static perlin_t noise;
@@ -418,6 +424,9 @@ void init_stuff() {
 	render_cube_to_faces_array(leaf_texture, hand_pos, hand_leaf_faces, 0);
 	render_cube_to_faces_array(sand_texture, hand_pos, hand_sand_faces, 0);
 	render_cube_to_faces_array(water_texture, hand_pos, hand_water_faces, 0);
+	render_cube_to_faces_array(black_texture, hand_pos, hand_black_faces, 0);
+	render_cube_to_faces_array(white_texture, hand_pos, hand_white_faces, 0);
+	render_cube_to_faces_array(beige_texture, hand_pos, hand_beige_faces, 0);
 
 	// - chunks
 	occupied_chunk_index = NUM_CHUNKS / 2;
@@ -453,6 +462,9 @@ void cleanup() {
 	free(leaf_texture->pixels);
 	free(sand_texture->pixels);
 	free(water_texture->pixels);
+	free(black_texture->pixels);
+	free(white_texture->pixels);
+	free(beige_texture->pixels);
 	return;
 }
 
@@ -727,6 +739,15 @@ void handle_input() {
 	}
 	if (keys[six]) {
 		hotbar_selection = 5;
+	}
+	if (keys[seven]) {
+		hotbar_selection = 6;
+	}
+	if (keys[eight]) {
+		hotbar_selection = 7;
+	}
+	if (keys[nine]) {
+		hotbar_selection = 8;
 	}
 	return;
 }
@@ -1082,6 +1103,18 @@ void draw_hand() {
 		}
 		case 5: {
 			faces = hand_water_faces;
+			break;
+		}
+		case 6: {
+			faces = hand_black_faces;
+			break;
+		}
+		case 7: {
+			faces = hand_white_faces;
+			break;
+		}
+		case 8: {
+			faces = hand_beige_faces;
 			break;
 		}
 	}
@@ -2271,6 +2304,18 @@ void player_place_cube() {
 			texture = water_texture;
 			break;
 		}
+		case 6: {
+			texture = black_texture;
+			break;
+		}
+		case 7: {
+			texture = white_texture;
+			break;
+		}
+		case 8: {
+			texture = beige_texture;
+			break;
+		}
 	}
 
 	int cube_i = highlighted_cube_index + index_diff;
@@ -2880,6 +2925,42 @@ void generate_textures() {
 	i = 0;
 	for (i; i < SQUARES_PER_FACE * 3; i++) {
 		water_texture->pixels[i] = (colour_t){50 + (rand() % 50), 50 + (rand() % 50), 255};
+	}
+
+	// create black texture
+	// top bottom side
+	black_texture = malloc(sizeof(texture_t));
+    black_texture->pixels = malloc(width * height * 3 * sizeof(colour_t));
+	black_texture->width = width;
+	black_texture->height = height;
+
+	i = 0;
+	for (i; i < SQUARES_PER_FACE * 3; i++) {
+		black_texture->pixels[i] = (colour_t){30 + (rand()  % 20), 30 + (rand()  % 20), 30 + (rand()  % 20)};
+	}
+
+	// create white texture
+	// top bottom side
+	white_texture = malloc(sizeof(texture_t));
+    white_texture->pixels = malloc(width * height * 3 * sizeof(colour_t));
+	white_texture->width = width;
+	white_texture->height = height;
+
+	i = 0;
+	for (i; i < SQUARES_PER_FACE * 3; i++) {
+		white_texture->pixels[i] = (colour_t){220 + (rand()  % 20), 220 + (rand()  % 20), 220 + (rand()  % 20)};
+	}
+
+	// create beige texture
+	// top bottom side
+	beige_texture = malloc(sizeof(texture_t));
+    beige_texture->pixels = malloc(width * height * 3 * sizeof(colour_t));
+	beige_texture->width = width;
+	beige_texture->height = height;
+
+	i = 0;
+	for (i; i < SQUARES_PER_FACE * 3; i++) {
+		beige_texture->pixels[i] = (colour_t){200 + (rand()  % 20), 150 + (rand()  % 20), 120 + (rand()  % 20)};
 	}
 
 	return;
