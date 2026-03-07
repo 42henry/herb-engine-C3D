@@ -1,4 +1,4 @@
-# herb-engine-C3D
+# herb-engine-C-3D
 
 Playground for 3D rendering from scratch!  
 I know nothing about graphics, all I want is an array of pixels,
