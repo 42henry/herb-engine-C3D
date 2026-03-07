@@ -10,9 +10,9 @@ I also used gpt to make the perlin noise function, as the maths for this is outs
 but I thought it would be nice to have. Everything else is from scratch!
 
 Work done so far:
- - a fill function that takes 4 points and a colour, and fills it in
+ - a fill function that takes 4 points, a colour, and fills it in
  - a rotate and project function that takes an x y and z and rotates it about the camera using a global x and y rotation, and projects it by z
- - texture mapping, which takes each square, and colours it pixel by pixel from a given texture
+ - texture mapping, which takes each cube face, and colours it pixel by pixel from a given texture
  - simple cubicy collisions
  - simple hotbar/hand with different blocks accesible by pressing 1-9
  - back face culling, neighbour face culling
