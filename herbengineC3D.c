@@ -2293,7 +2293,6 @@ void player_place_cube() {
 
 	// check if cube highlighted is at a chunk edge
 	int x = CUBE_X(highlighted_cube_index);
-	int y = CUBE_Y(highlighted_cube_index);
 	int z = CUBE_Z(highlighted_cube_index);
 
 	// if it is, need to make sure we have the right chunk and cube index
