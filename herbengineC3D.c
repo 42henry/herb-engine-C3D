@@ -1612,8 +1612,6 @@ void render_cube_to_faces_array(texture_t *texture, vec3_t cube_top_left_front_p
 
 	for (int face_i = 0; face_i < 6; face_i++) {
 
-		int highlight = 0;
-
 		float centre_x;
 		float centre_y;
 		float centre_z;
