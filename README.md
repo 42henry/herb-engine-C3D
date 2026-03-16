@@ -50,7 +50,7 @@ To compile:
  - linux:  
    - gcc -o DigMake.o -lX11 -lm -O3 -march=native ./linux-platform.c  
  - Windows:
-   - gcc -o DigMake.exe -lgdi32 -mwindows -O3 -march=native .\main-windows.c
+   - gcc -o DigMake.exe -O3 -march=native windows-platform.c -lgdi32 -lwinmm -mwindows
  - Web:
    - emcc main_web.c -O2 -lm -s ALLOW_MEMORY_GROWTH=1 -s EXPORTED_RUNTIME_METHODS='["ccall"]' -s EXPORTED_FUNCTIONS='["_main","_set_holding_mouse"]' -o DigMake.html
 
